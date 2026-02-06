@@ -11,19 +11,35 @@ interface PosterPreviewProps {
 export function PosterPreview({ result }: PosterPreviewProps) {
   const config = FORMAT_CONFIGS[result.format];
 
-  const handleDownload = () => {
-    if (!result.imageBase64) return;
-    const link = document.createElement("a");
-    link.href = `data:image/png;base64,${result.imageBase64}`;
-    link.download = `poster-${result.format}.png`;
-    link.click();
+  // Support both base64 (immediate preview) and Convex storage URL (from history)
+  const imageSrc = result.imageBase64
+    ? `data:image/png;base64,${result.imageBase64}`
+    : result.storageUrl || "";
+
+  const handleDownload = async () => {
+    if (!imageSrc) return;
+
+    if (result.storageUrl && !result.imageBase64) {
+      const response = await fetch(result.storageUrl);
+      const blob = await response.blob();
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = `poster-${result.format}.png`;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    } else {
+      const link = document.createElement("a");
+      link.href = imageSrc;
+      link.download = `poster-${result.format}.png`;
+      link.click();
+    }
   };
 
   const handleShare = async () => {
-    if (!result.imageBase64 || !navigator.share) return;
+    if (!imageSrc || !navigator.share) return;
 
     try {
-      const response = await fetch(`data:image/png;base64,${result.imageBase64}`);
+      const response = await fetch(imageSrc);
       const blob = await response.blob();
       const file = new File([blob], `poster-${result.format}.png`, {
         type: "image/png",
@@ -60,7 +76,7 @@ export function PosterPreview({ result }: PosterPreviewProps) {
           </div>
         ) : (
           <img
-            src={`data:image/png;base64,${result.imageBase64}`}
+            src={imageSrc}
             alt={`بوستر ${config.label}`}
             className="max-w-full max-h-[400px] object-contain rounded-xl shadow-md"
           />

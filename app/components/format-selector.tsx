@@ -1,8 +1,8 @@
 "use client";
 
-import { Square, Smartphone, Monitor } from "lucide-react";
+import { Square, Smartphone, Monitor, Image, MessageCircle } from "lucide-react";
 import type { OutputFormat } from "@/lib/types";
-import { FORMAT_CONFIGS } from "@/lib/constants";
+import { FORMAT_CONFIGS, AI_GENERATION_FORMATS } from "@/lib/constants";
 
 interface FormatSelectorProps {
   selected: OutputFormat[];
@@ -13,6 +13,9 @@ const formatIcons: Record<OutputFormat, typeof Square> = {
   "instagram-square": Square,
   "instagram-story": Smartphone,
   "facebook-post": Monitor,
+  "facebook-cover": Image,
+  "twitter-post": Monitor,
+  "whatsapp-status": MessageCircle,
 };
 
 export function FormatSelector({ selected, onChange }: FormatSelectorProps) {
@@ -32,7 +35,7 @@ export function FormatSelector({ selected, onChange }: FormatSelectorProps) {
         اختر حجم المنشور
       </label>
       <div className="grid grid-cols-3 gap-4">
-        {(Object.keys(FORMAT_CONFIGS) as OutputFormat[]).map((format) => {
+        {AI_GENERATION_FORMATS.map((format) => {
           const config = FORMAT_CONFIGS[format];
           const Icon = formatIcons[format];
           const isSelected = selected.includes(format);

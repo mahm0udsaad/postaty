@@ -1,9 +1,11 @@
 "use server";
 
-import { generateText } from "ai";
+import { generateText, experimental_generateImage as generateImage } from "ai";
 import { gateway } from "@/lib/ai";
 import { getSystemPrompt, buildUserMessage } from "@/lib/prompts";
+import type { BrandKitPromptData } from "@/lib/prompts";
 import { FORMAT_CONFIGS } from "@/lib/constants";
+import { postFormDataSchema } from "@/lib/validation";
 import type { PostFormData, GenerationResult } from "@/lib/types";
 
 function getImages(data: PostFormData): string[] {
@@ -44,21 +46,26 @@ function getProductName(data: PostFormData): string {
   }
 }
 
-function dataUrlToBuffer(dataUrl: string): Buffer {
-  const base64 = dataUrl.replace(/^data:image\/\w+;base64,/, "");
-  return Buffer.from(base64, "base64");
-}
-
 export async function generatePoster(
-  data: PostFormData
+  data: PostFormData,
+  brandKit?: BrandKitPromptData
 ): Promise<{
   results: GenerationResult[];
   prompt: string;
   businessName: string;
   productName: string;
 }> {
-  // Step 1: Craft the image generation prompt using GPT-4o
-  const systemPrompt = getSystemPrompt(data.category);
+  // Step 0: Validate input server-side
+  const validation = postFormDataSchema.safeParse(data);
+  if (!validation.success) {
+    const errors = validation.error.issues
+      .map((issue) => issue.message)
+      .join(", ");
+    throw new Error(`Validation failed: ${errors}`);
+  }
+
+  // Step 1: Craft the image generation prompt using GPT-4o (with brand kit if provided)
+  const systemPrompt = getSystemPrompt(data.category, brandKit);
   const userMessage = buildUserMessage(data);
 
   const { text: craftedPrompt } = await generateText({
@@ -67,48 +74,25 @@ export async function generatePoster(
     prompt: userMessage,
   });
 
-  // Step 2: Prepare input images as buffers
-  const inputImageBuffers = getImages(data).map(dataUrlToBuffer);
-
   const results: GenerationResult[] = [];
 
   for (const format of data.formats) {
     const config = FORMAT_CONFIGS[format];
 
     try {
-      // Use Gemini 3 Pro (multimodal LLM) which accepts input images
-      // and can generate images using generateText
-      const result = await generateText({
-        model: gateway("google/gemini-3-pro-image"),
-        messages: [
-          {
-            role: "user",
-            content: [
-              // Pass all uploaded images
-              ...inputImageBuffers.map((buf) => ({
-                type: "image" as const,
-                image: buf,
-              })),
-              // Pass the crafted prompt with format instructions
-              {
-                type: "text" as const,
-                text: `Using the provided images (product/meal photo and logo), create a professional ${config.aspectRatio} social media marketing poster.\n\n${craftedPrompt}\n\nIMPORTANT: Use the EXACT uploaded images in the poster - the meal/product photo and the logo. Do NOT generate new food images. The poster should have the aspect ratio ${config.aspectRatio}. Generate ONLY the image, no text response.`,
-              },
-            ],
-          },
-        ],
+      // Use Google Imagen 4.0 for image generation
+      const imagePrompt = `Using the provided images (product/meal photo and logo), create a professional ${config.aspectRatio} social media marketing poster.\n\n${craftedPrompt}\n\nIMPORTANT: Use the EXACT uploaded images in the poster - the meal/product photo and the logo. Do NOT generate new food images. The poster should have the aspect ratio ${config.aspectRatio}. Generate ONLY the image, no text response.`;
+
+      const result = await generateImage({
+        model: "google/gemini-2.5-flash-image" as any,
+        prompt: imagePrompt,
+        aspectRatio: config.aspectRatio as `${number}:${number}`,
       });
 
-      // Gemini returns images in result.files
-      const imageFile = result.files?.find((f) =>
-        f.mediaType?.startsWith("image/")
-      );
-
-      if (imageFile) {
-        const base64 = Buffer.from(imageFile.uint8Array).toString("base64");
+      if (result.image) {
         results.push({
           format,
-          imageBase64: base64,
+          imageBase64: result.image.base64,
           status: "complete",
         });
       } else {

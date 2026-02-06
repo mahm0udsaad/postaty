@@ -8,11 +8,17 @@ const nextConfig: NextConfig = {
         protocol: "https",
         hostname: "oaidalleapiprodscus.blob.core.windows.net",
       },
+      {
+        // Convex file storage URLs
+        protocol: "https",
+        hostname: "*.convex.cloud",
+      },
     ],
   },
-  // @ts-expect-error - serverActions is valid but not in NextConfig type yet
-  serverActions: {
-    bodySizeLimit: "50mb",
+  experimental: {
+    serverActions: {
+      bodySizeLimit: "10mb",
+    },
   },
 };
 

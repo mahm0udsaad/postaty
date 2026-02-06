@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { Noto_Kufi_Arabic } from "next/font/google";
 import { ConvexClientProvider } from "./components/convex-provider";
+import { NavBar } from "./components/nav-bar";
 import "./globals.css";
 
 const notoKufiArabic = Noto_Kufi_Arabic({
@@ -22,7 +23,10 @@ export default function RootLayout({
   return (
     <html lang="ar" dir="rtl">
       <body className={`${notoKufiArabic.variable} antialiased`}>
-        <ConvexClientProvider>{children}</ConvexClientProvider>
+        <ConvexClientProvider>
+          <NavBar />
+          {children}
+        </ConvexClientProvider>
       </body>
     </html>
   );

@@ -1,4 +1,7 @@
-import type { PostFormData } from "./types";
+import type { PostFormData, BrandPalette } from "./types";
+import { DEFAULT_NEGATIVE_PROMPTS } from "./constants";
+
+// ── Base Instructions ──────────────────────────────────────────────
 
 const BASE_INSTRUCTIONS = `You are an expert graphic designer specializing in social media marketing posters for businesses in the MENA region (Middle East & North Africa).
 
@@ -16,6 +19,8 @@ CRITICAL REQUIREMENTS:
 - The design should feel modern, clean, and trustworthy
 
 OUTPUT: Return ONLY the image generation prompt text. No explanations or additional text.`;
+
+// ── Category-specific prompts ──────────────────────────────────────
 
 const RESTAURANT_PROMPT = `${BASE_INSTRUCTIONS}
 
@@ -67,15 +72,93 @@ The poster should include:
 9. WhatsApp button with number
 10. CTA text in a prominent button`;
 
-export function getSystemPrompt(category: PostFormData["category"]): string {
+// ── Brand Kit Injection ────────────────────────────────────────────
+
+export interface BrandKitPromptData {
+  palette: BrandPalette;
+  styleAdjectives: string[];
+  doRules: string[];
+  dontRules: string[];
+  styleSeed?: string;
+}
+
+function buildBrandKitSection(brandKit: BrandKitPromptData): string {
+  const sections: string[] = [];
+
+  sections.push(`--- BRAND KIT ---`);
+  sections.push(
+    `Primary Color: ${brandKit.palette.primary} | Secondary: ${brandKit.palette.secondary} | Accent: ${brandKit.palette.accent}`
+  );
+  sections.push(`Background: ${brandKit.palette.background}`);
+  sections.push(`Text Color: ${brandKit.palette.text}`);
+
+  if (brandKit.styleAdjectives.length > 0) {
+    sections.push(`Style: ${brandKit.styleAdjectives.join(", ")}`);
+  }
+
+  if (brandKit.doRules.length > 0) {
+    sections.push(`\nBRAND RULES (MUST follow):`);
+    brandKit.doRules.forEach((rule) => sections.push(`- DO: ${rule}`));
+  }
+
+  if (brandKit.dontRules.length > 0) {
+    sections.push(`\nBRAND RESTRICTIONS (MUST NOT do):`);
+    brandKit.dontRules.forEach((rule) => sections.push(`- DON'T: ${rule}`));
+  }
+
+  sections.push(`---`);
+
+  return sections.join("\n");
+}
+
+function buildStyleSeedSection(styleSeed: string): string {
+  return `\n--- STYLE REFERENCE ---\nMatch the visual style of this reference design. Maintain the same color treatment, layout density, typography weight, and overall aesthetic:\n${styleSeed}\n---\n`;
+}
+
+// ── Negative Prompts ───────────────────────────────────────────────
+
+export function buildNegativePrompts(dontRules: string[] = []): string {
+  const negatives: string[] = [...DEFAULT_NEGATIVE_PROMPTS];
+  dontRules.forEach((rule) => negatives.push(rule));
+  return `\nAVOID: ${negatives.join(", ")}`;
+}
+
+// ── Public API ─────────────────────────────────────────────────────
+
+export function getSystemPrompt(
+  category: PostFormData["category"],
+  brandKit?: BrandKitPromptData
+): string {
+  let prompt: string;
   switch (category) {
     case "restaurant":
-      return RESTAURANT_PROMPT;
+      prompt = RESTAURANT_PROMPT;
+      break;
     case "supermarket":
-      return SUPERMARKET_PROMPT;
+      prompt = SUPERMARKET_PROMPT;
+      break;
     case "online":
-      return ONLINE_PROMPT;
+      prompt = ONLINE_PROMPT;
+      break;
   }
+
+  // Inject brand kit if provided
+  if (brandKit) {
+    prompt += "\n\n" + buildBrandKitSection(brandKit);
+
+    // Inject style seed if locked
+    if (brandKit.styleSeed) {
+      prompt += "\n" + buildStyleSeedSection(brandKit.styleSeed);
+    }
+
+    // Append negative prompts (brand-specific + defaults)
+    prompt += "\n" + buildNegativePrompts(brandKit.dontRules);
+  } else {
+    // Default negative prompts even without brand kit
+    prompt += "\n" + buildNegativePrompts();
+  }
+
+  return prompt;
 }
 
 export function buildUserMessage(data: PostFormData): string {
