@@ -386,7 +386,7 @@ export default function Home() {
           <div className="text-center mt-12">
             <button
               onClick={handleGenerateMore}
-              disabled={!lastSubmission || isPending || genStep === "generating-designs"}
+              disabled={!lastSubmission || isPending}
               className="px-8 py-3.5 bg-white border border-primary/20 text-primary rounded-xl hover:bg-primary hover:text-white shadow-lg shadow-primary/10 hover:shadow-primary/20 transition-all font-bold text-lg transform hover:-translate-y-1 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               إنشاء 4 تصاميم إضافية مختلفة
