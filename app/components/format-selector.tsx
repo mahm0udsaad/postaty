@@ -48,14 +48,14 @@ export function FormatSelector({ selected, onChange }: FormatSelectorProps) {
               className={`relative flex flex-col items-center gap-3 p-4 rounded-2xl border transition-all duration-200
                 ${isSelected 
                   ? "border-primary bg-primary/5 text-primary ring-2 ring-primary ring-offset-2" 
-                  : "border-card-border text-muted hover:border-primary/30 hover:bg-slate-50"}`}
+                  : "border-card-border text-muted-foreground hover:border-primary/30 hover:bg-slate-50"}`}
             >
               <div className={`p-2 rounded-lg ${isSelected ? 'bg-primary/10' : 'bg-slate-100'}`}>
                 <Icon size={24} />
               </div>
               <div className="text-center">
-                <span className="block text-xs font-bold mb-1">{config.label}</span>
-                <span className="block text-[10px] opacity-70 bg-white/50 px-2 py-0.5 rounded-full border border-black/5">{config.aspectRatio}</span>
+                <span className="block text-xs font-bold mb-1 text-foreground">{config.label}</span>
+                <span className="block text-[10px] opacity-70 bg-slate-100 px-2 py-0.5 rounded-full border border-slate-200">{config.aspectRatio}</span>
               </div>
             </button>
           );

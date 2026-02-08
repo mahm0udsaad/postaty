@@ -253,7 +253,7 @@ export function BrandKitForm({ existingKit, orgId }: BrandKitFormProps) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="مثال: مطعم الشام"
-          className="w-full px-4 py-3 bg-slate-50 border border-card-border rounded-xl text-foreground placeholder:text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all"
+          className="w-full px-4 py-3 bg-white rounded-xl border border-card-border focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary/40 transition-all placeholder:text-muted/50"
         />
       </div>
 
@@ -273,7 +273,7 @@ export function BrandKitForm({ existingKit, orgId }: BrandKitFormProps) {
             </div>
             <button
               onClick={handleRemoveLogo}
-              className="absolute -top-2 -left-2 w-6 h-6 bg-danger text-white rounded-full flex items-center justify-center shadow-md hover:bg-danger/80 transition-colors"
+              className="absolute -top-2 -left-2 w-6 h-6 bg-danger text-white rounded-full flex items-center justify-center shadow-md hover:bg-danger/90 transition-colors"
             >
               <X size={14} />
             </button>
@@ -284,9 +284,9 @@ export function BrandKitForm({ existingKit, orgId }: BrandKitFormProps) {
             )}
           </div>
         ) : (
-          <label className="flex flex-col items-center justify-center w-32 h-32 border-2 border-dashed border-card-border rounded-2xl cursor-pointer hover:border-primary/40 hover:bg-primary/5 transition-all">
-            <ImageIcon size={24} className="text-muted mb-2" />
-            <span className="text-xs text-muted">رفع الشعار</span>
+          <label className="flex flex-col items-center justify-center w-32 h-32 border-2 border-dashed border-card-border rounded-2xl cursor-pointer hover:border-primary/40 hover:bg-primary/5 transition-all bg-white/50">
+            <ImageIcon size={24} className="text-muted-foreground mb-2" />
+            <span className="text-xs text-muted-foreground">رفع الشعار</span>
             <input
               type="file"
               accept="image/*"
@@ -328,7 +328,7 @@ export function BrandKitForm({ existingKit, orgId }: BrandKitFormProps) {
           {(Object.keys(PALETTE_LABELS) as (keyof BrandPalette)[]).map(
             (key) => (
               <div key={key} className="space-y-1.5">
-                <span className="text-xs font-medium text-muted">
+                <span className="text-xs font-medium text-muted-foreground">
                   {PALETTE_LABELS[key]}
                 </span>
                 <div className="flex items-center gap-2">
@@ -342,7 +342,7 @@ export function BrandKitForm({ existingKit, orgId }: BrandKitFormProps) {
                     type="text"
                     value={palette[key]}
                     onChange={(e) => handlePaletteChange(key, e.target.value)}
-                    className="flex-1 px-3 py-2 bg-slate-50 border border-card-border rounded-lg text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all"
+                    className="flex-1 px-3 py-2 bg-white rounded-lg border border-card-border text-sm font-mono focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary/40 transition-all"
                     maxLength={7}
                   />
                 </div>
@@ -360,10 +360,10 @@ export function BrandKitForm({ existingKit, orgId }: BrandKitFormProps) {
         <select
           value={fontFamily}
           onChange={(e) => setFontFamily(e.target.value)}
-          className="w-full px-4 py-3 bg-slate-50 border border-card-border rounded-xl text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all"
+          className="w-full px-4 py-3 bg-white rounded-xl border border-card-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary/40 transition-all"
         >
           {FONT_OPTIONS.map((font) => (
-            <option key={font} value={font}>
+            <option key={font} value={font} className="bg-white text-foreground">
               {font}
             </option>
           ))}
@@ -374,7 +374,7 @@ export function BrandKitForm({ existingKit, orgId }: BrandKitFormProps) {
       <div>
         <label className="block text-sm font-bold text-foreground mb-2">
           أسلوب العلامة{" "}
-          <span className="text-muted font-normal">
+          <span className="text-muted-foreground font-normal">
             (اختر حتى 5)
           </span>
         </label>
@@ -388,7 +388,7 @@ export function BrandKitForm({ existingKit, orgId }: BrandKitFormProps) {
                 className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
                   isSelected
                     ? "bg-primary text-white shadow-md shadow-primary/20"
-                    : "bg-slate-50 border border-card-border text-muted hover:border-primary/30 hover:text-primary"
+                    : "bg-white border border-card-border text-muted-foreground hover:border-primary/30 hover:text-primary hover:bg-slate-50"
                 } ${
                   !isSelected && selectedAdjectives.length >= 5
                     ? "opacity-50 cursor-not-allowed"
@@ -417,12 +417,12 @@ export function BrandKitForm({ existingKit, orgId }: BrandKitFormProps) {
                 value={rule}
                 onChange={(e) => handleRuleChange("do", i, e.target.value)}
                 placeholder="مثال: استخدم ألوان دافئة"
-                className="flex-1 px-4 py-2.5 bg-slate-50 border border-card-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all"
+                className="flex-1 px-4 py-2.5 bg-white rounded-xl border border-card-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary/40 transition-all placeholder:text-muted/50"
               />
               {doRules.length > 1 && (
                 <button
                   onClick={() => removeRule("do", i)}
-                  className="p-2 text-muted hover:text-danger transition-colors"
+                  className="p-2 text-muted-foreground hover:text-danger transition-colors"
                 >
                   <Trash2 size={16} />
                 </button>
@@ -454,12 +454,12 @@ export function BrandKitForm({ existingKit, orgId }: BrandKitFormProps) {
                 value={rule}
                 onChange={(e) => handleRuleChange("dont", i, e.target.value)}
                 placeholder="مثال: لا تستخدم صور كرتونية"
-                className="flex-1 px-4 py-2.5 bg-slate-50 border border-card-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary/40 transition-all"
+                className="flex-1 px-4 py-2.5 bg-white rounded-xl border border-card-border text-sm focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary/40 transition-all placeholder:text-muted/50"
               />
               {dontRules.length > 1 && (
                 <button
                   onClick={() => removeRule("dont", i)}
-                  className="p-2 text-muted hover:text-danger transition-colors"
+                  className="p-2 text-muted-foreground hover:text-danger transition-colors"
                 >
                   <Trash2 size={16} />
                 </button>

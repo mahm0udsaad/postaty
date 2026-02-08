@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import type { SupermarketFormData, OutputFormat } from "@/lib/types";
+import type { SupermarketFormData, OutputFormat, CampaignType } from "@/lib/types";
 import {
   SUPERMARKET_CTA_OPTIONS,
   SUPERMARKET_HEADLINE_OPTIONS,
@@ -9,6 +9,7 @@ import {
 import { ImageUpload } from "../image-upload";
 import { MultiImageUpload } from "../multi-image-upload";
 import { FormatSelector } from "../format-selector";
+import { CampaignTypeSelector } from "../campaign-type-selector";
 
 interface SupermarketFormProps {
   onSubmit: (data: SupermarketFormData) => void;
@@ -19,6 +20,7 @@ export function SupermarketForm({ onSubmit, isLoading }: SupermarketFormProps) {
   const [logo, setLogo] = useState<string | null>(null);
   const [productImages, setProductImages] = useState<string[]>([]);
   const [formats, setFormats] = useState<OutputFormat[]>(["instagram-square"]);
+  const [campaignType, setCampaignType] = useState<CampaignType>("standard");
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -28,6 +30,7 @@ export function SupermarketForm({ onSubmit, isLoading }: SupermarketFormProps) {
 
     onSubmit({
       category: "supermarket",
+      campaignType,
       supermarketName: fd.get("supermarketName") as string,
       logo,
       productName: fd.get("productName") as string,
@@ -45,12 +48,13 @@ export function SupermarketForm({ onSubmit, isLoading }: SupermarketFormProps) {
     <form onSubmit={handleSubmit} className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="space-y-5">
+          <CampaignTypeSelector value={campaignType} onChange={setCampaignType} />
           <div>
             <label className="block text-sm font-medium mb-1.5 text-foreground/80">اسم السوبر ماركت</label>
             <input
               name="supermarketName"
               required
-              className="w-full px-5 py-3.5 rounded-xl border border-card-border bg-slate-50 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all placeholder:text-muted/50"
+              className="w-full px-5 py-3.5 rounded-xl border border-card-border focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all placeholder:text-muted/50"
               placeholder="مثال: كارفور"
             />
           </div>
@@ -59,7 +63,7 @@ export function SupermarketForm({ onSubmit, isLoading }: SupermarketFormProps) {
             <input
               name="productName"
               required
-              className="w-full px-5 py-3.5 rounded-xl border border-card-border bg-slate-50 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all placeholder:text-muted/50"
+              className="w-full px-5 py-3.5 rounded-xl border border-card-border focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all placeholder:text-muted/50"
               placeholder="مثال: شيبسي ليز"
             />
           </div>
@@ -67,7 +71,7 @@ export function SupermarketForm({ onSubmit, isLoading }: SupermarketFormProps) {
             <label className="block text-sm font-medium mb-1.5 text-foreground/80">الوزن أو الحجم (اختياري)</label>
             <input
               name="weight"
-              className="w-full px-5 py-3.5 rounded-xl border border-card-border bg-slate-50 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all placeholder:text-muted/50"
+              className="w-full px-5 py-3.5 rounded-xl border border-card-border focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all placeholder:text-muted/50"
               placeholder="مثال: 200 جرام"
             />
           </div>
@@ -75,7 +79,7 @@ export function SupermarketForm({ onSubmit, isLoading }: SupermarketFormProps) {
             <label className="block text-sm font-medium mb-1.5 text-foreground/80">مدة العرض (اختياري)</label>
             <input
               name="offerDuration"
-              className="w-full px-5 py-3.5 rounded-xl border border-card-border bg-slate-50 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all placeholder:text-muted/50"
+              className="w-full px-5 py-3.5 rounded-xl border border-card-border focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all placeholder:text-muted/50"
               placeholder="مثال: من 1 إلى 7 فبراير"
             />
           </div>
@@ -96,7 +100,7 @@ export function SupermarketForm({ onSubmit, isLoading }: SupermarketFormProps) {
               <select
                 name="headline"
                 required
-                className="w-full px-5 py-3.5 rounded-xl border border-card-border bg-slate-50 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all appearance-none"
+                className="w-full px-5 py-3.5 rounded-xl border border-card-border focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all appearance-none"
               >
                 {SUPERMARKET_HEADLINE_OPTIONS.map((opt) => (
                   <option key={opt} value={opt}>
@@ -117,7 +121,7 @@ export function SupermarketForm({ onSubmit, isLoading }: SupermarketFormProps) {
               <select
                 name="cta"
                 required
-                className="w-full px-5 py-3.5 rounded-xl border border-card-border bg-slate-50 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all appearance-none"
+                className="w-full px-5 py-3.5 rounded-xl border border-card-border focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all appearance-none"
               >
                 {SUPERMARKET_CTA_OPTIONS.map((opt) => (
                   <option key={opt} value={opt}>

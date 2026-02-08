@@ -1,7 +1,7 @@
 "use client";
 
 import { HeroVisual } from "./components/hero-visual";
-import { useState, useTransition, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Category, PostFormData, PosterResult, PosterGenStep } from "@/lib/types";
@@ -53,7 +53,7 @@ export default function Home() {
   const [expectedTotal, setExpectedTotal] = useState(4);
   const [batchIndex, setBatchIndex] = useState(0);
   const [lastSubmission, setLastSubmission] = useState<PostFormData | null>(null);
-  const [isPending, startTransition] = useTransition();
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: "smooth" });
@@ -107,11 +107,13 @@ export default function Home() {
   const runGeneration = (data: PostFormData, options: { append: boolean }) => {
     const totalPosters = 4;
     const nextBatch = options.append ? batchIndex + 1 : 0;
+    const baseIndex = nextBatch * totalPosters;
 
     setLastSubmission(data);
     setBatchIndex(nextBatch);
     setGenStep("generating-designs");
     setError(undefined);
+    setIsGenerating(true);
 
     if (options.append) {
       setExpectedTotal((prev) => prev + totalPosters);
@@ -124,85 +126,73 @@ export default function Home() {
 
     const startTime = Date.now();
 
-    startTransition(async () => {
-      try {
-        let completed = 0;
-        let successCount = 0;
-        const allResults: PosterResult[] = [];
+    // Fire 4 independent calls — each updates results as it finishes
+    const promises = Array.from({ length: totalPosters }, (_, i) => {
+      const styleIndex = baseIndex + i;
+      return generateSinglePoster(data, styleIndex, brandKitPromptData)
+        .then((result) => {
+          setResults((prev) =>
+            [...prev, result].sort((a, b) => a.designIndex - b.designIndex)
+          );
+          return result;
+        })
+        .catch((err) => {
+          const errorResult: PosterResult = {
+            designIndex: styleIndex,
+            format: data.formats[0],
+            html: "",
+            status: "error",
+            error: err instanceof Error ? err.message : "Generation failed",
+            designName: `Design ${styleIndex + 1}`,
+            designNameAr: `تصميم ${styleIndex + 1}`,
+          };
+          setResults((prev) =>
+            [...prev, errorResult].sort((a, b) => a.designIndex - b.designIndex)
+          );
+          return errorResult;
+        });
+    });
 
-        const recordResult = (result: PosterResult) => {
-          console.info("[page] poster_result", {
-            designIndex: result.designIndex,
-            status: result.status,
-            htmlLength: result.html.length,
-          });
-          setResults((prev) => {
-            const next = [...prev, result];
-            next.sort((a, b) => a.designIndex - b.designIndex);
-            return next;
-          });
-          allResults.push(result);
-          if (result.status === "complete") successCount += 1;
-          completed += 1;
+    Promise.allSettled(promises).then((settled) => {
+      const allResults = settled
+        .filter((s): s is PromiseFulfilledResult<PosterResult> => s.status === "fulfilled")
+        .map((s) => s.value);
+      const successCount = allResults.filter((r) => r.status === "complete").length;
 
-          if (completed === totalPosters) {
-            setGenStep("complete");
-            setStep("results");
+      setGenStep("complete");
+      setStep("results");
+      setIsGenerating(false);
 
-            if (successCount > 0) {
-              void (async () => {
-                try {
-                  const generationId = await createGeneration({
-                    orgId,
-                    userId,
-                    brandKitId: defaultBrandKit?._id,
-                    category: data.category,
-                    businessName: getBusinessName(data),
-                    productName: getProductName(data),
-                    inputs: JSON.stringify({
-                      ...data,
-                      logo: undefined,
-                      mealImage: undefined,
-                      productImage: undefined,
-                      productImages: undefined,
-                    }),
-                    formats: data.formats,
-                    creditsCharged: successCount,
-                  });
-
-                  await updateStatus({
-                    generationId,
-                    status: successCount === allResults.length ? "complete" : "partial",
-                    durationMs: Date.now() - startTime,
-                  });
-                } catch (saveErr) {
-                  console.error("Failed to save generation to Convex:", saveErr);
-                }
-              })();
-            }
-          }
-        };
-
-        for (let i = 0; i < totalPosters; i += 1) {
-          const styleIndex = nextBatch * totalPosters + i;
-          generateSinglePoster(data, styleIndex, brandKitPromptData)
-            .then(recordResult)
-            .catch((err) => {
-              recordResult({
-                designIndex: styleIndex,
-                format: data.formats[0],
-                html: "",
-                status: "error",
-                error: err instanceof Error ? err.message : "Generation failed",
-                designName: `Design ${styleIndex + 1}`,
-                designNameAr: `تصميم ${styleIndex + 1}`,
-              });
+      if (successCount > 0) {
+        void (async () => {
+          try {
+            const generationId = await createGeneration({
+              orgId,
+              userId,
+              brandKitId: defaultBrandKit?._id,
+              category: data.category,
+              businessName: getBusinessName(data),
+              productName: getProductName(data),
+              inputs: JSON.stringify({
+                ...data,
+                logo: undefined,
+                mealImage: undefined,
+                productImage: undefined,
+                productImages: undefined,
+              }),
+              formats: data.formats,
+              creditsCharged: successCount,
             });
-        }
-      } catch (err) {
-        setGenStep("error");
-        setError(err instanceof Error ? err.message : "حدث خطأ غير متوقع");
-        setStep("results");
+
+            await updateStatus({
+              generationId,
+              status: successCount === allResults.length ? "complete" : "partial",
+              durationMs: Date.now() - startTime,
+            });
+          } catch (saveErr) {
+            console.error("Failed to save generation to Convex:", saveErr);
+          }
+        })();
       }
     });
   };
@@ -212,7 +202,7 @@ export default function Home() {
   };
 
   const handleGenerateMore = () => {
-    if (!lastSubmission || isPending || genStep === "generating-designs") return;
+    if (!lastSubmission || isGenerating || genStep === "generating-designs") return;
     runGeneration(lastSubmission, { append: true });
   };
 
@@ -241,39 +231,39 @@ export default function Home() {
   };
 
   return (
-    <main className="min-h-screen py-12 px-4 relative overflow-hidden">
+    <main className="min-h-screen py-12 px-4 relative overflow-hidden bg-grid-pattern">
       {/* Background Gradients */}
-      <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-primary/10 rounded-full blur-[100px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-accent/10 rounded-full blur-[100px] pointer-events-none" />
+      <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-primary/20 rounded-full blur-[120px] pointer-events-none mix-blend-screen" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-accent/20 rounded-full blur-[120px] pointer-events-none mix-blend-screen" />
 
       <div className="max-w-7xl mx-auto relative z-10">
         {/* Hero Section - Show only on main selection step */}
         {step === "select-category" ? (
           <div className="flex flex-col-reverse lg:flex-row items-center justify-between gap-12 mb-20 mt-8">
             {/* Text Content */}
-            <div className="flex-1 text-center lg:text-right space-y-6">
-              <div className="inline-flex items-center gap-2 bg-white/60 backdrop-blur-md border border-primary/20 rounded-full px-4 py-1.5 shadow-sm animate-fade-in-up">
-                <Sparkles size={16} className="text-primary animate-pulse" />
-                <span className="text-sm font-semibold text-primary">الجيل الجديد من التصميم</span>
+            <div className="flex-1 text-center lg:text-right space-y-8">
+              <div className="inline-flex items-center gap-2 bg-slate-800/50 backdrop-blur-md border border-white/10 rounded-full px-4 py-1.5 shadow-[0_0_15px_rgba(99,102,241,0.3)] animate-fade-in-up">
+                <Sparkles size={16} className="text-accent animate-pulse" />
+                <span className="text-sm font-semibold text-white/90">الجيل الجديد من التصميم</span>
               </div>
               
-              <h1 className="text-5xl lg:text-7xl font-black leading-tight tracking-tight">
-                <span className="block text-slate-800">صمم إعلاناتك</span>
-                <span className="bg-clip-text text-transparent bg-gradient-to-r from-primary via-accent to-primary animate-gradient bg-[length:200%_auto]">
+              <h1 className="text-5xl lg:text-7xl font-black leading-tight tracking-tight text-white">
+                <span className="block mb-2">صمم إعلاناتك</span>
+                <span className="text-gradient bg-[length:200%_auto] animate-gradient-flow">
                   بالذكاء الاصطناعي
                 </span>
               </h1>
               
-              <p className="text-xl text-muted leading-relaxed max-w-2xl mx-auto lg:mx-0">
+              <p className="text-xl text-slate-300 leading-relaxed max-w-2xl mx-auto lg:mx-0 font-light">
                 حوّل أفكارك إلى بوسترات احترافية للسوشيال ميديا في ثوانٍ.
-                اختر مجالك، أدخل التفاصيل، واترك الباقي لـ <span className="font-bold text-primary">Postaty AI</span>.
+                اختر مجالك، أدخل التفاصيل، واترك الباقي لـ <span className="font-bold text-white">Postaty AI</span>.
               </p>
 
               {/* CTA Button */}
-              <div className="pt-6 flex justify-center lg:justify-start">
+              <div className="pt-4 flex justify-center lg:justify-start">
                 <button 
                   onClick={scrollToCategories}
-                  className="group relative px-8 py-4 bg-primary text-white text-lg font-bold rounded-2xl shadow-xl shadow-primary/20 overflow-hidden hover:scale-105 transition-transform duration-300"
+                  className="group relative px-8 py-4 bg-gradient-to-r from-primary to-accent text-white text-lg font-bold rounded-2xl shadow-[0_0_20px_rgba(99,102,241,0.5)] overflow-hidden hover:scale-105 transition-all duration-300 ring-1 ring-white/20"
                 >
                   <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
                   <span className="relative flex items-center gap-3">
@@ -284,15 +274,15 @@ export default function Home() {
               </div>
 
               {/* Stats / Trust */}
-              <div className="pt-4 flex items-center justify-center lg:justify-start gap-8 opacity-80">
+              <div className="pt-6 flex items-center justify-center lg:justify-start gap-8 opacity-80">
                 <div className="text-center lg:text-right">
-                  <p className="text-2xl font-bold text-slate-800">10k+</p>
-                  <p className="text-sm text-muted">تصميم تم إنشاؤه</p>
+                  <p className="text-2xl font-bold text-white">10k+</p>
+                  <p className="text-sm text-slate-400">تصميم تم إنشاؤه</p>
                 </div>
-                <div className="w-px h-8 bg-slate-300" />
+                <div className="w-px h-8 bg-white/10" />
                 <div className="text-center lg:text-right">
-                  <p className="text-2xl font-bold text-slate-800">&lt; 30s</p>
-                  <p className="text-sm text-muted">سرعة التنفيذ</p>
+                  <p className="text-2xl font-bold text-white">&lt; 30s</p>
+                  <p className="text-sm text-slate-400">سرعة التنفيذ</p>
                 </div>
               </div>
             </div>
@@ -303,12 +293,12 @@ export default function Home() {
         ) : (
           /* Compact Header for inner pages */
           <div className="text-center mb-8 animate-fade-in">
-             <h2 className="text-3xl font-bold text-slate-800 mb-2">
+             <h2 className="text-3xl font-bold text-white mb-2">
               {step === "fill-form" && "أدخل تفاصيل الإعلان"}
               {step === "generating" && "جاري التصميم..."}
               {step === "results" && "النتائج"}
             </h2>
-            <p className="text-muted">
+            <p className="text-slate-400">
                {step === "fill-form" && "أكمل البيانات التالية لنقوم بإنشاء البوستر"}
                {step === "generating" && "الذكاء الاصطناعي يعمل الآن على تصميمك"}
                {step === "results" && "اختر التصميم المناسب أو قم بتحميله"}
@@ -318,9 +308,9 @@ export default function Home() {
 
         {/* Brand kit active indicator */}
         {defaultBrandKit && step === "fill-form" && (
-          <div className="mb-6 flex items-center justify-center gap-2 bg-accent/10 border border-accent/30 rounded-xl px-4 py-2.5 mx-auto max-w-fit">
+          <div className="mb-6 flex items-center justify-center gap-2 bg-accent/10 border border-accent/30 rounded-xl px-4 py-2.5 mx-auto max-w-fit shadow-[0_0_10px_rgba(217,70,239,0.2)]">
             <Palette size={16} className="text-accent" />
-            <span className="text-sm font-medium text-accent">
+            <span className="text-sm font-medium text-accent-foreground">
               هوية العلامة التجارية مفعّلة: {defaultBrandKit.name}
             </span>
           </div>
@@ -330,9 +320,9 @@ export default function Home() {
         {step !== "generating" && step !== "select-category" && (
           <button
             onClick={handleBack}
-            className="group flex items-center gap-2 mb-8 mx-auto text-muted hover:text-primary transition-colors font-medium px-4 py-2 hover:bg-primary/5 rounded-lg w-fit"
+            className="group flex items-center gap-2 mb-8 mx-auto text-slate-400 hover:text-white transition-colors font-medium px-4 py-2 hover:bg-white/5 rounded-lg w-fit"
           >
-            <div className="p-1 rounded-full bg-card border border-card-border group-hover:border-primary/30 transition-colors">
+            <div className="p-1 rounded-full bg-slate-800 border border-white/10 group-hover:border-primary/50 transition-colors">
               <ArrowRight size={16} />
             </div>
             {step === "fill-form"
@@ -344,7 +334,7 @@ export default function Home() {
         {/* Category label - Only show if not in select-category and no compact header override needed */}
         {category && step !== "select-category" && (
           <div className="mb-8 flex justify-center">
-            <span className="inline-block bg-white shadow-sm border border-primary/20 text-primary px-6 py-2 rounded-full text-base font-semibold">
+            <span className="inline-block bg-slate-900/80 backdrop-blur shadow-lg border border-primary/30 text-primary-foreground px-6 py-2 rounded-full text-base font-semibold ring-1 ring-primary/20">
               {CATEGORY_LABELS[category]}
             </span>
           </div>
@@ -357,15 +347,15 @@ export default function Home() {
           )}
 
           {step === "fill-form" && (
-            <div className="bg-white/70 backdrop-blur-md rounded-3xl shadow-xl border border-white/40 p-6 md:p-8">
+            <div className="glass-card p-6 md:p-8">
               {category === "restaurant" && (
-                <RestaurantForm onSubmit={handleSubmit} isLoading={isPending} />
+                <RestaurantForm onSubmit={handleSubmit} isLoading={isGenerating} />
               )}
               {category === "supermarket" && (
-                <SupermarketForm onSubmit={handleSubmit} isLoading={isPending} />
+                <SupermarketForm onSubmit={handleSubmit} isLoading={isGenerating} />
               )}
               {category === "online" && (
-                <OnlineForm onSubmit={handleSubmit} isLoading={isPending} />
+                <OnlineForm onSubmit={handleSubmit} isLoading={isGenerating} />
               )}
             </div>
           )}
@@ -386,8 +376,8 @@ export default function Home() {
           <div className="text-center mt-12">
             <button
               onClick={handleGenerateMore}
-              disabled={!lastSubmission || isPending}
-              className="px-8 py-3.5 bg-white border border-primary/20 text-primary rounded-xl hover:bg-primary hover:text-white shadow-lg shadow-primary/10 hover:shadow-primary/20 transition-all font-bold text-lg transform hover:-translate-y-1 disabled:opacity-60 disabled:cursor-not-allowed"
+              disabled={!lastSubmission || isGenerating}
+              className="px-8 py-3.5 bg-slate-800 border border-primary/40 text-white rounded-xl hover:bg-primary/90 hover:border-primary shadow-lg shadow-primary/10 hover:shadow-primary/30 transition-all font-bold text-lg transform hover:-translate-y-1 disabled:opacity-60 disabled:cursor-not-allowed"
             >
               إنشاء 4 تصاميم إضافية مختلفة
             </button>

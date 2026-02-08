@@ -22,7 +22,7 @@ export function FormatSwitcher({ supportedFormats, selected, onSelect }: FormatS
             className={`px-4 py-2 rounded-xl text-sm font-medium transition-all ${
               isActive
                 ? "bg-primary text-white shadow-md shadow-primary/20"
-                : "bg-white border border-card-border text-muted hover:border-primary/30 hover:text-primary"
+                : "bg-white border border-card-border text-muted-foreground hover:border-primary/30 hover:text-primary hover:bg-slate-50"
             }`}
           >
             {config.label} ({config.aspectRatio})

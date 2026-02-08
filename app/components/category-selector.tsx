@@ -54,18 +54,18 @@ export function CategorySelector({ onSelect }: CategorySelectorProps) {
           <button
             key={cat.id}
             onClick={() => onSelect(cat.id)}
-            className={`group relative bg-white/60 backdrop-blur-xl border border-white/50 rounded-[2rem] p-8 text-right hover:-translate-y-2 transition-all duration-500 hover:shadow-2xl ${cat.shadow} overflow-hidden`}
+            className={`group relative bg-white/80 backdrop-blur-xl border border-slate-200/60 rounded-[2rem] p-8 text-right hover:-translate-y-2 transition-all duration-500 hover:shadow-2xl ${cat.shadow} overflow-hidden`}
           >
             {/* Hover Gradient Overlay */}
             <div className={`absolute inset-0 bg-gradient-to-br ${cat.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-500`} />
             
             {/* Top Shine Effect */}
-            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-white/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+            <div className="absolute top-0 left-0 right-0 h-1 bg-gradient-to-r from-transparent via-white/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
 
             <div className="relative z-10 flex flex-col h-full">
               {/* Icon Container */}
-              <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${cat.gradient} p-0.5 mb-6 shadow-lg transform group-hover:scale-110 transition-transform duration-500`}>
-                <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center">
+              <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${cat.gradient} p-0.5 mb-6 shadow-lg shadow-black/5 transform group-hover:scale-110 transition-transform duration-500`}>
+                <div className="w-full h-full bg-white rounded-[14px] flex items-center justify-center border border-slate-100">
                   <Icon size={28} className={cat.color} />
                 </div>
               </div>
@@ -74,7 +74,7 @@ export function CategorySelector({ onSelect }: CategorySelectorProps) {
               <h3 className="text-2xl font-bold text-slate-800 mb-3 group-hover:text-primary transition-colors">
                 {cat.label}
               </h3>
-              <p className="text-muted text-sm leading-relaxed mb-8 flex-grow">
+              <p className="text-slate-500 text-sm leading-relaxed mb-8 flex-grow group-hover:text-slate-700 transition-colors">
                 {cat.description}
               </p>
 

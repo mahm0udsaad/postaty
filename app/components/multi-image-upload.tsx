@@ -72,11 +72,11 @@ export function MultiImageUpload({
               <img
                 src={preview}
                 alt={`صورة ${i + 1}`}
-                className="w-full h-full object-cover rounded-lg border border-card-border"
+                className="w-full h-full object-cover rounded-lg border border-slate-200"
               />
               <button
                 onClick={() => handleRemove(i)}
-                className="absolute -top-2 -left-2 bg-danger text-white rounded-full p-0.5 hover:bg-danger/80 transition-colors"
+                className="absolute -top-2 -left-2 bg-danger text-white rounded-full p-0.5 hover:bg-danger/80 transition-colors shadow-sm"
               >
                 <X size={14} />
               </button>
@@ -88,10 +88,10 @@ export function MultiImageUpload({
         <div
           {...getRootProps()}
           className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-colors
-            ${isDragActive ? "border-primary bg-primary/5" : "border-card-border hover:border-primary/50"}`}
+            ${isDragActive ? "border-primary bg-primary/5" : "border-card-border hover:border-primary/50 hover:bg-slate-50"}`}
         >
           <input {...getInputProps()} />
-          <div className="flex flex-col items-center gap-1 text-muted">
+          <div className="flex flex-col items-center gap-1 text-muted-foreground">
             <Images size={24} />
             <p className="text-sm">
               {isDragActive

@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import type { OnlineFormData, OutputFormat } from "@/lib/types";
+import type { OnlineFormData, OutputFormat, CampaignType } from "@/lib/types";
 import { ONLINE_CTA_OPTIONS, ONLINE_HEADLINE_OPTIONS } from "@/lib/constants";
 import { ImageUpload } from "../image-upload";
 import { FormatSelector } from "../format-selector";
+import { CampaignTypeSelector } from "../campaign-type-selector";
 
 interface OnlineFormProps {
   onSubmit: (data: OnlineFormData) => void;
@@ -15,6 +16,7 @@ export function OnlineForm({ onSubmit, isLoading }: OnlineFormProps) {
   const [logo, setLogo] = useState<string | null>(null);
   const [productImage, setProductImage] = useState<string | null>(null);
   const [formats, setFormats] = useState<OutputFormat[]>(["instagram-square"]);
+  const [campaignType, setCampaignType] = useState<CampaignType>("standard");
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -24,6 +26,7 @@ export function OnlineForm({ onSubmit, isLoading }: OnlineFormProps) {
 
     onSubmit({
       category: "online",
+      campaignType,
       shopName: fd.get("shopName") as string,
       logo,
       productImage,
@@ -42,12 +45,13 @@ export function OnlineForm({ onSubmit, isLoading }: OnlineFormProps) {
     <form onSubmit={handleSubmit} className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="space-y-5">
+          <CampaignTypeSelector value={campaignType} onChange={setCampaignType} />
           <div>
             <label className="block text-sm font-medium mb-1.5 text-foreground/80">اسم المحل</label>
             <input
               name="shopName"
               required
-              className="w-full px-5 py-3.5 rounded-xl border border-card-border bg-slate-50 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all placeholder:text-muted/50"
+              className="w-full px-5 py-3.5 rounded-xl border border-card-border focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all placeholder:text-muted/50"
               placeholder="مثال: متجر نون"
             />
           </div>
@@ -56,7 +60,7 @@ export function OnlineForm({ onSubmit, isLoading }: OnlineFormProps) {
             <input
               name="productName"
               required
-              className="w-full px-5 py-3.5 rounded-xl border border-card-border bg-slate-50 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all placeholder:text-muted/50"
+              className="w-full px-5 py-3.5 rounded-xl border border-card-border focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all placeholder:text-muted/50"
               placeholder="مثال: سماعات أيربودز"
             />
           </div>
@@ -66,7 +70,7 @@ export function OnlineForm({ onSubmit, isLoading }: OnlineFormProps) {
               <input
                 name="price"
                 required
-                className="w-full px-5 py-3.5 rounded-xl border border-card-border bg-slate-50 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all placeholder:text-muted/50"
+                className="w-full px-5 py-3.5 rounded-xl border border-card-border focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all placeholder:text-muted/50"
                 placeholder="199 ر.س"
               />
             </div>
@@ -74,7 +78,7 @@ export function OnlineForm({ onSubmit, isLoading }: OnlineFormProps) {
               <label className="block text-sm font-medium mb-1.5 text-foreground/80">خصم (اختياري)</label>
               <input
                 name="discount"
-                className="w-full px-5 py-3.5 rounded-xl border border-card-border bg-slate-50 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all placeholder:text-muted/50"
+                className="w-full px-5 py-3.5 rounded-xl border border-card-border focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all placeholder:text-muted/50"
                 placeholder="مثال: 30%"
               />
             </div>
@@ -85,7 +89,7 @@ export function OnlineForm({ onSubmit, isLoading }: OnlineFormProps) {
               <select
                 name="shipping"
                 required
-                className="w-full px-5 py-3.5 rounded-xl border border-card-border bg-slate-50 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all appearance-none"
+                className="w-full px-5 py-3.5 rounded-xl border border-card-border focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all appearance-none"
               >
                 <option value="free">مجاني</option>
                 <option value="paid">مدفوع</option>
@@ -114,7 +118,7 @@ export function OnlineForm({ onSubmit, isLoading }: OnlineFormProps) {
               <select
                 name="headline"
                 required
-                className="w-full px-5 py-3.5 rounded-xl border border-card-border bg-slate-50 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all appearance-none"
+                className="w-full px-5 py-3.5 rounded-xl border border-card-border focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all appearance-none"
               >
                 {ONLINE_HEADLINE_OPTIONS.map((opt) => (
                   <option key={opt} value={opt}>
@@ -135,7 +139,7 @@ export function OnlineForm({ onSubmit, isLoading }: OnlineFormProps) {
               <select
                 name="cta"
                 required
-                className="w-full px-5 py-3.5 rounded-xl border border-card-border bg-slate-50 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all appearance-none"
+                className="w-full px-5 py-3.5 rounded-xl border border-card-border focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all appearance-none"
               >
                 {ONLINE_CTA_OPTIONS.map((opt) => (
                   <option key={opt} value={opt}>

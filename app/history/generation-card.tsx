@@ -38,23 +38,23 @@ interface GenerationCardProps {
 const STATUS_LABELS: Record<string, { label: string; classes: string }> = {
   complete: {
     label: "مكتمل",
-    classes: "bg-success/10 text-success border-success/30",
+    classes: "bg-emerald-50 text-emerald-600 border-emerald-200",
   },
   partial: {
     label: "جزئي",
-    classes: "bg-yellow-100 text-yellow-700 border-yellow-300",
+    classes: "bg-amber-50 text-amber-600 border-amber-200",
   },
   failed: {
     label: "فشل",
-    classes: "bg-danger/10 text-danger border-danger/30",
+    classes: "bg-red-50 text-red-600 border-red-200",
   },
   processing: {
     label: "جاري المعالجة",
-    classes: "bg-blue-100 text-blue-700 border-blue-300 animate-pulse",
+    classes: "bg-blue-50 text-blue-600 border-blue-200 animate-pulse",
   },
   queued: {
     label: "في الانتظار",
-    classes: "bg-slate-100 text-slate-600 border-slate-300",
+    classes: "bg-slate-50 text-slate-500 border-slate-200",
   },
 };
 
@@ -91,26 +91,26 @@ export function GenerationCard({ generation }: GenerationCardProps) {
   };
 
   return (
-    <div className="bg-white/70 backdrop-blur-md rounded-2xl border border-white/40 shadow-soft overflow-hidden transition-all">
+    <div className="bg-white/70 backdrop-blur-md rounded-2xl border border-slate-200/60 shadow-sm overflow-hidden transition-all hover:bg-white/90 hover:shadow-md">
       {/* Collapsed Header */}
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full p-4 flex items-center gap-4 hover:bg-slate-50/50 transition-colors"
+        className="w-full p-4 flex items-center gap-4 hover:bg-white/50 transition-colors"
       >
         {/* Date */}
-        <div className="flex items-center gap-1.5 text-xs text-muted shrink-0">
+        <div className="flex items-center gap-1.5 text-xs text-slate-500 shrink-0">
           <Calendar size={14} />
           <span>{formatDate(generation.createdAt)}</span>
         </div>
 
         {/* Category Badge */}
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-primary/10 text-primary rounded-lg text-xs font-medium shrink-0">
-          <Tag size={12} />
+        <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-white text-slate-700 rounded-lg text-xs font-medium shrink-0 border border-slate-200 shadow-sm">
+          <Tag size={12} className="text-primary" />
           {categoryLabel}
         </span>
 
         {/* Business Name */}
-        <span className="text-sm font-bold text-foreground truncate">
+        <span className="text-sm font-bold text-slate-900 truncate">
           {generation.businessName}
         </span>
 
@@ -129,36 +129,36 @@ export function GenerationCard({ generation }: GenerationCardProps) {
                 key={i}
                 src={output.url}
                 alt=""
-                className="w-8 h-8 rounded-lg object-cover border border-card-border"
+                className="w-8 h-8 rounded-lg object-cover border border-slate-200 bg-white"
               />
             ) : (
               <div
                 key={i}
-                className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center"
+                className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center border border-slate-200"
               >
-                <ImageIcon size={12} className="text-muted" />
+                <ImageIcon size={12} className="text-slate-400" />
               </div>
             )
           )}
         </div>
 
         {/* Expand Toggle */}
-        <div className="shrink-0 text-muted">
+        <div className="shrink-0 text-slate-400">
           {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
         </div>
       </button>
 
       {/* Expanded Content */}
       {expanded && (
-        <div className="border-t border-card-border/50 p-4">
+        <div className="border-t border-slate-200/60 p-4 bg-slate-50/50">
           {generation.error && (
-            <div className="mb-4 p-3 bg-danger/10 text-danger rounded-xl text-sm">
+            <div className="mb-4 p-3 bg-red-50 text-red-600 rounded-xl text-sm border border-red-100">
               {generation.error}
             </div>
           )}
 
           {generation.outputs.length === 0 ? (
-            <p className="text-sm text-muted text-center py-4">
+            <p className="text-sm text-slate-500 text-center py-4">
               لا توجد صور متاحة
             </p>
           ) : (
@@ -171,34 +171,34 @@ export function GenerationCard({ generation }: GenerationCardProps) {
                 return (
                   <div
                     key={i}
-                    className="bg-white rounded-xl border border-card-border overflow-hidden"
+                    className="bg-white rounded-xl border border-slate-200 overflow-hidden shadow-sm"
                   >
-                    <div className="p-3 border-b border-card-border/50 bg-slate-50/50">
-                      <p className="text-xs font-bold text-center">
+                    <div className="p-3 border-b border-slate-100 bg-slate-50/50">
+                      <p className="text-xs font-bold text-center text-slate-700">
                         {label}
                       </p>
                     </div>
-                    <div className="p-4 flex justify-center items-center min-h-[160px] bg-slate-50/30">
+                    <div className="p-4 flex justify-center items-center min-h-[160px] bg-slate-100/30">
                       {output.url ? (
                         <img
                           src={output.url}
                           alt={label}
-                          className="max-w-full max-h-[200px] object-contain rounded-lg"
+                          className="max-w-full max-h-[200px] object-contain rounded-lg shadow-sm"
                         />
                       ) : (
-                        <div className="flex flex-col items-center gap-2 text-muted">
+                        <div className="flex flex-col items-center gap-2 text-slate-400">
                           <ImageIcon size={24} />
                           <span className="text-xs">غير متاح</span>
                         </div>
                       )}
                     </div>
                     {output.url && (
-                      <div className="p-3 border-t border-card-border/50">
+                      <div className="p-3 border-t border-slate-100 bg-white">
                         <button
                           onClick={() =>
                             handleDownload(output.url!, output.format)
                           }
-                          className="w-full flex items-center justify-center gap-2 py-2 bg-primary text-white rounded-lg text-xs font-bold hover:bg-primary/90 transition-colors"
+                          className="w-full flex items-center justify-center gap-2 py-2 bg-white border border-slate-200 text-slate-700 rounded-lg text-xs font-bold hover:bg-slate-50 hover:text-primary hover:border-primary/20 transition-all shadow-sm"
                         >
                           <Download size={14} />
                           تحميل

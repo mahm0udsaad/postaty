@@ -31,6 +31,7 @@ describe("generatePoster", () => {
 
   const createRestaurantFormData = (): PostFormData => ({
     category: "restaurant",
+    campaignType: "standard",
     restaurantName: "Test Restaurant",
     logo: "data:image/png;base64,test-logo",
     mealImage: "data:image/png;base64,test-meal",
@@ -150,7 +151,7 @@ describe("generatePoster", () => {
 
     expect(mockGenerateImage).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: "google/imagen-4.0-generate",
+        model: "google/gemini-2.5-flash-image",
         aspectRatio: "1:1",
       })
     );
@@ -198,6 +199,7 @@ describe("generatePoster", () => {
   it("should handle supermarket form with multiple product images", async () => {
     const formData: PostFormData = {
       category: "supermarket",
+      campaignType: "standard",
       supermarketName: "Test Supermarket",
       logo: "data:image/png;base64,test-logo",
       productImages: [

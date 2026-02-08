@@ -4,6 +4,7 @@ import type {
   OutputFormat,
   TemplateCategory,
   StyleAdjective,
+  CampaignType,
   OrgPlan,
   PlanLimits,
 } from "./types";
@@ -74,6 +75,30 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   online: "منتجات أونلاين",
 };
 
+// ── Campaign Types ────────────────────────────────────────────────
+
+export const CAMPAIGN_TYPE_OPTIONS: {
+  value: CampaignType;
+  label: string;
+  description: string;
+}[] = [
+  {
+    value: "standard",
+    label: "عادي",
+    description: "ستايل حديث عام",
+  },
+  {
+    value: "ramadan",
+    label: "رمضان",
+    description: "لمسات روحانية هادئة",
+  },
+  {
+    value: "eid",
+    label: "العيد",
+    description: "طابع احتفالي مبهج",
+  },
+];
+
 // ── CTA & Headline Options ─────────────────────────────────────────
 
 export const RESTAURANT_CTA_OPTIONS = [
@@ -113,6 +138,8 @@ export const TEMPLATE_CATEGORY_LABELS: Record<TemplateCategory, { en: string; ar
   new_arrival: { en: "New Arrival", ar: "وصل حديثاً" },
   minimal: { en: "Minimal", ar: "بسيط" },
   luxury: { en: "Luxury", ar: "فاخر" },
+  ramadan: { en: "Ramadan", ar: "رمضان" },
+  eid: { en: "Eid", ar: "العيد" },
   food: { en: "Food", ar: "طعام" },
   electronics: { en: "Electronics", ar: "الكترونيات" },
   fashion: { en: "Fashion", ar: "أزياء" },

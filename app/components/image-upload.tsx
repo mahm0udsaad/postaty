@@ -88,8 +88,8 @@ export function ImageUpload({
             </button>
           </div>
         ) : (
-          <div className="flex flex-col items-center gap-3 text-muted">
-            <div className={`p-4 rounded-full ${isDragActive ? 'bg-primary/10 text-primary' : 'bg-slate-100 text-muted-foreground'}`}>
+          <div className="flex flex-col items-center gap-3 text-muted-foreground">
+            <div className={`p-4 rounded-full ${isDragActive ? 'bg-primary/10 text-primary' : 'bg-slate-100 text-slate-500'}`}>
                <ImagePlus size={32} />
             </div>
             <div className="space-y-1">
@@ -98,7 +98,7 @@ export function ImageUpload({
               </p>
               <p className="text-xs text-muted-foreground">أو اسحب وأفلت هنا</p>
             </div>
-            <p className="text-[10px] uppercase tracking-wider opacity-60 bg-slate-100 px-2 py-1 rounded">PNG, JPG, WEBP • Max 5MB</p>
+            <p className="text-[10px] uppercase tracking-wider opacity-60 bg-slate-100 px-2 py-1 rounded text-slate-500">PNG, JPG, WEBP • Max 5MB</p>
           </div>
         )}
       </div>

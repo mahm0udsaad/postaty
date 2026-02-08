@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import type { RestaurantFormData, OutputFormat } from "@/lib/types";
+import type { RestaurantFormData, OutputFormat, CampaignType } from "@/lib/types";
 import { RESTAURANT_CTA_OPTIONS } from "@/lib/constants";
 import { ImageUpload } from "../image-upload";
 import { FormatSelector } from "../format-selector";
+import { CampaignTypeSelector } from "../campaign-type-selector";
 
 interface RestaurantFormProps {
   onSubmit: (data: RestaurantFormData) => void;
@@ -15,6 +16,7 @@ export function RestaurantForm({ onSubmit, isLoading }: RestaurantFormProps) {
   const [logo, setLogo] = useState<string | null>(null);
   const [mealImage, setMealImage] = useState<string | null>(null);
   const [formats, setFormats] = useState<OutputFormat[]>(["instagram-square"]);
+  const [campaignType, setCampaignType] = useState<CampaignType>("standard");
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -24,6 +26,7 @@ export function RestaurantForm({ onSubmit, isLoading }: RestaurantFormProps) {
 
     onSubmit({
       category: "restaurant",
+      campaignType,
       restaurantName: fd.get("restaurantName") as string,
       logo,
       mealImage,
@@ -41,12 +44,13 @@ export function RestaurantForm({ onSubmit, isLoading }: RestaurantFormProps) {
     <form onSubmit={handleSubmit} className="space-y-8">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
         <div className="space-y-5">
+          <CampaignTypeSelector value={campaignType} onChange={setCampaignType} />
           <div>
             <label className="block text-sm font-medium mb-1.5 text-foreground/80">اسم المطعم</label>
             <input
               name="restaurantName"
               required
-              className="w-full px-5 py-3.5 rounded-xl border border-card-border bg-slate-50 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all placeholder:text-muted/50"
+              className="w-full px-5 py-3.5 rounded-xl border border-card-border focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all placeholder:text-muted/50"
               placeholder="مثال: مطعم الشام"
             />
           </div>
@@ -55,7 +59,7 @@ export function RestaurantForm({ onSubmit, isLoading }: RestaurantFormProps) {
             <input
               name="mealName"
               required
-              className="w-full px-5 py-3.5 rounded-xl border border-card-border bg-slate-50 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all placeholder:text-muted/50"
+              className="w-full px-5 py-3.5 rounded-xl border border-card-border focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all placeholder:text-muted/50"
               placeholder="مثال: شاورما دجاج"
             />
           </div>
@@ -65,7 +69,7 @@ export function RestaurantForm({ onSubmit, isLoading }: RestaurantFormProps) {
               <input
                 name="newPrice"
                 required
-                className="w-full px-5 py-3.5 rounded-xl border border-card-border bg-slate-50 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all placeholder:text-muted/50"
+                className="w-full px-5 py-3.5 rounded-xl border border-card-border focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all placeholder:text-muted/50"
                 placeholder="25 ر.س"
               />
             </div>
@@ -74,7 +78,7 @@ export function RestaurantForm({ onSubmit, isLoading }: RestaurantFormProps) {
               <input
                 name="oldPrice"
                 required
-                className="w-full px-5 py-3.5 rounded-xl border border-card-border bg-slate-50 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all placeholder:text-muted/50"
+                className="w-full px-5 py-3.5 rounded-xl border border-card-border focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all placeholder:text-muted/50"
                 placeholder="40 ر.س"
               />
             </div>
@@ -83,7 +87,7 @@ export function RestaurantForm({ onSubmit, isLoading }: RestaurantFormProps) {
             <label className="block text-sm font-medium mb-1.5 text-foreground/80">مدة العرض (اختياري)</label>
             <input
               name="offerDuration"
-              className="w-full px-5 py-3.5 rounded-xl border border-card-border bg-slate-50 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all placeholder:text-muted/50"
+              className="w-full px-5 py-3.5 rounded-xl border border-card-border focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all placeholder:text-muted/50"
               placeholder="مثال: حتى نهاية الأسبوع"
             />
           </div>
@@ -104,7 +108,7 @@ export function RestaurantForm({ onSubmit, isLoading }: RestaurantFormProps) {
               <select
                 name="cta"
                 required
-                className="w-full px-5 py-3.5 rounded-xl border border-card-border bg-slate-50 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all appearance-none"
+                className="w-full px-5 py-3.5 rounded-xl border border-card-border focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all appearance-none"
               >
                 {RESTAURANT_CTA_OPTIONS.map((opt) => (
                   <option key={opt} value={opt}>

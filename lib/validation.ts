@@ -42,10 +42,13 @@ const textFieldSchema = (name: string, maxLen = 100) =>
     .min(1, `${name} is required`)
     .max(maxLen, `${name} is too long (max ${maxLen} chars)`);
 
+const campaignTypeSchema = z.enum(["standard", "ramadan", "eid"]);
+
 // ── Form data validators ───────────────────────────────────────────
 
 export const restaurantFormSchema = z.object({
   category: z.literal("restaurant"),
+  campaignType: campaignTypeSchema,
   restaurantName: textFieldSchema("Restaurant name"),
   logo: base64ImageSchema,
   mealImage: base64ImageSchema,
@@ -61,6 +64,7 @@ export const restaurantFormSchema = z.object({
 
 export const supermarketFormSchema = z.object({
   category: z.literal("supermarket"),
+  campaignType: campaignTypeSchema,
   supermarketName: textFieldSchema("Supermarket name"),
   logo: base64ImageSchema,
   productName: textFieldSchema("Product name"),
@@ -79,6 +83,7 @@ export const supermarketFormSchema = z.object({
 
 export const onlineFormSchema = z.object({
   category: z.literal("online"),
+  campaignType: campaignTypeSchema,
   shopName: textFieldSchema("Shop name"),
   logo: base64ImageSchema,
   productImage: base64ImageSchema,

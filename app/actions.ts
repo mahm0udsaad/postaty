@@ -65,7 +65,7 @@ export async function generatePoster(
   }
 
   // Step 1: Craft the image generation prompt using GPT-4o (with brand kit if provided)
-  const systemPrompt = getSystemPrompt(data.category, brandKit);
+  const systemPrompt = getSystemPrompt(data, brandKit);
   const userMessage = buildUserMessage(data);
 
   const { text: craftedPrompt } = await generateText({

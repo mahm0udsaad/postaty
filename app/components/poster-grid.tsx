@@ -13,6 +13,7 @@ import {
   Sparkles,
 } from "lucide-react";
 import type { PosterResult, PosterGenStep } from "@/lib/types";
+import { FORMAT_CONFIGS } from "@/lib/constants";
 
 // ── Generation Steps ──────────────────────────────────────────────
 
@@ -93,7 +94,7 @@ function AiStateIndicator() {
     <div className="flex flex-col items-center justify-center space-y-4 py-6">
       <div className="relative">
         <div className="absolute -inset-1 bg-gradient-to-r from-primary via-accent to-primary rounded-full blur opacity-30 animate-pulse" />
-        <div className="relative bg-white dark:bg-slate-900 rounded-full p-4 ring-1 ring-black/5 shadow-sm">
+        <div className="relative bg-white rounded-full p-4 ring-1 ring-slate-200 shadow-sm">
           <Sparkles className="w-8 h-8 text-primary animate-pulse" />
         </div>
       </div>
@@ -112,12 +113,12 @@ function AiStateIndicator() {
 
 function PosterSkeleton({ index }: { index: number }) {
   return (
-    <div className="bg-card border border-white/40 shadow-xl rounded-3xl overflow-hidden relative group">
+    <div className="bg-white border border-slate-200 shadow-xl rounded-3xl overflow-hidden relative group">
       {/* Glossy Overlay */}
       <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20" />
       
       {/* Skeleton Image Area */}
-      <div className="relative aspect-square bg-slate-100 overflow-hidden">
+      <div className="relative aspect-square bg-slate-50 overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-tr from-primary/5 via-accent/5 to-primary/5 animate-pulse" />
         
         {/* Modern Shimmer */}
@@ -132,30 +133,30 @@ function PosterSkeleton({ index }: { index: number }) {
         {/* Floating AI Elements */}
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="relative w-20 h-20">
-            <div className="absolute inset-0 bg-primary/20 rounded-full blur-xl animate-pulse" />
-            <div className="absolute inset-4 bg-white/50 backdrop-blur-md rounded-full flex items-center justify-center shadow-sm">
+            <div className="absolute inset-0 bg-primary/10 rounded-full blur-xl animate-pulse" />
+            <div className="absolute inset-4 bg-white/80 backdrop-blur-md rounded-full flex items-center justify-center shadow-sm border border-slate-100">
                <Loader2 className="w-6 h-6 text-primary animate-spin" />
             </div>
           </div>
         </div>
         
         {/* Abstract Shapes */}
-        <div className="absolute top-4 left-4 w-16 h-4 bg-white/60 rounded-full blur-[1px]" />
-        <div className="absolute bottom-4 right-4 w-24 h-24 bg-accent/10 rounded-full blur-2xl" />
+        <div className="absolute top-4 left-4 w-16 h-4 bg-white rounded-full blur-[1px]" />
+        <div className="absolute bottom-4 right-4 w-24 h-24 bg-accent/5 rounded-full blur-2xl" />
       </div>
 
       {/* Skeleton Footer */}
       <div className="p-5 space-y-4 bg-white/50 backdrop-blur-sm">
         <div className="space-y-2">
-          <div className="h-4 bg-slate-200/80 rounded-full w-3/4 animate-pulse" />
-          <div className="h-3 bg-slate-200/60 rounded-full w-1/2 animate-pulse delay-75" />
+          <div className="h-4 bg-slate-200 rounded-full w-3/4 animate-pulse" />
+          <div className="h-3 bg-slate-100 rounded-full w-1/2 animate-pulse delay-75" />
         </div>
         <div className="flex items-center justify-between pt-2">
           <div className="flex gap-2">
-            <div className="w-8 h-8 rounded-full bg-slate-200/80 animate-pulse delay-100" />
-            <div className="w-8 h-8 rounded-full bg-slate-200/80 animate-pulse delay-150" />
+            <div className="w-8 h-8 rounded-full bg-slate-100 animate-pulse delay-100" />
+            <div className="w-8 h-8 rounded-full bg-slate-100 animate-pulse delay-150" />
           </div>
-          <div className="h-8 w-8 rounded-lg bg-primary/10 animate-pulse delay-200" />
+          <div className="h-8 w-8 rounded-lg bg-primary/5 animate-pulse delay-200" />
         </div>
       </div>
     </div>
@@ -267,21 +268,79 @@ export function PosterGrid({
   );
 }
 
-// ── Export Helper ─────────────────────────────────────────────────
+// ── Client-side Render Helper ─────────────────────────────────────
+
+async function renderToBlob(html: string, format: string): Promise<Blob> {
+  const config = FORMAT_CONFIGS[format as keyof typeof FORMAT_CONFIGS];
+  if (!config) throw new Error("Invalid format");
+
+  const { width, height } = config;
+
+  const iframe = document.createElement("iframe");
+  iframe.style.cssText = `position:fixed;top:-9999px;left:-9999px;width:${width}px;height:${height}px;border:none;opacity:0;pointer-events:none;`;
+  iframe.sandbox.add("allow-same-origin", "allow-scripts");
+  document.body.appendChild(iframe);
+
+  try {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html, "text/html");
+    const rawCss = Array.from(doc.querySelectorAll("style"))
+      .map((s) => s.textContent ?? "")
+      .join("\n");
+    const cleanedCss = rawCss.replace(/@import[^;]+;/gi, "");
+    const body = doc.body?.innerHTML ?? html;
+
+    const fullHtml = `<!doctype html><html><head><meta charset="utf-8">
+<link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  #poster-root {
+    width: ${width}px;
+    height: ${height}px;
+    overflow: hidden;
+    position: relative;
+    font-family: 'Noto Kufi Arabic', sans-serif;
+    direction: rtl;
+    background: #ffffff;
+  }
+  ${cleanedCss}
+</style></head><body style="margin:0;padding:0;"><div id="poster-root">${body}</div></body></html>`;
+
+    await new Promise<void>((resolve) => {
+      iframe.onload = () => resolve();
+      iframe.srcdoc = fullHtml;
+    });
+
+    const iframeDoc = iframe.contentDocument!;
+    const node = iframeDoc.getElementById("poster-root")!;
+
+    if ("fonts" in iframeDoc) {
+      await (iframeDoc as Document & { fonts: FontFaceSet }).fonts.ready;
+    }
+
+    const dataUrl = await toPng(node, {
+      cacheBust: true,
+      width,
+      height,
+      pixelRatio: 2,
+      skipFonts: true,
+    });
+
+    const res = await fetch(dataUrl);
+    return res.blob();
+  } finally {
+    document.body.removeChild(iframe);
+  }
+}
 
 async function exportPoster(result: PosterResult): Promise<void> {
-  const response = await fetch("/api/render", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      html: result.html,
-      format: result.format,
-    }),
-  });
-
-  if (!response.ok) throw new Error("Export failed");
-
-  const blob = await response.blob();
+  let blob: Blob;
+  if (result.imageBase64) {
+    const res = await fetch(result.imageBase64);
+    blob = await res.blob();
+  } else {
+    blob = await renderToBlob(result.html, result.format);
+  }
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
@@ -409,16 +468,13 @@ function PosterCard({
   const handleShare = async () => {
     if (!("share" in navigator)) return;
     try {
-      const response = await fetch("/api/render", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          html: result.html,
-          format: result.format,
-        }),
-      });
-      if (!response.ok) return;
-      const blob = await response.blob();
+      let blob: Blob;
+      if (result.imageBase64) {
+        const res = await fetch(result.imageBase64);
+        blob = await res.blob();
+      } else {
+        blob = await renderToBlob(result.html, result.format);
+      }
       const file = new File([blob], `poster-${result.format}.png`, {
         type: "image/png",
       });
@@ -449,39 +505,58 @@ function PosterCard({
 
   return (
     <div className="bg-card border border-card-border rounded-2xl overflow-hidden shadow-md hover:shadow-lg transition-shadow group">
-      {/* HTML Preview via html-to-image */}
+      {/* Preview */}
       <div className="relative aspect-square overflow-hidden bg-white">
-        <iframe
-          key={iframeKey}
-          ref={iframeRef}
-          srcDoc={iframeSrcDoc}
-          onLoad={handleIframeLoad}
-          sandbox="allow-same-origin"
-          className="absolute top-0 left-0 w-[1080px] h-[1080px] border-0"
-          style={{
-            transform: "scale(0.333)",
-            transformOrigin: "top left",
-            opacity: previewUrl ? 0 : 1,
-          }}
-          title={`poster-preview-${result.designIndex}`}
-        />
-
-        {previewUrl ? (
+        {result.imageBase64 ? (
+          /* AI-generated image — display directly */
           <img
-            src={previewUrl}
+            src={result.imageBase64}
             alt={result.designNameAr || `تصميم ${result.designIndex + 1}`}
-            className="absolute inset-0 w-full h-full object-cover"
+            className="w-full h-full object-cover"
           />
         ) : (
-          <div className="absolute inset-0 flex items-center justify-center text-muted text-sm">
-            {isRendering ? "جاري العرض..." : "تعذر عرض المعاينة"}
-          </div>
+          /* HTML design — render via iframe + html-to-image */
+          <>
+            <iframe
+              key={iframeKey}
+              ref={iframeRef}
+              srcDoc={iframeSrcDoc}
+              onLoad={handleIframeLoad}
+              sandbox="allow-same-origin allow-scripts"
+              className="absolute top-0 left-0 w-[1080px] h-[1080px] border-0"
+              style={{
+                transform: "scale(0.333)",
+                transformOrigin: "top left",
+                opacity: previewUrl ? 0 : 1,
+              }}
+              title={`poster-preview-${result.designIndex}`}
+            />
+
+            {previewUrl ? (
+              <img
+                src={previewUrl}
+                alt={result.designNameAr || `تصميم ${result.designIndex + 1}`}
+                className="absolute inset-0 w-full h-full object-cover"
+              />
+            ) : (
+              <div className="absolute inset-0 flex items-center justify-center text-muted text-sm">
+                {isRendering ? "جاري العرض..." : "تعذر عرض المعاينة"}
+              </div>
+            )}
+          </>
         )}
 
-        {/* Design number badge */}
-        <div className="absolute top-3 left-3 w-8 h-8 rounded-full bg-black/50 text-white text-xs flex items-center justify-center font-bold backdrop-blur-sm z-10">
-          {result.designIndex + 1}
-        </div>
+        {/* Badge */}
+        {result.imageBase64 ? (
+          <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r from-purple-600 to-pink-500 text-white text-xs font-bold backdrop-blur-sm z-10 shadow-lg">
+            <Sparkles size={12} />
+            AI صورة
+          </div>
+        ) : (
+          <div className="absolute top-3 left-3 w-8 h-8 rounded-full bg-black/50 text-white text-xs flex items-center justify-center font-bold backdrop-blur-sm z-10">
+            {result.designIndex + 1}
+          </div>
+        )}
 
         {/* Hover overlay */}
         <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-200 z-[5]" />

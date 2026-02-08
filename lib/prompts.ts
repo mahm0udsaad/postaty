@@ -1,4 +1,4 @@
-import type { PostFormData, BrandPalette } from "./types";
+import type { PostFormData, BrandPalette, CampaignType } from "./types";
 import { DEFAULT_NEGATIVE_PROMPTS } from "./constants";
 
 // ── Base Instructions ──────────────────────────────────────────────
@@ -17,6 +17,7 @@ CRITICAL REQUIREMENTS:
 - WhatsApp number should be displayed with a WhatsApp icon
 - CTA button should be clearly visible
 - The design should feel modern, clean, and trustworthy
+- Aim for a Canva-inspired template aesthetic: clean panels, bold typography, tasteful badges, and clear hierarchy
 
 OUTPUT: Return ONLY the image generation prompt text. No explanations or additional text.`;
 
@@ -72,6 +73,25 @@ The poster should include:
 9. WhatsApp button with number
 10. CTA text in a prominent button`;
 
+// ── Campaign Type Hints ────────────────────────────────────────────
+
+const CAMPAIGN_STYLE_HINTS: Record<CampaignType, string> = {
+  standard: "",
+  ramadan: `CAMPAIGN: Ramadan special / عروض رمضان
+Style: calm, premium, spiritual but modern. Use deep midnight blues, emeralds, warm golds, and soft creams.
+Decor: subtle geometric/arabesque pattern watermark (very low opacity), crescent moon or lantern motif (minimal, not cartoonish).
+Copy: you may include a gentle greeting like "رمضان كريم" if it fits the layout.`,
+  eid: `CAMPAIGN: Eid offer / عروض العيد
+Style: celebratory, joyful, modern. Use warm gold, green, and clean neutrals with high contrast.
+Decor: small starbursts, confetti dots, or sparkle accents (kept minimal and tidy).
+Copy: you may include a short greeting like "عيد مبارك" or "كل عام وأنتم بخير" if it fits the layout.`,
+};
+
+function buildCampaignSection(campaignType: CampaignType): string {
+  const hint = CAMPAIGN_STYLE_HINTS[campaignType];
+  return hint ? `\n\n${hint}` : "";
+}
+
 // ── Brand Kit Injection ────────────────────────────────────────────
 
 export interface BrandKitPromptData {
@@ -126,11 +146,11 @@ export function buildNegativePrompts(dontRules: string[] = []): string {
 // ── Public API ─────────────────────────────────────────────────────
 
 export function getSystemPrompt(
-  category: PostFormData["category"],
+  data: PostFormData,
   brandKit?: BrandKitPromptData
 ): string {
   let prompt: string;
-  switch (category) {
+  switch (data.category) {
     case "restaurant":
       prompt = RESTAURANT_PROMPT;
       break;
@@ -141,6 +161,8 @@ export function getSystemPrompt(
       prompt = ONLINE_PROMPT;
       break;
   }
+
+  prompt += buildCampaignSection(data.campaignType);
 
   // Inject brand kit if provided
   if (brandKit) {
@@ -172,6 +194,7 @@ export function buildUserMessage(data: PostFormData): string {
 ${data.offerDuration ? `- Offer Duration: ${data.offerDuration}` : ""}
 - WhatsApp: ${data.whatsapp}
 - CTA: ${data.cta}
+${data.campaignType !== "standard" ? `- Campaign Type: ${data.campaignType}` : ""}
 
 The user has uploaded the meal image and restaurant logo. Describe the poster incorporating these images.`;
 
@@ -185,6 +208,7 @@ ${data.offerDuration ? `- Offer Duration: ${data.offerDuration}` : ""}
 - WhatsApp: ${data.whatsapp}
 - CTA: ${data.cta}
 - Number of product images: ${data.productImages.length}
+${data.campaignType !== "standard" ? `- Campaign Type: ${data.campaignType}` : ""}
 
 The user has uploaded ${data.productImages.length} product image(s) and the supermarket logo. Describe the poster incorporating these images.`;
 
@@ -198,6 +222,7 @@ ${data.discount ? `- Discount: ${data.discount}` : ""}
 - Headline: ${data.headline}
 - WhatsApp: ${data.whatsapp}
 - CTA: ${data.cta}
+${data.campaignType !== "standard" ? `- Campaign Type: ${data.campaignType}` : ""}
 
 The user has uploaded the product image and shop logo. Describe the poster incorporating these images.`;
   }

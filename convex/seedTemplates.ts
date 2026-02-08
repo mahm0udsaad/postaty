@@ -149,7 +149,7 @@ export const seed = mutation({
         slug: "ramadan-nights",
         name: "Ramadan Nights",
         nameAr: "ليالي رمضان",
-        category: "sale" as const, // Could be general or sale
+        category: "ramadan" as const,
         supportedFormats: ["instagram-square", "instagram-story"],
         layers: [
           { id: "bg", type: "background" as const, label: "Background", labelAr: "الخلفية", x: 0, y: 0, width: 1, height: 1, rotation: 0, zIndex: 0, visible: true, locked: true, props: { fill: "#1e1b4b", gradient: { from: "#1e1b4b", to: "#312e81", angle: 180 } } },
@@ -164,7 +164,28 @@ export const seed = mutation({
         ]
       },
 
-      // 9. New Arrival (Streetwear/Bold) - High energy
+      // 9. Eid Celebration (Festive/Modern) - Gold + cream, subtle sparkles
+      {
+        slug: "eid-celebration",
+        name: "Eid Celebration",
+        nameAr: "بهجة العيد",
+        category: "eid" as const,
+        supportedFormats: ["instagram-square", "instagram-story", "facebook-post"],
+        layers: [
+          { id: "bg", type: "background" as const, label: "Background", labelAr: "الخلفية", x: 0, y: 0, width: 1, height: 1, rotation: 0, zIndex: 0, visible: true, locked: true, props: { fill: "#fef3c7", gradient: { from: "#fef3c7", to: "#f59e0b", angle: 135 } } },
+          { id: "panel", type: "shape" as const, label: "Panel", labelAr: "لوحة", x: 0.06, y: 0.08, width: 0.88, height: 0.84, rotation: 0, zIndex: 1, visible: true, locked: true, props: { shape: "rounded-rect", fill: "rgba(255,255,255,0.75)", stroke: "transparent", strokeWidth: 0, borderRadius: 24 } },
+          { id: "sparkle1", type: "shape" as const, label: "Sparkle", labelAr: "زخرفة", x: 0.1, y: 0.12, width: 0.12, height: 0.12, rotation: 45, zIndex: 2, visible: true, locked: true, props: { shape: "rounded-rect", fill: "rgba(245,158,11,0.15)", stroke: "transparent", strokeWidth: 0, borderRadius: 12 } },
+          { id: "sparkle2", type: "shape" as const, label: "Sparkle", labelAr: "زخرفة", x: 0.78, y: 0.14, width: 0.12, height: 0.12, rotation: 45, zIndex: 2, visible: true, locked: true, props: { shape: "rounded-rect", fill: "rgba(245,158,11,0.12)", stroke: "transparent", strokeWidth: 0, borderRadius: 12 } },
+          { id: "logo", type: "logo" as const, label: "Logo", labelAr: "الشعار", x: 0.1, y: 0.1, width: 0.2, height: 0.06, rotation: 0, zIndex: 3, visible: true, locked: false, props: { fit: "contain", borderRadius: 0, editable: true, binding: "logo" } },
+          { id: "title", type: "text" as const, label: "Headline", labelAr: "العنوان", x: 0.1, y: 0.22, width: 0.8, height: 0.1, rotation: 0, zIndex: 3, visible: true, locked: false, props: { content: "عيد مبارك", fontFamily: "Noto Kufi Arabic", fontSize: 56, fontWeight: "extrabold", color: "#92400e", align: "center", direction: "rtl", maxLines: 1, editable: true, binding: "headline" } },
+          { id: "subtitle", type: "text" as const, label: "Subtitle", labelAr: "فرعي", x: 0.12, y: 0.32, width: 0.76, height: 0.06, rotation: 0, zIndex: 3, visible: true, locked: false, props: { content: "عروض خاصة بمناسبة العيد", fontFamily: "Noto Kufi Arabic", fontSize: 24, fontWeight: "normal", color: "#b45309", align: "center", direction: "rtl", maxLines: 1, editable: true, binding: "productName" } },
+          { id: "product", type: "image" as const, label: "Product", labelAr: "المنتج", x: 0.18, y: 0.4, width: 0.64, height: 0.32, rotation: 0, zIndex: 4, visible: true, locked: false, props: { fit: "contain", borderRadius: 18, editable: true, binding: "productImage" } },
+          { id: "price", type: "text" as const, label: "Price", labelAr: "السعر", x: 0.12, y: 0.74, width: 0.35, height: 0.08, rotation: 0, zIndex: 4, visible: true, locked: false, props: { content: "خصم 30%", fontFamily: "Noto Kufi Arabic", fontSize: 40, fontWeight: "extrabold", color: "#b91c1c", align: "center", direction: "rtl", maxLines: 1, editable: true, binding: "price" } },
+          { id: "cta", type: "badge" as const, label: "CTA", labelAr: "زر", x: 0.5, y: 0.74, width: 0.38, height: 0.08, rotation: 0, zIndex: 5, visible: true, locked: false, props: { text: "اطلب الآن", style: "ribbon", backgroundColor: "#f59e0b", textColor: "#ffffff", editable: true } },
+        ],
+      },
+
+      // 10. New Arrival (Streetwear/Bold) - High energy
       {
         slug: "new-drop-street",
         name: "Streetwear Drop",

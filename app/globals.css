@@ -1,40 +1,54 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
+  /* Modern Light Theme 2026 */
+  --background: #f8fafc; /* Slate 50 */
+  --foreground: #0f172a; /* Slate 900 */
   
-  /* Modern Indigo/Violet Palette */
-  --primary: #4f46e5;
+  --primary: #4f46e5; /* Indigo 600 */
+  --primary-foreground: #ffffff;
   --primary-hover: #4338ca;
-  --accent: #8b5cf6;
+  
+  --accent: #8b5cf6; /* Violet 500 */
+  --accent-foreground: #ffffff;
   
   --success: #10b981;
   --danger: #ef4444;
-  --muted: #64748b;
+  --warning: #f59e0b;
+  --muted: #64748b; /* Slate 500 */
+  --muted-foreground: #94a3b8; /* Slate 400 */
   
-  --card: #ffffff;
-  --card-border: #e2e8f0;
+  --card: rgba(255, 255, 255, 0.8);
+  --card-hover: rgba(255, 255, 255, 0.95);
+  --card-border: rgba(226, 232, 240, 0.8); /* Slate 200 */
   
   --ring: #4f46e5;
+  --radius: 1rem;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
   --color-primary-hover: var(--primary-hover);
   --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
   --color-success: var(--success);
   --color-danger: var(--danger);
+  --color-warning: var(--warning);
   --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
   --color-card: var(--card);
+  --color-card-hover: var(--card-hover);
   --color-card-border: var(--card-border);
   --color-ring: var(--ring);
+  --radius-xl: var(--radius);
   --font-sans: var(--font-noto-kufi);
   
-  --shadow-soft: 0 4px 6px -1px rgb(0 0 0 / 0.05), 0 2px 4px -2px rgb(0 0 0 / 0.05);
-  --shadow-glow: 0 0 15px -3px rgb(79 70 229 / 0.3);
+  --shadow-soft: 0 4px 20px -2px rgba(0, 0, 0, 0.05), 0 2px 8px -2px rgba(0, 0, 0, 0.02);
+  --shadow-glow: 0 0 20px -3px rgba(79, 70, 229, 0.15);
+  --shadow-neon: 0 0 15px rgba(79, 70, 229, 0.2), 0 0 30px rgba(139, 92, 246, 0.1);
 }
 
 body {
@@ -45,6 +59,10 @@ body {
   text-align: right;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  background-image: 
+    radial-gradient(circle at 0% 0%, rgba(79, 70, 229, 0.03), transparent 40%),
+    radial-gradient(circle at 100% 100%, rgba(139, 92, 246, 0.03), transparent 40%);
+  background-attachment: fixed;
 }
 
 input,
@@ -57,12 +75,38 @@ button {
 /* Modern Input Styling */
 input, select, textarea {
   transition: all 0.2s ease-in-out;
+  background-color: #ffffff;
+  border: 1px solid var(--card-border);
+  color: var(--foreground);
+  border-radius: 0.75rem;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.02);
 }
 
 input:focus, select:focus, textarea:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1);
+  background-color: #ffffff;
+}
+
+input::placeholder, textarea::placeholder {
+  color: var(--muted-foreground);
+}
+
+/* Scrollbar Customization */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.2);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.4);
 }
 
 /* Utility for strikethrough price */
@@ -75,27 +119,66 @@ input:focus, select:focus, textarea:focus {
 /* Glass effect utility */
 .glass {
   background: rgba(255, 255, 255, 0.7);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  border: 1px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.03);
 }
 
-/* Shimmer animation for skeleton loading */
+.glass-card {
+  /* Glass Properties */
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.03);
+  
+  /* Tailwind Utilities */
+  border-radius: 1rem;
+  transition-property: all;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 300ms;
+}
+
+.glass-card:hover {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(255, 255, 255, 0.8);
+  transform: translateY(-2px);
+  box-shadow: 0 12px 40px rgba(79, 70, 229, 0.08);
+}
+
+/* Text Gradients */
+.text-gradient {
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-image: linear-gradient(to right, #4f46e5, #8b5cf6, #06b6d4);
+}
+
+.text-gradient-primary {
+  background-clip: text;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-image: linear-gradient(to right, #4f46e5, #7c3aed);
+}
+
+/* Animations */
 @keyframes shimmer {
-  0% {
-    transform: translateX(100%);
-  }
-  100% {
-    transform: translateX(-100%);
-  }
+  0% { transform: translateX(100%); }
+  100% { transform: translateX(-100%); }
 }
 
 @keyframes float {
   0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-20px); }
+  50% { transform: translateY(-15px); }
 }
 .animate-float {
   animation: float 6s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { opacity: 0.5; filter: blur(20px); }
+  50% { opacity: 0.8; filter: blur(25px); }
 }
 
 @keyframes fadeInUp {
@@ -103,7 +186,7 @@ input:focus, select:focus, textarea:focus {
   to { opacity: 1; transform: translateY(0); }
 }
 .animate-fade-in-up {
-  animation: fadeInUp 0.8s ease-out forwards;
+  animation: fadeInUp 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
 }
 
 @keyframes fadeIn {
@@ -112,4 +195,11 @@ input:focus, select:focus, textarea:focus {
 }
 .animate-fade-in {
   animation: fadeIn 0.5s ease-out forwards;
+}
+
+/* Grid Background Pattern */
+.bg-grid-pattern {
+  background-size: 40px 40px;
+  background-image: linear-gradient(to right, rgba(0, 0, 0, 0.03) 1px, transparent 1px),
+                    linear-gradient(to bottom, rgba(0, 0, 0, 0.03) 1px, transparent 1px);
 }

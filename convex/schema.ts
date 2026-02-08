@@ -66,6 +66,8 @@ export default defineSchema(
         v.literal("new_arrival"),
         v.literal("minimal"),
         v.literal("luxury"),
+        v.literal("ramadan"),
+        v.literal("eid"),
         v.literal("food"),
         v.literal("electronics"),
         v.literal("fashion"),

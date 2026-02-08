@@ -2,6 +2,7 @@ import type { Id } from "@/convex/_generated/dataModel";
 
 // ── Categories & Formats ───────────────────────────────────────────
 export type Category = "restaurant" | "supermarket" | "online";
+export type CampaignType = "standard" | "ramadan" | "eid";
 
 export type OutputFormat =
   | "instagram-square"
@@ -21,6 +22,7 @@ export interface FormatConfig {
 // ── Form Data ──────────────────────────────────────────────────────
 export interface RestaurantFormData {
   category: "restaurant";
+  campaignType: CampaignType;
   restaurantName: string;
   logo: string; // base64
   mealImage: string; // base64
@@ -36,6 +38,7 @@ export interface RestaurantFormData {
 
 export interface SupermarketFormData {
   category: "supermarket";
+  campaignType: CampaignType;
   supermarketName: string;
   logo: string; // base64
   productName: string;
@@ -51,6 +54,7 @@ export interface SupermarketFormData {
 
 export interface OnlineFormData {
   category: "online";
+  campaignType: CampaignType;
   shopName: string;
   logo: string; // base64
   productImage: string; // base64
@@ -134,6 +138,8 @@ export type TemplateCategory =
   | "new_arrival"
   | "minimal"
   | "luxury"
+  | "ramadan"
+  | "eid"
   | "food"
   | "electronics"
   | "fashion"

@@ -14,20 +14,20 @@ export default function BrandKitPage() {
   const isLoading = existingKit === undefined;
 
   return (
-    <main className="min-h-screen py-12 px-4 relative overflow-hidden">
-      <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-primary/10 rounded-full blur-[100px] pointer-events-none" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-accent/10 rounded-full blur-[100px] pointer-events-none" />
+    <main className="min-h-screen py-12 px-4 relative overflow-hidden bg-grid-pattern">
+      <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-primary/5 rounded-full blur-[100px] pointer-events-none mix-blend-multiply" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-accent/5 rounded-full blur-[100px] pointer-events-none mix-blend-multiply" />
 
       <div className="max-w-3xl mx-auto relative z-10">
         <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center gap-3 mb-4 bg-white/50 backdrop-blur-sm px-6 py-2 rounded-full border border-white/20 shadow-sm">
+          <div className="inline-flex items-center justify-center gap-3 mb-4 bg-white/80 backdrop-blur-sm px-6 py-2 rounded-full border border-slate-200/60 shadow-sm animate-fade-in-up">
             <Palette size={24} className="text-primary" />
-            <span className="text-primary font-semibold tracking-wide text-sm">تخصيص العلامة</span>
+            <span className="text-slate-700 font-semibold tracking-wide text-sm">تخصيص العلامة</span>
           </div>
-          <h1 className="text-3xl md:text-4xl font-extrabold mb-4 bg-clip-text text-transparent bg-gradient-to-r from-primary via-accent to-primary">
+          <h1 className="text-3xl md:text-4xl font-extrabold mb-4 text-slate-900 animate-gradient-flow">
             هوية العلامة التجارية
           </h1>
-          <p className="text-muted text-lg max-w-xl mx-auto leading-relaxed">
+          <p className="text-slate-500 text-lg max-w-xl mx-auto leading-relaxed font-light">
             أضف شعارك وألوانك لتطبيقها تلقائياً على كل البوسترات التي تنشئها
           </p>
         </div>
@@ -37,7 +37,7 @@ export default function BrandKitPage() {
             <Loader2 size={32} className="animate-spin text-primary" />
           </div>
         ) : (
-          <div className="bg-white/70 backdrop-blur-md rounded-3xl shadow-xl border border-white/40 p-6 md:p-8">
+          <div className="glass-card p-6 md:p-8">
             <BrandKitForm
               existingKit={existingKit ?? undefined}
               orgId={orgId}

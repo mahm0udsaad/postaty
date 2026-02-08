@@ -1,30 +1,77 @@
 "use server";
 
 import { generateSingleDesign } from "@/lib/generate-designs";
+import { selectRecipes, type DesignRecipe } from "@/lib/design-recipes";
 import { postFormDataSchema } from "@/lib/validation";
 import type { PostFormData, OutputFormat, PosterResult } from "@/lib/types";
 import type { BrandKitPromptData } from "@/lib/prompts";
 
-/** Generate a single poster (called 4 times in parallel from the client) */
+/** Generate a single poster */
 export async function generateSinglePoster(
   data: PostFormData,
   styleIndex: number,
   brandKit?: BrandKitPromptData
 ): Promise<PosterResult> {
-  console.info("[generateSinglePoster] start", {
-    category: data.category,
-    styleIndex,
-  });
-  // Validate
+  const [recipe] = selectRecipes(data.category, 1);
+  return generateSinglePosterInternal(data, styleIndex, brandKit, true, recipe);
+}
+
+/** Generate 4 posters in parallel inside a single server action call */
+export async function generatePosterBatch(
+  data: PostFormData,
+  batchIndex: number,
+  brandKit?: BrandKitPromptData
+): Promise<PosterResult[]> {
   const validation = postFormDataSchema.safeParse(data);
   if (!validation.success) {
-    console.error("[generateSinglePoster] validation_failed", {
-      styleIndex,
+    console.error("[generatePosterBatch] validation_failed", {
       issues: validation.error.issues.map((i) => i.message),
     });
     throw new Error(
       `Validation failed: ${validation.error.issues.map((i) => i.message).join(", ")}`
     );
+  }
+
+  const totalPosters = 4;
+  const baseIndex = batchIndex * totalPosters;
+
+  // Select unique recipes for this batch (no repeats)
+  const recipes = selectRecipes(data.category, totalPosters);
+
+  const tasks = Array.from({ length: totalPosters }, (_, i) =>
+    generateSinglePosterInternal(data, baseIndex + i, brandKit, false, recipes[i])
+  );
+
+  const results = await Promise.all(tasks);
+  results.sort((a, b) => a.designIndex - b.designIndex);
+  return results;
+}
+
+// ── Helpers ────────────────────────────────────────────────────────
+
+async function generateSinglePosterInternal(
+  data: PostFormData,
+  styleIndex: number,
+  brandKit: BrandKitPromptData | undefined,
+  validate: boolean,
+  recipe?: DesignRecipe
+): Promise<PosterResult> {
+  console.info("[generateSinglePoster] start", {
+    category: data.category,
+    styleIndex,
+  });
+
+  if (validate) {
+    const validation = postFormDataSchema.safeParse(data);
+    if (!validation.success) {
+      console.error("[generateSinglePoster] validation_failed", {
+        styleIndex,
+        issues: validation.error.issues.map((i) => i.message),
+      });
+      throw new Error(
+        `Validation failed: ${validation.error.issues.map((i) => i.message).join(", ")}`
+      );
+    }
   }
 
   const format: OutputFormat = data.formats[0];
@@ -36,7 +83,23 @@ export async function generateSinglePoster(
   });
 
   try {
-    const design = await generateSingleDesign(data, styleIndex, brandKit);
+    const design = await generateSingleDesign(data, styleIndex, brandKit, recipe);
+
+    // Image result — no HTML processing needed
+    if (design.imageBase64) {
+      console.info("[generateSinglePoster] image_design", { styleIndex });
+      return {
+        designIndex: styleIndex,
+        format,
+        html: "",
+        imageBase64: design.imageBase64,
+        status: "complete" as const,
+        designName: design.name,
+        designNameAr: design.nameAr,
+      };
+    }
+
+    // HTML result — normalize and inject images
     const normalizedHtml = normalizeHtml(design.html);
     if (normalizedHtml.length < 80) {
       console.error("[generateSinglePoster] html_too_short", {
@@ -55,8 +118,8 @@ export async function generateSinglePoster(
       styleIndex,
       normalizedLength: normalizedHtml.length,
       hydratedLength: hydratedHtml.length,
-      hasHtmlTag: /<html[\s>]/i.test(hydratedHtml),
-      hasBodyTag: /<body[\s>]/i.test(hydratedHtml),
+      hasHtmlTag: /<html[\\s>]/i.test(hydratedHtml),
+      hasBodyTag: /<body[\\s>]/i.test(hydratedHtml),
       placeholdersRemaining,
     });
 
@@ -89,8 +152,6 @@ export async function generateSinglePoster(
     };
   }
 }
-
-// ── Helpers ────────────────────────────────────────────────────────
 
 function injectImages(
   html: string,
