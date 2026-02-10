@@ -1,4 +1,5 @@
 import { mutation, query, internalMutation } from "./_generated/server";
+import { paginationOptsValidator } from "convex/server";
 import { v } from "convex/values";
 
 const categoryValidator = v.union(
@@ -154,6 +155,40 @@ export const listByOrg = query({
         ),
       }))
     );
+  },
+});
+
+// Paginated query for infinite scroll
+export const listByOrgPaginated = query({
+  args: {
+    orgId: v.id("organizations"),
+    paginationOpts: paginationOptsValidator,
+  },
+  handler: async (ctx, args) => {
+    const results = await ctx.db
+      .query("generations")
+      .withIndex("by_orgId", (q) => q.eq("orgId", args.orgId))
+      .order("desc")
+      .paginate(args.paginationOpts);
+
+    const page = await Promise.all(
+      results.page.map(async (gen) => ({
+        ...gen,
+        outputs: await Promise.all(
+          gen.outputs.map(async (output) => ({
+            ...output,
+            url: output.storageId
+              ? await ctx.storage.getUrl(output.storageId)
+              : null,
+          }))
+        ),
+      }))
+    );
+
+    return {
+      ...results,
+      page,
+    };
   },
 });
 

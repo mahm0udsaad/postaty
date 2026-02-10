@@ -6,13 +6,13 @@ import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Category, PostFormData, PosterResult, PosterGenStep } from "@/lib/types";
 import type { BrandKitPromptData } from "@/lib/prompts";
-import { CATEGORY_LABELS } from "@/lib/constants";
+import { CATEGORY_LABELS, FORMAT_CONFIGS } from "@/lib/constants";
 import { CategorySelector } from "./components/category-selector";
 import { RestaurantForm } from "./components/forms/restaurant-form";
 import { SupermarketForm } from "./components/forms/supermarket-form";
 import { OnlineForm } from "./components/forms/online-form";
 import { PosterGrid } from "./components/poster-grid";
-import { generateSinglePoster } from "./actions-v2";
+import { generatePosters } from "./actions-v2";
 import { useDevIdentity } from "@/hooks/use-dev-identity";
 import { ArrowRight, Sparkles, Palette, ArrowDown } from "lucide-react";
 
@@ -50,8 +50,6 @@ export default function Home() {
   const [genStep, setGenStep] = useState<PosterGenStep>("idle");
   const [results, setResults] = useState<PosterResult[]>([]);
   const [error, setError] = useState<string>();
-  const [expectedTotal, setExpectedTotal] = useState(4);
-  const [batchIndex, setBatchIndex] = useState(0);
   const [lastSubmission, setLastSubmission] = useState<PostFormData | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -68,6 +66,8 @@ export default function Home() {
   // Convex mutations for saving
   const createGeneration = useMutation(api.generations.create);
   const updateStatus = useMutation(api.generations.updateStatus);
+  const updateOutput = useMutation(api.generations.updateOutput);
+  const generateUploadUrl = useMutation(api.generations.generateUploadUrl);
   const savePosterTemplate = useMutation(api.posterTemplates.save);
 
   // Fetch default brand kit
@@ -97,113 +97,114 @@ export default function Home() {
       setResults([]);
       setError(undefined);
       setGenStep("idle");
-      setExpectedTotal(4);
-      setBatchIndex(0);
       setLastSubmission(null);
       setStep("fill-form");
     }
   };
 
-  const runGeneration = (data: PostFormData, options: { append: boolean }) => {
-    const totalPosters = 4;
-    const nextBatch = options.append ? batchIndex + 1 : 0;
-    const baseIndex = nextBatch * totalPosters;
-
+  const runGeneration = (data: PostFormData) => {
     setLastSubmission(data);
-    setBatchIndex(nextBatch);
     setGenStep("generating-designs");
     setError(undefined);
     setIsGenerating(true);
-
-    if (options.append) {
-      setExpectedTotal((prev) => prev + totalPosters);
-      setStep("results");
-    } else {
-      setExpectedTotal(totalPosters);
-      setResults([]);
-      setStep("generating");
-    }
+    setResults([]);
+    setStep("generating");
 
     const startTime = Date.now();
 
-    // Fire 4 independent calls — each updates results as it finishes
-    const promises = Array.from({ length: totalPosters }, (_, i) => {
-      const styleIndex = baseIndex + i;
-      return generateSinglePoster(data, styleIndex, brandKitPromptData)
-        .then((result) => {
-          setResults((prev) =>
-            [...prev, result].sort((a, b) => a.designIndex - b.designIndex)
-          );
-          return result;
-        })
-        .catch((err) => {
-          const errorResult: PosterResult = {
-            designIndex: styleIndex,
-            format: data.formats[0],
-            html: "",
-            status: "error",
-            error: err instanceof Error ? err.message : "Generation failed",
-            designName: `Design ${styleIndex + 1}`,
-            designNameAr: `تصميم ${styleIndex + 1}`,
-          };
-          setResults((prev) =>
-            [...prev, errorResult].sort((a, b) => a.designIndex - b.designIndex)
-          );
-          return errorResult;
-        });
-    });
+    generatePosters(data, brandKitPromptData)
+      .then((posterResults) => {
+        setResults(posterResults);
+        setGenStep("complete");
+        setStep("results");
+        setIsGenerating(false);
 
-    Promise.allSettled(promises).then((settled) => {
-      const allResults = settled
-        .filter((s): s is PromiseFulfilledResult<PosterResult> => s.status === "fulfilled")
-        .map((s) => s.value);
-      const successCount = allResults.filter((r) => r.status === "complete").length;
+        // Save successful results to Convex in background
+        const successResults = posterResults.filter((r) => r.status === "complete");
+        if (successResults.length > 0) {
+          void (async () => {
+            try {
+              const generationId = await createGeneration({
+                orgId,
+                userId,
+                brandKitId: defaultBrandKit?._id,
+                category: data.category,
+                businessName: getBusinessName(data),
+                productName: getProductName(data),
+                inputs: JSON.stringify({
+                  ...data,
+                  logo: undefined,
+                  mealImage: undefined,
+                  productImage: undefined,
+                  productImages: undefined,
+                }),
+                formats: data.formats,
+                creditsCharged: 1,
+              });
 
-      setGenStep("complete");
-      setStep("results");
-      setIsGenerating(false);
+              // Upload each successful image to Convex storage
+              for (const result of successResults) {
+                if (result.imageBase64) {
+                  const format = data.formats[0];
+                  const formatConfig = FORMAT_CONFIGS[format];
 
-      if (successCount > 0) {
-        void (async () => {
-          try {
-            const generationId = await createGeneration({
-              orgId,
-              userId,
-              brandKitId: defaultBrandKit?._id,
-              category: data.category,
-              businessName: getBusinessName(data),
-              productName: getProductName(data),
-              inputs: JSON.stringify({
-                ...data,
-                logo: undefined,
-                mealImage: undefined,
-                productImage: undefined,
-                productImages: undefined,
-              }),
-              formats: data.formats,
-              creditsCharged: successCount,
-            });
+                  const res = await fetch(result.imageBase64);
+                  const blob = await res.blob();
 
-            await updateStatus({
-              generationId,
-              status: successCount === allResults.length ? "complete" : "partial",
-              durationMs: Date.now() - startTime,
-            });
-          } catch (saveErr) {
-            console.error("Failed to save generation to Convex:", saveErr);
-          }
-        })();
-      }
-    });
+                  const uploadUrl = await generateUploadUrl();
+                  const uploadRes = await fetch(uploadUrl, {
+                    method: "POST",
+                    headers: { "Content-Type": blob.type || "image/png" },
+                    body: blob,
+                  });
+                  const { storageId } = await uploadRes.json();
+
+                  await updateOutput({
+                    generationId,
+                    format,
+                    storageId,
+                    width: formatConfig.width,
+                    height: formatConfig.height,
+                  });
+                }
+              }
+
+              await updateStatus({
+                generationId,
+                status: "complete",
+                durationMs: Date.now() - startTime,
+              });
+            } catch (saveErr) {
+              console.error("Failed to save generation to Convex:", saveErr);
+            }
+          })();
+        }
+      })
+      .catch((err) => {
+        const errorResult: PosterResult = {
+          designIndex: 0,
+          format: data.formats[0],
+          html: "",
+          tier: "premium",
+          status: "error",
+          error: err instanceof Error ? err.message : "Generation failed",
+          designName: "Design",
+          designNameAr: "تصميم",
+        };
+        setResults([errorResult]);
+        setGenStep("complete");
+        setStep("results");
+        setIsGenerating(false);
+      });
   };
 
   const handleSubmit = (data: PostFormData) => {
-    runGeneration(data, { append: false });
+    runGeneration(data);
   };
 
-  const handleGenerateMore = () => {
-    if (!lastSubmission || isGenerating || genStep === "generating-designs") return;
-    runGeneration(lastSubmission, { append: true });
+  const handleRegenerate = () => {
+    if (!lastSubmission || isGenerating) return;
+    runGeneration(lastSubmission);
   };
 
   const handleSaveAsTemplate = async (designIndex: number) => {
@@ -222,7 +223,8 @@ export default function Home() {
         designJson: JSON.stringify({
           name: result.designName,
           nameAr: result.designNameAr,
-          html: result.html,
+          imageBase64: result.imageBase64,
+          tier: result.tier,
         }),
       });
     } catch (err) {
@@ -365,24 +367,11 @@ export default function Home() {
               results={results}
               genStep={genStep}
               error={error}
-              totalExpected={expectedTotal}
+              totalExpected={2}
               onSaveAsTemplate={handleSaveAsTemplate}
             />
           )}
         </div>
-
-        {/* Generate more button */}
-        {step === "results" && genStep === "complete" && (
-          <div className="text-center mt-12">
-            <button
-              onClick={handleGenerateMore}
-              disabled={!lastSubmission || isGenerating}
-              className="px-8 py-3.5 bg-slate-800 border border-primary/40 text-white rounded-xl hover:bg-primary/90 hover:border-primary shadow-lg shadow-primary/10 hover:shadow-primary/30 transition-all font-bold text-lg transform hover:-translate-y-1 disabled:opacity-60 disabled:cursor-not-allowed"
-            >
-              إنشاء 4 تصاميم إضافية مختلفة
-            </button>
-          </div>
-        )}
       </div>
     </main>
   );

@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect, useMemo } from "react";
-import { toPng } from "html-to-image";
+import { useState, useCallback, useEffect } from "react";
+import { motion, useMotionValue, useTransform, AnimatePresence } from "framer-motion";
 import {
   Download,
   Share2,
@@ -11,24 +11,13 @@ import {
   Save,
   DownloadCloud,
   Sparkles,
+  Crown,
+  LayoutGrid,
+  Palette,
+  Wand2,
+  Brain,
 } from "lucide-react";
 import type { PosterResult, PosterGenStep } from "@/lib/types";
-import { FORMAT_CONFIGS } from "@/lib/constants";
-
-// ── Generation Steps ──────────────────────────────────────────────
-
-const GENERATION_STEPS: Record<
-  PosterGenStep,
-  { label: string; sublabel: string }
-> = {
-  idle: { label: "", sublabel: "" },
-  "generating-designs": {
-    label: "يصمم الذكاء الاصطناعي 6 تصاميم...",
-    sublabel: "يختار الألوان والتخطيط والعناصر",
-  },
-  complete: { label: "تم بنجاح!", sublabel: "" },
-  error: { label: "حدث خطأ", sublabel: "" },
-};
 
 // ── Props ─────────────────────────────────────────────────────────
 
@@ -62,7 +51,7 @@ function AiStateIndicator() {
     }, delta);
 
     return () => clearInterval(ticker);
-  }, [text, delta]);
+  });
 
   const tick = () => {
     const i = messageIndex % AI_MESSAGES.length;
@@ -79,87 +68,347 @@ function AiStateIndicator() {
 
     if (!isDeleting && updatedText === fullText) {
       setIsDeleting(true);
-      setDelta(2000); // Wait before deleting
+      setDelta(2000);
     } else if (isDeleting && updatedText === "") {
       setIsDeleting(false);
       setMessageIndex((prev) => prev + 1);
       setDelta(100);
     } else {
-      // Normal typing speed
-      if (!isDeleting && delta === 2000) setDelta(100); 
+      if (!isDeleting && delta === 2000) setDelta(100);
     }
   };
 
   return (
     <div className="flex flex-col items-center justify-center space-y-4 py-6">
-      <div className="relative">
-        <div className="absolute -inset-1 bg-gradient-to-r from-primary via-accent to-primary rounded-full blur opacity-30 animate-pulse" />
+      <motion.div
+        className="relative"
+        animate={{ rotate: [0, 360] }}
+        transition={{ duration: 8, repeat: Infinity, ease: "linear" }}
+      >
+        <div className="absolute -inset-1 bg-gradient-to-r from-primary via-accent to-primary rounded-full blur opacity-30" />
         <div className="relative bg-white rounded-full p-4 ring-1 ring-slate-200 shadow-sm">
           <Sparkles className="w-8 h-8 text-primary animate-pulse" />
         </div>
-      </div>
-      
+      </motion.div>
+
       <div className="h-8 flex items-center">
         <p className="text-lg md:text-xl font-medium bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">
           {text}
-          <span className="w-0.5 h-6 ml-1 bg-primary inline-block animate-blink align-middle" />
+          <span className="w-0.5 h-6 mr-1 bg-primary inline-block animate-blink align-middle" />
         </p>
       </div>
     </div>
   );
 }
 
-// ── Poster Skeleton ───────────────────────────────────────────────
+// ── Poster Skeleton (Advanced Generative Visualization) ───────────
 
-function PosterSkeleton({ index }: { index: number }) {
+const LOADING_LOGS = [
+  ">> Initializing creative tensor cores...",
+  ">> Analyzing brand semantic context...",
+  ">> Constructing layout geometry...",
+  ">> Sampling high-fidelity textures...",
+  ">> Optimizing color harmony...",
+  ">> Rendering typographic elements...",
+  ">> Applying post-processing filters...",
+  ">> Finalizing export buffer...",
+];
+
+// ── Phase 1: Wireframe / Blueprint Construction
+function SkeletonLayoutPhase() {
+  const draw = {
+    hidden: { pathLength: 0, opacity: 0 },
+    visible: (i: number) => ({
+      pathLength: 1,
+      opacity: 1,
+      transition: {
+        pathLength: { delay: i * 0.2, type: "spring", duration: 1.5, bounce: 0 },
+        opacity: { delay: i * 0.2, duration: 0.01 },
+      },
+    }),
+  };
+
   return (
-    <div className="bg-white border border-slate-200 shadow-xl rounded-3xl overflow-hidden relative group">
-      {/* Glossy Overlay */}
-      <div className="absolute inset-0 bg-gradient-to-br from-white/40 to-transparent opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-20" />
+    <div className="absolute inset-0 p-6 flex flex-col">
+      {/* Grid Background */}
+      <div className="absolute inset-0 opacity-[0.03]" 
+           style={{ backgroundImage: 'radial-gradient(circle, #000 1px, transparent 1px)', backgroundSize: '20px 20px' }} 
+      />
       
-      {/* Skeleton Image Area */}
-      <div className="relative aspect-square bg-slate-50 overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-tr from-primary/5 via-accent/5 to-primary/5 animate-pulse" />
-        
-        {/* Modern Shimmer */}
-        <div 
-          className="absolute inset-0 -translate-x-full" 
-          style={{
-            background: 'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.8) 50%, transparent 100%)',
-            animation: 'shimmer 2s infinite cubic-bezier(0.4, 0, 0.2, 1)',
-          }}
+      <motion.svg className="w-full h-full stroke-primary/40 stroke-[2] fill-none" viewBox="0 0 100 100" preserveAspectRatio="none">
+        {/* Header Image Area */}
+        <motion.rect
+          x="0" y="0" width="100" height="60" rx="5"
+          variants={draw} custom={0} initial="hidden" animate="visible"
+        />
+        {/* Title Line */}
+        <motion.line
+          x1="10" y1="70" x2="60" y2="70"
+          variants={draw} custom={1} initial="hidden" animate="visible"
+        />
+        {/* Subtitle Line */}
+        <motion.line
+          x1="10" y1="80" x2="40" y2="80"
+          variants={draw} custom={2} initial="hidden" animate="visible"
+        />
+        {/* Price Tag Circle */}
+        <motion.circle
+          cx="85" cy="75" r="10"
+          variants={draw} custom={3} initial="hidden" animate="visible"
+        />
+        {/* Button Rect */}
+        <motion.rect
+          x="65" y="90" width="35" height="10" rx="2"
+          variants={draw} custom={4} initial="hidden" animate="visible"
+        />
+      </motion.svg>
+      
+      {/* Floating Blueprint Label */}
+      <motion.div 
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 1 }}
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 bg-blue-500/10 text-blue-600 px-3 py-1 rounded-full text-xs font-mono border border-blue-500/20 backdrop-blur-sm"
+      >
+        LAYOUT_ENGINE_V2
+      </motion.div>
+    </div>
+  );
+}
+
+// ── Phase 2: Color Injection
+function SkeletonColorPhase() {
+  return (
+    <div className="absolute inset-0 overflow-hidden">
+      {/* Animated Gradient Blobs */}
+      <motion.div
+        className="absolute -top-10 -right-10 w-40 h-40 bg-purple-500/20 rounded-full blur-3xl"
+        animate={{ scale: [1, 1.2, 1], x: [0, -20, 0] }}
+        transition={{ duration: 4, repeat: Infinity }}
+      />
+      <motion.div
+        className="absolute -bottom-10 -left-10 w-40 h-40 bg-blue-500/20 rounded-full blur-3xl"
+        animate={{ scale: [1, 1.5, 1], y: [0, -20, 0] }}
+        transition={{ duration: 5, repeat: Infinity }}
+      />
+      
+      <div className="absolute inset-0 flex items-center justify-center flex-col gap-6">
+        <div className="flex gap-4">
+           {[1, 2, 3].map((i) => (
+             <motion.div
+               key={i}
+               initial={{ scale: 0, opacity: 0 }}
+               animate={{ scale: 1, opacity: 1 }}
+               transition={{ delay: i * 0.2, type: "spring" }}
+               className="w-12 h-12 rounded-full shadow-lg border-2 border-white flex items-center justify-center"
+               style={{ 
+                 background: i === 1 ? 'linear-gradient(135deg, #f6d365 0%, #fda085 100%)' : 
+                             i === 2 ? 'linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%)' :
+                                       'linear-gradient(135deg, #a18cd1 0%, #fbc2eb 100%)'
+               }}
+             >
+               {i === 2 && <motion.div layoutId="cursor" className="w-3 h-3 bg-white rounded-full shadow-md" />}
+             </motion.div>
+           ))}
+        </div>
+        <motion.div
+           initial={{ opacity: 0 }}
+           animate={{ opacity: 1 }}
+           transition={{ delay: 0.8 }}
+           className="text-xs font-medium text-slate-500 flex items-center gap-2"
+        >
+          <Palette size={14} className="animate-pulse text-purple-500" />
+          <span>INJECTING_PALETTE...</span>
+        </motion.div>
+      </div>
+    </div>
+  );
+}
+
+// ── Phase 3: Neural Processing
+function SkeletonProcessingPhase() {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center bg-slate-900/5">
+      {/* Central Core */}
+      <div className="relative">
+        {/* Orbital Rings */}
+        <motion.div
+          className="absolute inset-0 rounded-full border border-primary/30 border-dashed"
+          style={{ width: '120px', height: '120px', left: '-36px', top: '-36px' }}
+          animate={{ rotate: 360 }}
+          transition={{ duration: 10, repeat: Infinity, ease: "linear" }}
+        />
+        <motion.div
+          className="absolute inset-0 rounded-full border border-accent/30"
+          style={{ width: '90px', height: '90px', left: '-21px', top: '-21px' }}
+          animate={{ rotate: -360 }}
+          transition={{ duration: 7, repeat: Infinity, ease: "linear" }}
         />
         
-        {/* Floating AI Elements */}
-        <div className="absolute inset-0 flex items-center justify-center">
-          <div className="relative w-20 h-20">
-            <div className="absolute inset-0 bg-primary/10 rounded-full blur-xl animate-pulse" />
-            <div className="absolute inset-4 bg-white/80 backdrop-blur-md rounded-full flex items-center justify-center shadow-sm border border-slate-100">
-               <Loader2 className="w-6 h-6 text-primary animate-spin" />
-            </div>
-          </div>
-        </div>
-        
-        {/* Abstract Shapes */}
-        <div className="absolute top-4 left-4 w-16 h-4 bg-white rounded-full blur-[1px]" />
-        <div className="absolute bottom-4 right-4 w-24 h-24 bg-accent/5 rounded-full blur-2xl" />
-      </div>
+        {/* Core Pulsing */}
+        <motion.div
+          className="w-12 h-12 bg-gradient-to-tr from-primary to-accent rounded-full flex items-center justify-center shadow-lg shadow-primary/30 z-10 relative"
+          animate={{ scale: [1, 1.1, 1] }}
+          transition={{ duration: 2, repeat: Infinity }}
+        >
+          <Brain className="text-white w-6 h-6" />
+        </motion.div>
 
-      {/* Skeleton Footer */}
-      <div className="p-5 space-y-4 bg-white/50 backdrop-blur-sm">
-        <div className="space-y-2">
-          <div className="h-4 bg-slate-200 rounded-full w-3/4 animate-pulse" />
-          <div className="h-3 bg-slate-100 rounded-full w-1/2 animate-pulse delay-75" />
-        </div>
-        <div className="flex items-center justify-between pt-2">
-          <div className="flex gap-2">
-            <div className="w-8 h-8 rounded-full bg-slate-100 animate-pulse delay-100" />
-            <div className="w-8 h-8 rounded-full bg-slate-100 animate-pulse delay-150" />
-          </div>
-          <div className="h-8 w-8 rounded-lg bg-primary/5 animate-pulse delay-200" />
+        {/* Scanning Line Effect */}
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-48 h-48 pointer-events-none overflow-hidden rounded-full opacity-20">
+             <motion.div 
+               className="w-full h-1 bg-primary shadow-[0_0_15px_rgba(0,0,0,0.5)]"
+               animate={{ top: ['0%', '100%'] }}
+               transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+               style={{ position: 'absolute', boxShadow: '0 0 10px var(--primary)' }}
+             />
         </div>
       </div>
     </div>
+  );
+}
+
+function PosterSkeleton({ index, tier }: { index: number; tier: "premium" | "standard" }) {
+  const [phase, setPhase] = useState(0);
+  const [logIndex, setLogIndex] = useState(0);
+
+  // Cycle phases
+  useEffect(() => {
+    const delayStart = setTimeout(() => {
+        const interval = setInterval(() => {
+          setPhase((prev) => (prev + 1) % 3);
+        }, 3000); // 3 seconds per phase
+        return () => clearInterval(interval);
+    }, index * 800); // Stagger start time
+    
+    return () => clearTimeout(delayStart);
+  }, [index]);
+
+  // Cycle logs rapidly
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setLogIndex((prev) => (prev + 1) % LOADING_LOGS.length);
+    }, 1500);
+    return () => clearInterval(interval);
+  }, []);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay: index * 0.1 }}
+      className="relative rounded-3xl overflow-hidden w-full h-full bg-white border border-slate-200 shadow-xl"
+    >
+      {/* Top Status Bar */}
+      <div className="h-8 bg-slate-50 border-b border-slate-100 flex items-center px-3 justify-between">
+        <div className="flex gap-1.5">
+          <div className="w-2 h-2 rounded-full bg-red-400/50" />
+          <div className="w-2 h-2 rounded-full bg-amber-400/50" />
+          <div className="w-2 h-2 rounded-full bg-green-400/50" />
+        </div>
+        <div className="text-[10px] font-mono text-slate-400 flex items-center gap-1">
+          <span className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse" />
+          PROCESSING_NODE_{index + 1}
+        </div>
+      </div>
+
+      {/* Main Canvas Area */}
+      <div className="relative aspect-square bg-white overflow-hidden">
+        <AnimatePresence mode="wait">
+          {phase === 0 && (
+            <motion.div
+              key="layout"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.5 }}
+              className="absolute inset-0"
+            >
+              <SkeletonLayoutPhase />
+            </motion.div>
+          )}
+          {phase === 1 && (
+            <motion.div
+              key="color"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.5 }}
+              className="absolute inset-0"
+            >
+              <SkeletonColorPhase />
+            </motion.div>
+          )}
+          {phase === 2 && (
+            <motion.div
+              key="process"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.5 }}
+              className="absolute inset-0"
+            >
+              <SkeletonProcessingPhase />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
+
+      {/* Terminal Footer */}
+      <div className="p-3 bg-slate-900 border-t border-slate-800">
+        <div className="font-mono text-xs text-green-400/80 truncate">
+          <span className="mr-2 text-green-600">$</span>
+          {LOADING_LOGS[logIndex]}
+          <span className="animate-blink inline-block w-1.5 h-3 ml-1 bg-green-400 align-middle" />
+        </div>
+        <div className="mt-2 h-1 bg-slate-800 rounded-full overflow-hidden">
+          <motion.div 
+            className="h-full bg-gradient-to-r from-green-500 to-primary"
+            animate={{ width: ["0%", "100%"] }}
+            transition={{ duration: 3, ease: "linear", repeat: Infinity }}
+          />
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// ── 3D Hover Effect Wrapper ──────────────────────────────────────
+
+function Card3DHover({
+  children,
+  className,
+}: {
+  children: React.ReactNode;
+  className?: string;
+}) {
+  const x = useMotionValue(0);
+  const y = useMotionValue(0);
+  const rotateX = useTransform(y, [-0.5, 0.5], [8, -8]);
+  const rotateY = useTransform(x, [-0.5, 0.5], [-8, 8]);
+
+  const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    x.set((e.clientX - rect.left) / rect.width - 0.5);
+    y.set((e.clientY - rect.top) / rect.height - 0.5);
+  };
+
+  const handleMouseLeave = () => {
+    x.set(0);
+    y.set(0);
+  };
+
+  return (
+    <motion.div
+      onMouseMove={handleMouseMove}
+      onMouseLeave={handleMouseLeave}
+      style={{ perspective: 1000, rotateX, rotateY, transformStyle: "preserve-3d" }}
+      whileHover={{ z: 20 }}
+      transition={{ type: "spring", stiffness: 300, damping: 20 }}
+      className={className}
+    >
+      {children}
+    </motion.div>
   );
 }
 
@@ -169,7 +418,7 @@ export function PosterGrid({
   results,
   genStep,
   error,
-  totalExpected = results.length || 4,
+  totalExpected = results.length || 3,
   onSaveAsTemplate,
 }: PosterGridProps) {
   const isLoading = genStep === "generating-designs";
@@ -188,8 +437,20 @@ export function PosterGrid({
     }
   };
 
-  // Generate an array of indices to render
-  const gridItems = Array.from({ length: totalExpected }, (_, i) => i);
+  // Create grid items for all expected indices
+  const gridItems = Array.from({ length: totalExpected }, (_, i) => ({
+    index: i,
+    tier: (i === 0 ? "premium" : "standard") as "premium" | "standard",
+  }));
+
+  // Animation variants
+  const containerVariants = {
+    hidden: { opacity: 0 },
+    show: {
+      opacity: 1,
+      transition: { staggerChildren: 0.2, delayChildren: 0.1 },
+    },
+  };
 
   return (
     <div className="space-y-8">
@@ -203,13 +464,15 @@ export function PosterGrid({
               <CheckCircle2 size={24} className="text-success" />
             </div>
             <div>
-              <h3 className="text-lg font-bold text-gray-900">تم اكتمال التصميم!</h3>
+              <h3 className="text-lg font-bold text-gray-900">
+                تم اكتمال التصميم!
+              </h3>
               <p className="text-muted text-sm">
                 تم إنشاء {successResults.length} من {totalExpected} تصاميم بنجاح
               </p>
             </div>
           </div>
-          
+
           {successResults.length > 0 && (
             <button
               type="button"
@@ -242,109 +505,57 @@ export function PosterGrid({
         </div>
       )}
 
-      {/* Results Grid - Mix of Cards and Skeletons */}
+      {/* Results Grid - Grid layout with 3 columns */}
       {(results.length > 0 || isLoading) && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-8">
-          {gridItems.map((index) => {
-            const result = results.find(r => r.designIndex === index);
+        <motion.div
+          variants={containerVariants}
+          initial="hidden"
+          animate="show"
+          className="grid grid-cols-1 md:grid-cols-2 gap-6 max-w-3xl mx-auto"
+        >
+          {gridItems.map(({ index, tier }) => {
+            const result = results.find((r) => r.designIndex === index);
             if (result) {
               return (
-                <PosterCard
-                  key={result.designIndex}
-                  result={result}
-                  onSaveAsTemplate={onSaveAsTemplate}
-                />
+                <div key={result.designIndex} className="w-full">
+                  <PosterCard
+                    result={result}
+                    onSaveAsTemplate={onSaveAsTemplate}
+                  />
+                </div>
               );
             }
-            
+
             if (isLoading) {
-              return <PosterSkeleton key={`skeleton-${index}`} index={index} />;
+              return (
+                <div key={`skeleton-${index}`} className="w-full">
+                  <PosterSkeleton
+                    index={index}
+                    tier={tier}
+                  />
+                </div>
+              );
             }
             return null;
           })}
-        </div>
+        </motion.div>
       )}
     </div>
   );
 }
 
-// ── Client-side Render Helper ─────────────────────────────────────
-
-async function renderToBlob(html: string, format: string): Promise<Blob> {
-  const config = FORMAT_CONFIGS[format as keyof typeof FORMAT_CONFIGS];
-  if (!config) throw new Error("Invalid format");
-
-  const { width, height } = config;
-
-  const iframe = document.createElement("iframe");
-  iframe.style.cssText = `position:fixed;top:-9999px;left:-9999px;width:${width}px;height:${height}px;border:none;opacity:0;pointer-events:none;`;
-  iframe.sandbox.add("allow-same-origin", "allow-scripts");
-  document.body.appendChild(iframe);
-
-  try {
-    const parser = new DOMParser();
-    const doc = parser.parseFromString(html, "text/html");
-    const rawCss = Array.from(doc.querySelectorAll("style"))
-      .map((s) => s.textContent ?? "")
-      .join("\n");
-    const cleanedCss = rawCss.replace(/@import[^;]+;/gi, "");
-    const body = doc.body?.innerHTML ?? html;
-
-    const fullHtml = `<!doctype html><html><head><meta charset="utf-8">
-<link href="https://fonts.googleapis.com/css2?family=Noto+Kufi+Arabic:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  #poster-root {
-    width: ${width}px;
-    height: ${height}px;
-    overflow: hidden;
-    position: relative;
-    font-family: 'Noto Kufi Arabic', sans-serif;
-    direction: rtl;
-    background: #ffffff;
-  }
-  ${cleanedCss}
-</style></head><body style="margin:0;padding:0;"><div id="poster-root">${body}</div></body></html>`;
-
-    await new Promise<void>((resolve) => {
-      iframe.onload = () => resolve();
-      iframe.srcdoc = fullHtml;
-    });
-
-    const iframeDoc = iframe.contentDocument!;
-    const node = iframeDoc.getElementById("poster-root")!;
-
-    if ("fonts" in iframeDoc) {
-      await (iframeDoc as Document & { fonts: FontFaceSet }).fonts.ready;
-    }
-
-    const dataUrl = await toPng(node, {
-      cacheBust: true,
-      width,
-      height,
-      pixelRatio: 2,
-      skipFonts: true,
-    });
-
-    const res = await fetch(dataUrl);
-    return res.blob();
-  } finally {
-    document.body.removeChild(iframe);
-  }
-}
+// ── Export Helper ─────────────────────────────────────────────────
 
 async function exportPoster(result: PosterResult): Promise<void> {
-  let blob: Blob;
-  if (result.imageBase64) {
-    const res = await fetch(result.imageBase64);
-    blob = await res.blob();
-  } else {
-    blob = await renderToBlob(result.html, result.format);
-  }
+  if (!result.imageBase64) return;
+  const res = await fetch(result.imageBase64);
+  const blob = await res.blob();
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `poster-${result.designNameAr || result.designIndex + 1}-${result.format}.png`;
+  link.download = `poster-${result.designNameAr || result.designIndex + 1}-${
+    result.format
+  }.png`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -361,98 +572,7 @@ function PosterCard({
   onSaveAsTemplate?: (designIndex: number) => void;
 }) {
   const [isExporting, setIsExporting] = useState(false);
-  const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [isRendering, setIsRendering] = useState(false);
-  const [iframeKey, setIframeKey] = useState(0);
-  const bodyHtml = useMemo(() => {
-    try {
-      const parser = new DOMParser();
-      const doc = parser.parseFromString(result.html, "text/html");
-      const rawCss = Array.from(doc.querySelectorAll("style"))
-        .map((style) => style.textContent ?? "")
-        .join("\n");
-      const cleanedCss = rawCss.replace(/@import[^;]+;/gi, "");
-      const scopedCss = scopeCss(cleanedCss, ".poster-root");
-      const body = doc.body?.innerHTML ?? result.html;
-      const baseStyle = `
-        .poster-root {
-          width: 1080px;
-          height: 1080px;
-          overflow: hidden;
-          position: relative;
-          font-family: 'Noto Kufi Arabic', sans-serif;
-          direction: rtl;
-          background: #ffffff;
-        }
-        .poster-root * { box-sizing: border-box; }
-      `;
-      return `<style>${baseStyle}\n${scopedCss}</style><div id="poster-root" class="poster-root">${body}</div>`;
-    } catch {
-      return result.html;
-    }
-  }, [result.html]);
-
-  function scopeCss(css: string, scope: string): string {
-    if (!css) return css;
-    let out = css;
-    out = out.replace(/:root/g, scope);
-    out = out.replace(/(^|[\\s,>+~])html(?=[\\s,>+~{])/g, `$1${scope}`);
-    out = out.replace(/(^|[\\s,>+~])body(?=[\\s,>+~{])/g, `$1${scope}`);
-    out = out.replace(/(^|[\\s,>+~])\\*(?=[\\s,>+~{])/g, `$1${scope} *`);
-    return out;
-  }
-
-  const iframeSrcDoc = useMemo(() => {
-    return `<!doctype html><html><head><meta charset="utf-8" />${bodyHtml}</head><body style="margin:0;padding:0;"> </body></html>`;
-  }, [bodyHtml]);
-
-  useEffect(() => {
-    let cancelled = false;
-    setIsRendering(true);
-    setPreviewUrl(null);
-    setIframeKey((k) => k + 1);
-
-    const raf = requestAnimationFrame(() => {});
-    return () => {
-      cancelled = true;
-      cancelAnimationFrame(raf);
-    };
-  }, [result.designIndex, result.html]);
-
-  const handleIframeLoad = useCallback(() => {
-    const renderAsync = async () => {
-      try {
-        const iframe = iframeRef.current;
-        const doc = iframe?.contentDocument;
-        const node = doc?.getElementById("poster-root") as HTMLElement | null;
-        if (!node) {
-          setIsRendering(false);
-          return;
-        }
-        if (doc && "fonts" in doc) {
-          await (doc as Document & { fonts: FontFaceSet }).fonts.ready;
-        }
-        const dataUrl = await toPng(node, {
-          cacheBust: true,
-          width: 1080,
-          height: 1080,
-          pixelRatio: 1,
-          skipFonts: true,
-        });
-        setPreviewUrl(dataUrl);
-        setIsRendering(false);
-      } catch (err) {
-        console.error("[PosterCard] html-to-image failed", {
-          designIndex: result.designIndex,
-          message: err instanceof Error ? err.message : String(err),
-        });
-        setIsRendering(false);
-      }
-    };
-
-    void renderAsync();
-  }, [result.designIndex]);
+  const isPremium = result.tier === "premium";
 
   const handleExport = useCallback(async () => {
     setIsExporting(true);
@@ -468,13 +588,9 @@ function PosterCard({
   const handleShare = async () => {
     if (!("share" in navigator)) return;
     try {
-      let blob: Blob;
-      if (result.imageBase64) {
-        const res = await fetch(result.imageBase64);
-        blob = await res.blob();
-      } else {
-        blob = await renderToBlob(result.html, result.format);
-      }
+      if (!result.imageBase64) return;
+      const res = await fetch(result.imageBase64);
+      const blob = await res.blob();
       const file = new File([blob], `poster-${result.format}.png`, {
         type: "image/png",
       });
@@ -486,13 +602,11 @@ function PosterCard({
 
   if (result.status === "error") {
     return (
-      <div className="bg-card border border-danger/30 rounded-2xl overflow-hidden shadow-md">
+      <div className="bg-card border border-danger/30 rounded-2xl overflow-hidden shadow-md w-full">
         <div className="aspect-square bg-danger/5 flex flex-col items-center justify-center gap-3 p-6 text-center">
           <XCircle size={32} className="text-danger" />
           <p className="text-sm text-danger font-medium">فشل التصميم</p>
-          {result.error && (
-            <p className="text-xs text-muted">{result.error}</p>
-          )}
+          {result.error && <p className="text-xs text-muted">{result.error}</p>}
         </div>
         <div className="p-3 text-center">
           <span className="text-xs text-muted">
@@ -504,105 +618,110 @@ function PosterCard({
   }
 
   return (
-    <div className="bg-card border border-card-border rounded-2xl overflow-hidden shadow-md hover:shadow-lg transition-shadow group">
-      {/* Preview */}
-      <div className="relative aspect-square overflow-hidden bg-white">
-        {result.imageBase64 ? (
-          /* AI-generated image — display directly */
-          <img
-            src={result.imageBase64}
-            alt={result.designNameAr || `تصميم ${result.designIndex + 1}`}
-            className="w-full h-full object-cover"
-          />
-        ) : (
-          /* HTML design — render via iframe + html-to-image */
-          <>
-            <iframe
-              key={iframeKey}
-              ref={iframeRef}
-              srcDoc={iframeSrcDoc}
-              onLoad={handleIframeLoad}
-              sandbox="allow-same-origin allow-scripts"
-              className="absolute top-0 left-0 w-[1080px] h-[1080px] border-0"
-              style={{
-                transform: "scale(0.333)",
-                transformOrigin: "top left",
-                opacity: previewUrl ? 0 : 1,
-              }}
-              title={`poster-preview-${result.designIndex}`}
+    <Card3DHover
+      className={`${isPremium ? "md:scale-110 md:-mt-4 z-10" : ""} w-full`}
+    >
+      <motion.div
+        initial={{
+          opacity: 0,
+          y: isPremium ? 50 : 40,
+          scale: isPremium ? 0.85 : 0.9,
+          filter: isPremium ? "blur(15px)" : "blur(10px)",
+        }}
+        animate={{
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          filter: "blur(0px)",
+        }}
+        transition={
+          isPremium
+            ? { type: "spring" as const, damping: 12, stiffness: 80, delay: 0.1 }
+            : { type: "spring" as const, damping: 15, stiffness: 100 }
+        }
+        className={`rounded-3xl overflow-hidden transition-shadow ${
+          isPremium
+            ? "border-2 border-amber-400/50 shadow-2xl shadow-amber-500/20 bg-gradient-to-b from-amber-50 to-white"
+            : "border border-slate-200 shadow-lg bg-white"
+        }`}
+      >
+        {/* Image */}
+        <div className="relative aspect-square overflow-hidden">
+          {result.imageBase64 && (
+            <img
+              src={result.imageBase64}
+              alt={result.designNameAr || `تصميم ${result.designIndex + 1}`}
+              className="w-full h-full object-cover"
             />
-
-            {previewUrl ? (
-              <img
-                src={previewUrl}
-                alt={result.designNameAr || `تصميم ${result.designIndex + 1}`}
-                className="absolute inset-0 w-full h-full object-cover"
-              />
-            ) : (
-              <div className="absolute inset-0 flex items-center justify-center text-muted text-sm">
-                {isRendering ? "جاري العرض..." : "تعذر عرض المعاينة"}
-              </div>
-            )}
-          </>
-        )}
-
-        {/* Badge */}
-        {result.imageBase64 ? (
-          <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gradient-to-r from-purple-600 to-pink-500 text-white text-xs font-bold backdrop-blur-sm z-10 shadow-lg">
-            <Sparkles size={12} />
-            AI صورة
-          </div>
-        ) : (
-          <div className="absolute top-3 left-3 w-8 h-8 rounded-full bg-black/50 text-white text-xs flex items-center justify-center font-bold backdrop-blur-sm z-10">
-            {result.designIndex + 1}
-          </div>
-        )}
-
-        {/* Hover overlay */}
-        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-200 z-[5]" />
-      </div>
-
-      {/* Footer */}
-      <div className="p-3 flex items-center justify-between">
-        <span className="text-sm font-medium text-foreground/80 truncate max-w-[50%]">
-          {result.designNameAr || `تصميم ${result.designIndex + 1}`}
-        </span>
-        <div className="flex items-center gap-1.5">
-          {onSaveAsTemplate && (
-            <button
-              type="button"
-              onClick={() => onSaveAsTemplate(result.designIndex)}
-              className="p-2 rounded-lg text-muted hover:text-accent hover:bg-accent/10 transition-colors"
-              title="حفظ كقالب"
-            >
-              <Save size={16} />
-            </button>
           )}
-          {typeof navigator !== "undefined" && "share" in navigator && (
-            <button
-              type="button"
-              onClick={handleShare}
-              className="p-2 rounded-lg text-muted hover:text-primary hover:bg-primary/10 transition-colors"
-              title="مشاركة"
+
+          {/* Premium badge */}
+          {isPremium && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.5, type: "spring" }}
+              className="absolute top-3 left-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-500 to-yellow-400 text-white text-xs font-bold shadow-lg shadow-amber-500/30"
             >
-              <Share2 size={16} />
-            </button>
+              <Crown size={12} />
+              Premium
+            </motion.div>
           )}
-          <button
-            type="button"
-            onClick={handleExport}
-            disabled={isExporting}
-            className="p-2 rounded-lg text-muted hover:text-success hover:bg-success/10 transition-colors"
-            title="تصدير PNG"
-          >
-            {isExporting ? (
-              <Loader2 size={16} className="animate-spin" />
-            ) : (
-              <Download size={16} />
-            )}
-          </button>
+
+          {/* Standard badge */}
+          {!isPremium && (
+            <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-sm text-white text-xs font-bold">
+              <Sparkles size={12} />
+              AI
+            </div>
+          )}
+
+          {/* Hover overlay */}
+          <div className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-all duration-200 z-[5]" />
         </div>
-      </div>
-    </div>
+
+        {/* Footer */}
+        <div className="p-3 flex items-center justify-between">
+          <span className="text-sm font-medium text-foreground/80 truncate max-w-[50%]">
+            {result.designNameAr || `تصميم ${result.designIndex + 1}`}
+          </span>
+          <div className="flex items-center gap-1.5">
+            {onSaveAsTemplate && (
+              <button
+                type="button"
+                onClick={() => onSaveAsTemplate(result.designIndex)}
+                className="p-2 rounded-lg text-muted hover:text-accent hover:bg-accent/10 transition-colors"
+                title="حفظ كقالب"
+              >
+                <Save size={16} />
+              </button>
+            )}
+            {typeof navigator !== "undefined" && "share" in navigator && (
+              <button
+                type="button"
+                onClick={handleShare}
+                className="p-2 rounded-lg text-muted hover:text-primary hover:bg-primary/10 transition-colors"
+                title="مشاركة"
+              >
+                <Share2 size={16} />
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={isExporting}
+              className="p-2 rounded-lg text-muted hover:text-success hover:bg-success/10 transition-colors"
+              title="تصدير PNG"
+            >
+              {isExporting ? (
+                <Loader2 size={16} className="animate-spin" />
+              ) : (
+                <Download size={16} />
+              )}
+            </button>
+          </div>
+        </div>
+      </motion.div>
+    </Card3DHover>
   );
 }

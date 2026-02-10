@@ -1,33 +1,30 @@
 "use server";
 
-import { generateObject, generateText } from "ai";
+import { generateText } from "ai";
 import { gateway } from "@/lib/ai";
-import { posterDesignSchema, type PosterDesign } from "./poster-design-schema";
 import {
-  getPosterDesignSystemPrompt,
-  getPosterDesignUserMessage,
   getImageDesignSystemPrompt,
   getImageDesignUserMessage,
+  getNanoBananaPrompt,
 } from "./poster-prompts";
 import { formatRecipeForPrompt, type DesignRecipe } from "./design-recipes";
 import { getInspirationImages } from "./inspiration-images";
+import { generateNanoBananaImage } from "./nanobanana";
 import type { PostFormData } from "./types";
 import type { BrandKitPromptData } from "./prompts";
 
 // ── Types ──────────────────────────────────────────────────────────
 
-export type GeneratedDesign = PosterDesign & { imageBase64?: string };
+export type GeneratedDesign = {
+  name: string;
+  nameAr: string;
+  imageBase64: string;
+  tier: "premium" | "standard";
+};
 
-// ── Model Pool ──────────────────────────────────────────────────
+// ── Model Config ──────────────────────────────────────────────────
 
-const MODEL_POOL = [
-    "google/gemini-3-flash",
-    "google/gemini-3-flash",
-    "google/gemini-3-flash",
-    "google/gemini-3-pro-image",
-];
-
-const IMAGE_MODELS = new Set(["google/gemini-3-pro-image"]);
+const IMAGE_MODEL = "google/gemini-3-pro-image";
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -55,122 +52,16 @@ function extractFormImages(data: PostFormData): { product: string; logo: string 
 
 export async function generateSingleDesign(
   data: PostFormData,
-  styleIndex: number,
   brandKit?: BrandKitPromptData,
   recipe?: DesignRecipe
 ): Promise<GeneratedDesign> {
-  const modelId = MODEL_POOL[styleIndex % MODEL_POOL.length];
-
-  // Route to image generation for image models
-  if (IMAGE_MODELS.has(modelId)) {
-    return generateImageDesign(data, styleIndex, modelId, brandKit, recipe);
-  }
-
-  const systemPrompt = getPosterDesignSystemPrompt(data, brandKit);
-  const userMessage = getPosterDesignUserMessage(data);
-
-  // Build the full prompt with recipe directive
-  let fullPrompt = userMessage;
-
-  if (recipe) {
-    const recipeDirective = formatRecipeForPrompt(recipe, data.campaignType);
-    fullPrompt += `\n\n${recipeDirective}`;
-  }
-
-  fullPrompt += `\n\nVariation key: ${styleIndex + 1}. Make this design unique and visually striking.`;
-
-  // Load inspiration images for this category
-  const inspirationStart = Date.now();
-  const inspirationImages = await getInspirationImages(data.category);
-  console.info("[generateSingleDesign] inspirations_loaded", {
-    styleIndex,
-    count: inspirationImages.length,
-    durationMs: Date.now() - inspirationStart,
-  });
-
-  console.info("[generateSingleDesign] start", {
-    category: data.category,
-    styleIndex,
-    model: modelId,
-    recipe: recipe?.id ?? "none",
-    inspirationCount: inspirationImages.length,
-  });
-
-  const shared = {
-    model: gateway(modelId),
-    schema: posterDesignSchema,
-    system: systemPrompt,
-    temperature: 0.9,
-  };
-
-  // Text-only helper for fallback
-  const generateTextOnly = () =>
-    generateObject({ ...shared, prompt: fullPrompt });
-
-  if (inspirationImages.length > 0) {
-    const inspirationText =
-      `Here are ${inspirationImages.length} professional reference poster designs. ` +
-      `These set your quality standard. Study their color palettes, spatial composition, typographic boldness, and decorative restraint. ` +
-      `Your design must feel like it belongs in this same collection — matching their polish and visual impact while being completely original.`;
-
-    try {
-      const result = await generateObject({
-        ...shared,
-        messages: [
-          {
-            role: "user" as const,
-            content: [
-              ...inspirationImages.map((img) => ({
-                type: "image" as const,
-                image: img.image,
-                mediaType: img.mediaType,
-              })),
-              {
-                type: "text" as const,
-                text: `${inspirationText}\n\n${fullPrompt}`,
-              },
-            ],
-          },
-        ],
-      });
-
-      console.info("[generateSingleDesign] success", {
-        styleIndex,
-        model: modelId,
-        htmlLength: result.object.html?.length ?? 0,
-        name: result.object.name,
-      });
-
-      return result.object;
-    } catch (error) {
-      // If multimodal failed, retry without images
-      console.warn("[generateSingleDesign] multimodal failed, retrying text-only", {
-        styleIndex,
-        model: modelId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      const fallbackResult = await generateTextOnly();
-      return fallbackResult.object;
-    }
-  }
-
-  const result = await generateTextOnly();
-
-  console.info("[generateSingleDesign] success", {
-    styleIndex,
-    model: modelId,
-    htmlLength: result.object.html?.length ?? 0,
-    name: result.object.name,
-  });
-
-  return result.object;
+  return generateImageDesign(data, IMAGE_MODEL, brandKit, recipe);
 }
 
 // ── Generate a poster as an AI-generated image ───────────────────
 
 async function generateImageDesign(
   data: PostFormData,
-  styleIndex: number,
   modelId: string,
   brandKit?: BrandKitPromptData,
   recipe?: DesignRecipe
@@ -190,7 +81,6 @@ async function generateImageDesign(
   const formImages = extractFormImages(data);
 
   console.info("[generateImageDesign] start", {
-    styleIndex,
     model: modelId,
     recipe: recipe?.id ?? "none",
     inspirationCount: inspirationImages.length,
@@ -255,34 +145,52 @@ async function generateImageDesign(
         content: contentParts,
       },
     ],
-    providerOptions: {
-      google: { responseModalities: ["TEXT", "IMAGE"] },
-    },
   });
 
-  // Extract generated image from result
-  const files = (result as unknown as Record<string, unknown>).files as
-    | Array<{ mediaType: string; base64: string }>
-    | undefined;
-
-  const imageFile = files?.find((f) => f.mediaType?.startsWith("image/"));
+  // Extract generated image from result.files (AI SDK v6)
+  const imageFile = result.files.find((f) => f.mediaType?.startsWith("image/"));
 
   if (!imageFile) {
     throw new Error("Image model did not return an image");
   }
 
-  const base64DataUrl = `data:${imageFile.mediaType};base64,${imageFile.base64}`;
+  const base64 = Buffer.from(imageFile.uint8Array).toString("base64");
+  const base64DataUrl = `data:${imageFile.mediaType};base64,${base64}`;
 
   console.info("[generateImageDesign] success", {
-    styleIndex,
     model: modelId,
     imageSize: imageFile.base64.length,
   });
 
   return {
-    name: `AI Image ${styleIndex + 1}`,
-    nameAr: `تصميم ذكي ${styleIndex + 1}`,
-    html: "",
+    name: "Premium AI Design",
+    nameAr: "تصميم مميز",
     imageBase64: base64DataUrl,
+    tier: "premium",
+  };
+}
+
+// ── Generate a poster using NanoBanana Pro ───────────────────────
+
+export async function generateNanoBananaDesign(
+  data: PostFormData,
+  brandKit?: BrandKitPromptData
+): Promise<GeneratedDesign> {
+  const prompt = getNanoBananaPrompt(data, brandKit);
+
+  console.info("[generateNanoBananaDesign] start", { category: data.category });
+
+  const imageBase64 = await generateNanoBananaImage(prompt, {
+    resolution: "1K",
+    aspectRatio: "1:1",
+  });
+
+  console.info("[generateNanoBananaDesign] success");
+
+  return {
+    name: "NanoBanana Pro Design",
+    nameAr: "تصميم نانو بنانا",
+    imageBase64,
+    tier: "standard",
   };
 }

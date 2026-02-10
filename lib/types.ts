@@ -231,6 +231,7 @@ export interface PosterResult {
   format: OutputFormat;
   html: string;
   imageBase64?: string;
+  tier: "premium" | "standard";
   status: "complete" | "error";
   error?: string;
   designName: string;

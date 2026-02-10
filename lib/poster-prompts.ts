@@ -214,6 +214,80 @@ Include: shop name, headline, product name, price, shipping info, CTA button, Wh
   }
 }
 
+// ── NanoBanana Pro Prompt (text-to-image) ────────────────────────
+
+export function getNanoBananaPrompt(
+  data: PostFormData,
+  brandKit?: BrandKitPromptData
+): string {
+  const categoryStyle = CATEGORY_STYLES[data.category];
+  const campaignStyle = CAMPAIGN_STYLE_GUIDANCE[data.campaignType];
+
+  let prompt = `Create a professional Arabic social media marketing poster image (1080x1080 square).
+
+${categoryStyle}
+${campaignStyle ? `\n${campaignStyle}\n` : ""}
+Design rules:
+- ALL text MUST be in Arabic
+- RTL text direction
+- Headlines and prices: large and bold
+- 3-4 color palette max
+- Professional studio-quality composition
+- Strong visual hierarchy
+`;
+
+  switch (data.category) {
+    case "restaurant":
+      prompt += `
+Poster details:
+- Restaurant: "${data.restaurantName}"
+- Meal: "${data.mealName}"
+- New price: ${data.newPrice}
+- Old price: ${data.oldPrice} (show strikethrough)
+${data.offerDuration ? `- Offer duration: ${data.offerDuration}` : ""}
+- WhatsApp: ${data.whatsapp}
+- CTA button: "${data.cta}"
+- Include a discount badge, the restaurant name as logo text, and make the meal name prominent`;
+      break;
+    case "supermarket":
+      prompt += `
+Poster details:
+- Supermarket: "${data.supermarketName}"
+- Product: "${data.productName}"
+${data.weight ? `- Weight/Size: ${data.weight}` : ""}
+${data.offerDuration ? `- Offer duration: ${data.offerDuration}` : ""}
+- Headline: "${data.headline}"
+- WhatsApp: ${data.whatsapp}
+- CTA button: "${data.cta}"
+- Include offer badges, the supermarket name as logo text, and make the headline prominent`;
+      break;
+    case "online":
+      prompt += `
+Poster details:
+- Shop: "${data.shopName}"
+- Product: "${data.productName}"
+- Price: ${data.price}
+${data.discount ? `- Discount: ${data.discount}` : ""}
+- Shipping: ${data.shipping === "free" ? "Free shipping (مجاني)" : "Paid shipping"}
+- Headline: "${data.headline}"
+- WhatsApp: ${data.whatsapp}
+- CTA button: "${data.cta}"
+- Include the shop name as logo text, price prominently, and shipping info${data.discount ? ". Add a discount badge." : ""}`;
+      break;
+  }
+
+  if (brandKit) {
+    prompt += `\n\nBrand colors: primary ${brandKit.palette.primary}, secondary ${brandKit.palette.secondary}, accent ${brandKit.palette.accent}, background ${brandKit.palette.background}, text ${brandKit.palette.text}.`;
+    if (brandKit.styleAdjectives.length > 0) {
+      prompt += ` Style: ${brandKit.styleAdjectives.join(", ")}.`;
+    }
+  }
+
+  prompt += `\n\nMake this design unique, bold, and visually striking. Professional quality suitable for Instagram/Facebook.`;
+
+  return prompt;
+}
+
 // ── Image Generation System Prompt ───────────────────────────────
 
 export function getImageDesignSystemPrompt(
