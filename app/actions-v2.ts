@@ -5,11 +5,10 @@ import { postFormDataSchema } from "@/lib/validation";
 import type { PostFormData, OutputFormat, PosterResult } from "@/lib/types";
 import type { BrandKitPromptData } from "@/lib/prompts";
 
-/** Generate a single poster via NanoBanana Pro */
+/** Generate a single poster via Gemini Pro */
 export async function generatePosters(
   data: PostFormData,
-  brandKit?: BrandKitPromptData,
-  imageUrls?: string[]
+  brandKit?: BrandKitPromptData
 ): Promise<PosterResult> {
   const validation = postFormDataSchema.safeParse(data);
   if (!validation.success) {
@@ -26,7 +25,7 @@ export async function generatePosters(
   console.info("[generatePosters] start", { category: data.category });
 
   try {
-    const design = await generatePoster(data, brandKit, imageUrls);
+    const design = await generatePoster(data, brandKit);
     console.info("[generatePosters] success");
     return {
       designIndex: 0,
@@ -45,8 +44,8 @@ export async function generatePosters(
       html: "",
       status: "error",
       error: err instanceof Error ? err.message : "Generation failed",
-      designName: "NanoBanana Pro Design",
-      designNameAr: "تصميم نانو بنانا",
+      designName: "AI Design",
+      designNameAr: "تصميم بالذكاء الاصطناعي",
     };
   }
 }

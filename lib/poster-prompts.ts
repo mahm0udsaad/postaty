@@ -12,14 +12,12 @@ Make the price prominent with a bold but clean badge or pill.`,
   supermarket: `Category: Supermarket / سوبر ماركت
 Color palette: fresh and energetic — warm reds, greens, yellows, creams.
 Style: clean retail aesthetic, bold price tags, discount badges.
-The provided product image(s) should be the hero element — display them large and prominent.
-Headline should be bold and eye-catching. Leave the top-right corner clean for logo overlay.`,
+Multiple products can be displayed. Headline should be prominent.`,
 
   online: `Category: Online Store / منتجات أونلاين
 Color palette: modern — deep teals, warm neutrals, bold accent color.
 Style: clean e-commerce aesthetic, minimalist but impactful.
-The provided product image should be the hero element — display it large on a clean background.
-Show price prominently with trust badges and shipping info. Leave the top-right corner clean for logo overlay.`,
+Product on clean background, trust badges, shipping info visible.`,
 };
 
 const CAMPAIGN_STYLE_GUIDANCE: Record<CampaignType, string> = {
@@ -34,85 +32,92 @@ Motifs: minimal sparkles, starbursts, confetti dots (small and tasteful).
 Tone: joyful, premium, modern. Keep the layout clean and balanced.`,
 };
 
-// ── NanoBanana Pro Prompt (text-to-image) ────────────────────────
+// ── Image Generation System Prompt ───────────────────────────────
 
-export function getNanoBananaPrompt(
+export function getImageDesignSystemPrompt(
   data: PostFormData,
   brandKit?: BrandKitPromptData
 ): string {
-  const categoryStyle = CATEGORY_STYLES[data.category];
-  const campaignStyle = CAMPAIGN_STYLE_GUIDANCE[data.campaignType];
+  let prompt = `You are an expert Arabic graphic designer creating a professional social media marketing poster for MENA audiences.
 
-  let prompt = `Create a professional Arabic social media marketing poster image (1080x1080 square).
+Generate a SINGLE high-quality poster IMAGE (1080x1080 pixels, square format).
 
-${categoryStyle}
-${campaignStyle ? `\n${campaignStyle}\n` : ""}
-Design rules:
-- ALL text MUST be in Arabic
-- RTL text direction
-- Headlines and prices: large and bold (think billboard scale — 60-120px equivalent)
-- 3-4 color palette max (plus white/black)
-- Professional studio-quality composition
+${CATEGORY_STYLES[data.category]}
+${CAMPAIGN_STYLE_GUIDANCE[data.campaignType] ? `\n${CAMPAIGN_STYLE_GUIDANCE[data.campaignType]}\n` : ""}
+## Design Requirements
+- ALL text in the poster MUST be in Arabic
+- RTL direction for all Arabic text
+- Headlines and prices: LARGE and bold (think billboard)
+- Limit palette to 3-4 colors (plus white/black)
 - Strong visual hierarchy: hero element > price > CTA > details
-- Layer elements for depth — overlap images and text intentionally
-- Fill the canvas fully, no wasted whitespace
-- CRITICAL: All reference images provided are PRODUCT photos — feature them as the hero element of the design. Do NOT generate any logo or brand mark. The TOP-RIGHT corner of the poster (approximately 180x180 pixels area) MUST be left clean and empty — use only a solid or gradient background color in that region with NO text, NO graphics, NO decorative elements. This area is reserved for logo overlay in post-processing.
-`;
+- Professional studio-quality composition
+- Feature the provided product/meal image prominently
+- Include the provided business logo
 
-  switch (data.category) {
-    case "restaurant":
-      prompt += `
-Poster details:
-- Restaurant: "${data.restaurantName}"
-- Meal: "${data.mealName}"
-- New price: ${data.newPrice}
-- Old price: ${data.oldPrice} (show strikethrough)
-${data.offerDuration ? `- Offer duration: ${data.offerDuration}` : ""}
-- WhatsApp: ${data.whatsapp}
-- CTA button: "${data.cta}"
-- Include a discount badge, the restaurant name as logo text, and make the meal name prominent`;
-      break;
-    case "supermarket":
-      prompt += `
-Poster details:
-- Supermarket: "${data.supermarketName}"
-- Product: "${data.productName}"
-${data.weight ? `- Weight/Size: ${data.weight}` : ""}
-${data.offerDuration ? `- Offer duration: ${data.offerDuration}` : ""}
-- Headline: "${data.headline}"
-- WhatsApp: ${data.whatsapp}
-- CTA button: "${data.cta}"
-- Include offer badges, the supermarket name as logo text, and make the headline prominent`;
-      break;
-    case "online":
-      prompt += `
-Poster details:
-- Shop: "${data.shopName}"
-- Product: "${data.productName}"
-- Price: ${data.price}
-${data.discount ? `- Discount: ${data.discount}` : ""}
-- Shipping: ${data.shipping === "free" ? "Free shipping (مجاني)" : "Paid shipping"}
-- Headline: "${data.headline}"
-- WhatsApp: ${data.whatsapp}
-- CTA button: "${data.cta}"
-- Include the shop name as logo text, price prominently, and shipping info${data.discount ? ". Add a discount badge." : ""}`;
-      break;
-  }
+## Visual References
+You will receive reference poster designs. Match or exceed their professional quality while creating an original design.`;
 
   if (brandKit) {
-    prompt += `\n\nBrand colors: primary ${brandKit.palette.primary}, secondary ${brandKit.palette.secondary}, accent ${brandKit.palette.accent}, background ${brandKit.palette.background}, text ${brandKit.palette.text}.`;
+    prompt += `\n\n## Brand Kit (MUST follow)\n- Primary: ${brandKit.palette.primary}\n- Secondary: ${brandKit.palette.secondary}\n- Accent: ${brandKit.palette.accent}\n- Background: ${brandKit.palette.background}\n- Text: ${brandKit.palette.text}`;
     if (brandKit.styleAdjectives.length > 0) {
-      prompt += ` Style: ${brandKit.styleAdjectives.join(", ")}.`;
+      prompt += `\n- Style: ${brandKit.styleAdjectives.join(", ")}`;
     }
     if (brandKit.doRules.length > 0) {
-      prompt += ` MUST: ${brandKit.doRules.join("; ")}.`;
+      prompt += `\n- DO: ${brandKit.doRules.join("; ")}`;
     }
     if (brandKit.dontRules.length > 0) {
-      prompt += ` MUST NOT: ${brandKit.dontRules.join("; ")}.`;
+      prompt += `\n- DON'T: ${brandKit.dontRules.join("; ")}`;
     }
   }
 
-  prompt += `\n\nMake this design unique, bold, and visually striking. Professional quality suitable for Instagram/Facebook.`;
-
   return prompt;
+}
+
+// ── Image Generation User Message ─────────────────────────────────
+
+export function getImageDesignUserMessage(data: PostFormData): string {
+  switch (data.category) {
+    case "restaurant":
+      return `Create a professional poster image for this restaurant offer:
+- Restaurant Name: ${data.restaurantName}
+- Meal Name: ${data.mealName}
+- New Price: ${data.newPrice}
+- Old Price: ${data.oldPrice}
+${data.offerDuration ? `- Offer Duration: ${data.offerDuration}` : ""}
+- WhatsApp: ${data.whatsapp}
+- CTA: ${data.cta}
+${data.campaignType !== "standard" ? `- Campaign Type: ${data.campaignType}` : ""}
+
+The meal photo and restaurant logo are provided as images in this message.
+Include: restaurant name, meal name, new price (large), old price (strikethrough), CTA, WhatsApp number, and a discount badge.`;
+
+    case "supermarket":
+      return `Create a professional poster image for this supermarket offer:
+- Supermarket Name: ${data.supermarketName}
+- Product Name: ${data.productName}
+${data.weight ? `- Weight/Size: ${data.weight}` : ""}
+${data.offerDuration ? `- Offer Duration: ${data.offerDuration}` : ""}
+- Headline: ${data.headline}
+- WhatsApp: ${data.whatsapp}
+- CTA: ${data.cta}
+${data.campaignType !== "standard" ? `- Campaign Type: ${data.campaignType}` : ""}
+
+The product photo and supermarket logo are provided as images in this message.
+Include: supermarket name, headline, product name, CTA, WhatsApp number, and offer badges.`;
+
+    case "online":
+      return `Create a professional poster image for this online store product:
+- Shop Name: ${data.shopName}
+- Product Name: ${data.productName}
+- Price: ${data.price}
+${data.discount ? `- Discount: ${data.discount}` : ""}
+- Shipping: ${data.shipping === "free" ? "مجاني (Free)" : "مدفوع (Paid)"}
+- Headline: ${data.headline}
+- WhatsApp: ${data.whatsapp}
+- CTA: ${data.cta}
+${data.campaignType !== "standard" ? `- Campaign Type: ${data.campaignType}` : ""}
+
+The product photo and shop logo are provided as images in this message.
+Include: shop name, headline, product name, price, shipping info, CTA, WhatsApp number.${data.discount ? " Add a discount badge." : ""}`;
+  }
 }

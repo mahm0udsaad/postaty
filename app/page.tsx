@@ -3,7 +3,7 @@
 import { HeroVisual } from "./components/hero-visual";
 import dynamic from "next/dynamic";
 import { useState, useEffect } from "react";
-import { useConvex, useMutation, useQuery } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Category, PostFormData, PosterResult, PosterGenStep } from "@/lib/types";
 import type { BrandKitPromptData } from "@/lib/prompts";
@@ -43,34 +43,6 @@ function getBusinessName(data: PostFormData): string {
   }
 }
 
-function extractBase64Images(data: PostFormData): string[] {
-  // Only product images — logo is composited via sharp after generation
-  switch (data.category) {
-    case "restaurant":
-      return [data.mealImage].filter(Boolean);
-    case "supermarket":
-      return [...data.productImages].filter(Boolean);
-    case "online":
-      return [data.productImage].filter(Boolean);
-  }
-}
-
-function base64ToBlob(dataUrl: string): Blob {
-  const base64Data = dataUrl.includes(",")
-    ? dataUrl.split(",")[1]
-    : dataUrl;
-  const mimeType = dataUrl.includes(",")
-    ? dataUrl.split(",")[0].split(":")[1].split(";")[0]
-    : "image/png";
-
-  const binaryStr = atob(base64Data);
-  const bytes = new Uint8Array(binaryStr.length);
-  for (let i = 0; i < binaryStr.length; i++) {
-    bytes[i] = binaryStr.charCodeAt(i);
-  }
-  return new Blob([bytes], { type: mimeType });
-}
-
 function getProductName(data: PostFormData): string {
   switch (data.category) {
     case "restaurant":
@@ -96,7 +68,6 @@ export default function Home() {
   }, [step]);
 
   const { orgId, userId } = useDevIdentity();
-  const convex = useConvex();
 
   const scrollToCategories = () => {
     document.getElementById("categories-section")?.scrollIntoView({ behavior: "smooth" });
@@ -141,25 +112,6 @@ export default function Home() {
     }
   };
 
-  const uploadImagesToConvex = async (dataUrls: string[]): Promise<string[]> => {
-    const urls: string[] = [];
-    for (const dataUrl of dataUrls) {
-      if (!dataUrl) continue;
-      const blob = base64ToBlob(dataUrl);
-      const uploadUrl = await generateUploadUrl();
-      const uploadRes = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": blob.type || "image/png" },
-        body: blob,
-      });
-      const { storageId } = await uploadRes.json();
-      // Get the public URL for this stored file
-      const publicUrl = await convex.query(api.generations.getStorageUrl, { storageId });
-      if (publicUrl) urls.push(publicUrl);
-    }
-    return urls;
-  };
-
   const runGeneration = (data: PostFormData) => {
     setLastSubmission(data);
     setGenStep("generating-designs");
@@ -170,18 +122,7 @@ export default function Home() {
 
     const startTime = Date.now();
 
-    // Upload product/logo images to Convex → get public URLs → pass to NanoBanana
-    const base64Images = extractBase64Images(data);
-    const imageUrlsPromise = base64Images.length > 0
-      ? uploadImagesToConvex(base64Images).catch((err) => {
-          console.warn("Image upload failed, proceeding without images:", err);
-          return [] as string[];
-        })
-      : Promise.resolve([] as string[]);
-
-    imageUrlsPromise.then((imageUrls) =>
-      generatePosters(data, brandKitPromptData, imageUrls.length > 0 ? imageUrls : undefined)
-    )
+    generatePosters(data, brandKitPromptData)
       .then((posterResult) => {
         setResults([posterResult]);
         setGenStep("complete");
@@ -220,7 +161,7 @@ export default function Home() {
               const mimeType = posterResult.imageBase64!.includes(",")
                 ? posterResult.imageBase64!.split(",")[0].split(":")[1].split(";")[0]
                 : "image/png";
-              
+
               const binaryStr = atob(base64Data);
               const bytes = new Uint8Array(binaryStr.length);
               for (let i = 0; i < binaryStr.length; i++) {
