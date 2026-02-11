@@ -20,81 +20,20 @@ import {
   Sparkles,
   Palette,
   Brain,
+  Gift,
 } from "lucide-react";
+import confetti from "canvas-confetti";
 import type { PosterResult, PosterGenStep } from "@/lib/types";
 
 // ── Props ─────────────────────────────────────────────────────────
 
 interface PosterGridProps {
   results: PosterResult[];
+  giftResult?: PosterResult | null;
   genStep: PosterGenStep;
   error?: string;
   totalExpected?: number;
   onSaveAsTemplate?: (designIndex: number) => void;
-}
-
-// ── AI State Indicator (Typing Effect) ─────────────────────────────
-
-const AI_MESSAGES = [
-  "جاري تحليل بيانات مشروعك...",
-  "الذكاء الاصطناعي يختار أفضل الألوان...",
-  "تنسيق العناصر بشكل احترافي...",
-  "إضافة لمسات إبداعية...",
-  "مراجعة جودة التصاميم...",
-];
-
-function AiStateIndicator({ lowMotion }: { lowMotion: boolean }) {
-  const [text, setText] = useState("");
-  const [messageIndex, setMessageIndex] = useState(0);
-  const [isDeleting, setIsDeleting] = useState(false);
-
-  useEffect(() => {
-    if (lowMotion) return;
-
-    const currentMessage = AI_MESSAGES[messageIndex % AI_MESSAGES.length];
-    const nextText = isDeleting
-      ? currentMessage.substring(0, text.length - 1)
-      : currentMessage.substring(0, text.length + 1);
-
-    const delay = isDeleting ? 50 : nextText === currentMessage ? 2000 : 100;
-    const timer = window.setTimeout(() => {
-      setText(nextText);
-      if (!isDeleting && nextText === currentMessage) {
-        setIsDeleting(true);
-        return;
-      }
-      if (isDeleting && nextText === "") {
-        setIsDeleting(false);
-        setMessageIndex((prev) => prev + 1);
-      }
-    }, delay);
-
-    return () => window.clearTimeout(timer);
-  }, [isDeleting, lowMotion, messageIndex, text]);
-
-  const displayedText = lowMotion ? AI_MESSAGES[0] : text;
-
-  return (
-    <div className="flex flex-col items-center justify-center space-y-4 py-6">
-      <motion.div
-        className="relative"
-        animate={lowMotion ? { rotate: 0 } : { rotate: [0, 360] }}
-        transition={lowMotion ? { duration: 0 } : { duration: 8, repeat: Infinity, ease: "linear" }}
-      >
-        <div className="absolute -inset-1 bg-gradient-to-r from-primary via-accent to-primary rounded-full blur opacity-30" />
-        <div className="relative bg-white rounded-full p-4 ring-1 ring-slate-200 shadow-sm">
-          <Sparkles className={`w-8 h-8 text-primary ${lowMotion ? "" : "animate-pulse"}`} />
-        </div>
-      </motion.div>
-
-      <div className="h-8 flex items-center">
-        <p className="text-lg md:text-xl font-medium bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent">
-          {displayedText}
-          {!lowMotion && <span className="w-0.5 h-6 mr-1 bg-primary inline-block animate-blink align-middle" />}
-        </p>
-      </div>
-    </div>
-  );
 }
 
 // ── Poster Skeleton (Advanced Generative Visualization) ───────────
@@ -450,8 +389,13 @@ function Card3DHover({
 
 // ── Main Component ────────────────────────────────────────────────
 
+import { LoadingSlideshow } from "./loading-slideshow";
+import { PosterModal } from "./poster-modal";
+import { Maximize2 } from "lucide-react";
+
 export function PosterGrid({
   results,
+  giftResult,
   genStep,
   error,
   totalExpected = results.length || 3,
@@ -461,6 +405,10 @@ export function PosterGrid({
   const isLoading = genStep === "generating-designs";
   const [exportingAll, setExportingAll] = useState(false);
   const [isCoarsePointer, setIsCoarsePointer] = useState(false);
+  
+  // Modal State
+  const [selectedResult, setSelectedResult] = useState<PosterResult | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia(
@@ -474,7 +422,6 @@ export function PosterGrid({
   }, []);
 
   const lowMotionMode = Boolean(shouldReduceMotion) || isCoarsePointer;
-
   const successResults = results.filter((r) => r.status === "complete");
 
   const handleExportAll = async () => {
@@ -488,23 +435,39 @@ export function PosterGrid({
     }
   };
 
+  const handleCardClick = (result: PosterResult) => {
+    setSelectedResult(result);
+    setIsModalOpen(true);
+  };
+
   // Create grid items for all expected indices
-  const gridItems = Array.from({ length: totalExpected }, (_, i) => i);
+  // If we have results, use that count, otherwise default to totalExpected (usually 3)
+  // Ensure we at least show skeletons if we are loading and have no results yet? 
+  // actually we use LoadingSlideshow for 0 results.
+  const displayCount = Math.max(totalExpected, results.length);
+  const gridItems = Array.from({ length: displayCount }, (_, i) => i);
 
   // Animation variants
   const containerVariants = {
     hidden: { opacity: 0 },
     show: {
       opacity: 1,
-      transition: { staggerChildren: 0.2, delayChildren: 0.1 },
+      transition: { staggerChildren: 0.1 },
     },
   };
+  
+  // Show slideshow if loading and NO results yet
+  if (isLoading && results.length === 0) {
+      return (
+          <div className="py-8 animate-in fade-in duration-700">
+              <LoadingSlideshow />
+          </div>
+      );
+  }
 
   return (
       <div className="space-y-8">
-        {/* AI Status Indicator */}
-      {isLoading && <AiStateIndicator lowMotion={lowMotionMode} />}
-
+      
       {genStep === "complete" && (
         <div className="flex flex-col md:flex-row items-center justify-between gap-4 py-6 px-6 bg-success/5 border border-success/20 rounded-2xl animate-in fade-in slide-in-from-bottom-4 duration-700">
           <div className="flex items-center gap-4">
@@ -553,13 +516,13 @@ export function PosterGrid({
         </div>
       )}
 
-      {/* Result — single centered poster */}
+      {/* Grid Layout */}
       {(results.length > 0 || isLoading) && (
         <motion.div
           variants={lowMotionMode ? undefined : containerVariants}
           initial={lowMotionMode ? false : "hidden"}
           animate={lowMotionMode ? undefined : "show"}
-          className="flex justify-center max-w-lg mx-auto"
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
         >
           {gridItems.map((index) => {
             const result = results.find((r) => r.designIndex === index);
@@ -570,6 +533,7 @@ export function PosterGrid({
                     result={result}
                     onSaveAsTemplate={onSaveAsTemplate}
                     lowMotion={lowMotionMode}
+                    onClick={() => handleCardClick(result)}
                   />
                 </div>
               );
@@ -589,7 +553,178 @@ export function PosterGrid({
           })}
         </motion.div>
       )}
+
+      {/* Gift Image Reveal */}
+      <AnimatePresence>
+        {giftResult && giftResult.status === "complete" && genStep === "complete" && (
+          <GiftReveal result={giftResult} lowMotion={lowMotionMode} />
+        )}
+      </AnimatePresence>
+      
+      {/* Full Screen Modal */}
+      <PosterModal 
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        result={selectedResult}
+        onSaveAsTemplate={onSaveAsTemplate}
+      />
     </div>
+  );
+}
+
+// ── Gift Reveal Component ─────────────────────────────────────────
+
+function GiftReveal({
+  result,
+  lowMotion,
+}: {
+  result: PosterResult;
+  lowMotion: boolean;
+}) {
+  const [isExporting, setIsExporting] = useState(false);
+
+  useEffect(() => {
+    if (lowMotion) return;
+
+    // Fire confetti burst with a slight delay for dramatic effect
+    const timer = setTimeout(() => {
+      confetti({
+        particleCount: 80,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ["#4f46e5", "#8b5cf6", "#f59e0b", "#10b981", "#ec4899"],
+        disableForReducedMotion: true,
+      });
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [lowMotion]);
+
+  const handleExport = useCallback(async () => {
+    setIsExporting(true);
+    try {
+      await exportPoster(result);
+    } catch (err) {
+      console.error("Gift export failed:", err);
+    } finally {
+      setIsExporting(false);
+    }
+  }, [result]);
+
+  const handleShare = async () => {
+    if (!("share" in navigator) || !result.imageBase64) return;
+    try {
+      const base64Data = result.imageBase64.includes(",")
+        ? result.imageBase64.split(",")[1]
+        : result.imageBase64;
+      const mimeType = result.imageBase64.includes(",")
+        ? result.imageBase64.split(",")[0].split(":")[1].split(";")[0]
+        : "image/png";
+
+      const binaryStr = atob(base64Data);
+      const bytes = new Uint8Array(binaryStr.length);
+      for (let i = 0; i < binaryStr.length; i++) {
+        bytes[i] = binaryStr.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: mimeType });
+      const file = new File([blob], `gift-poster.png`, { type: "image/png" });
+      await navigator.share({ files: [file] });
+    } catch {
+      // User cancelled or share failed
+    }
+  };
+
+  return (
+    <motion.div
+      initial={lowMotion ? { opacity: 0 } : { opacity: 0, y: 40, scale: 0.85 }}
+      animate={lowMotion ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, scale: 0.9 }}
+      transition={
+        lowMotion
+          ? { duration: 0.3 }
+          : { type: "spring" as const, damping: 18, stiffness: 120, delay: 0.2 }
+      }
+      className="flex justify-center max-w-lg mx-auto py-8"
+    >
+      <div className="w-full space-y-3">
+        {/* Gift Header */}
+        <motion.div
+          initial={lowMotion ? false : { opacity: 0, y: -10 }}
+          animate={lowMotion ? undefined : { opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+          className="flex items-center justify-center gap-2.5 py-3"
+        >
+          <div className="p-2 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full shadow-lg shadow-amber-500/30">
+            <Gift size={18} className="text-white" />
+          </div>
+          <span className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-amber-400 via-orange-500 to-pink-500">
+            هدية مجانية لك!
+          </span>
+        </motion.div>
+
+        {/* Gift Card */}
+        <div className="relative rounded-3xl overflow-hidden border-2 border-amber-400/40 shadow-xl shadow-amber-500/10 bg-white">
+          {/* Gradient border glow */}
+          <div className="absolute -inset-px rounded-3xl bg-gradient-to-br from-amber-400/20 via-transparent to-pink-500/20 pointer-events-none z-10" />
+
+          {/* Image */}
+          <div className="relative aspect-square overflow-hidden group cursor-pointer">
+            {result.imageBase64 && (
+              <img
+                src={result.imageBase64}
+                alt="هدية مجانية"
+                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+              />
+            )}
+
+            {/* Gift badge */}
+            <div className="absolute top-3 left-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold shadow-lg z-20">
+              <Gift size={12} />
+              هدية
+            </div>
+            
+             {/* Hover overlay with action */}
+             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 z-10 flex items-center justify-center opacity-0 group-hover:opacity-100">
+                  <div className="bg-white/90 backdrop-blur-md text-amber-600 px-4 py-2 rounded-full font-bold shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-all duration-300">
+                      معاينة الهدية
+                  </div>
+             </div>
+          </div>
+
+          {/* Footer */}
+          <div className="p-3 flex items-center justify-between">
+            <span className="text-sm font-medium text-foreground/80">
+              {result.designNameAr}
+            </span>
+            <div className="flex items-center gap-1.5">
+              {typeof navigator !== "undefined" && "share" in navigator && (
+                <button
+                  type="button"
+                  onClick={handleShare}
+                  className="p-2 rounded-lg text-muted hover:text-primary hover:bg-primary/10 transition-colors"
+                  title="مشاركة"
+                >
+                  <Share2 size={16} />
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={handleExport}
+                disabled={isExporting}
+                className="p-2 rounded-lg text-muted hover:text-success hover:bg-success/10 transition-colors"
+                title="تصدير PNG"
+              >
+                {isExporting ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : (
+                  <Download size={16} />
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </motion.div>
   );
 }
 
@@ -631,14 +766,17 @@ function PosterCard({
   result,
   onSaveAsTemplate,
   lowMotion,
+  onClick,
 }: {
   result: PosterResult;
   onSaveAsTemplate?: (designIndex: number) => void;
   lowMotion: boolean;
+  onClick: () => void;
 }) {
   const [isExporting, setIsExporting] = useState(false);
 
-  const handleExport = useCallback(async () => {
+  const handleExport = useCallback(async (e: React.MouseEvent) => {
+    e.stopPropagation();
     setIsExporting(true);
     try {
       await exportPoster(result);
@@ -649,12 +787,12 @@ function PosterCard({
     }
   }, [result]);
 
-  const handleShare = async () => {
+  const handleShare = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!("share" in navigator)) return;
     try {
       if (!result.imageBase64) return;
       
-      // Convert base64 to Blob without fetch
       const base64Data = result.imageBase64.includes(",")
         ? result.imageBase64.split(",")[1]
         : result.imageBase64;
@@ -677,6 +815,13 @@ function PosterCard({
       // User cancelled or share failed
     }
   };
+  
+  const handleSave = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      if (onSaveAsTemplate) {
+          onSaveAsTemplate(result.designIndex);
+      }
+  };
 
   if (result.status === "error") {
     return (
@@ -697,7 +842,7 @@ function PosterCard({
 
   return (
     <Card3DHover
-      className="w-full"
+      className="w-full h-full"
       disabled={lowMotion}
     >
       <motion.div
@@ -712,65 +857,72 @@ function PosterCard({
             ? undefined
             : { type: "spring" as const, damping: 15, stiffness: 100 }
         }
-        className="rounded-3xl overflow-hidden transition-shadow border border-slate-200 shadow-lg bg-white"
+        className="group relative rounded-3xl overflow-hidden transition-all border border-slate-200 shadow-lg bg-white hover:shadow-xl cursor-pointer h-full flex flex-col"
+        onClick={onClick}
       >
         {/* Image */}
-        <div className="relative aspect-square overflow-hidden">
-          {result.imageBase64 && (
+        <div className="relative aspect-square overflow-hidden bg-slate-100">
+          {result.imageBase64 ? (
             <img
               src={result.imageBase64}
               alt={result.designNameAr || `تصميم ${result.designIndex + 1}`}
-              className="w-full h-full object-cover"
+              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
             />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center text-slate-400">
+                <Loader2 className="animate-spin" />
+            </div>
           )}
 
           {/* AI badge */}
-          <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-sm text-white text-xs font-bold">
+          <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-black/50 backdrop-blur-sm text-white text-xs font-bold z-10">
             <Sparkles size={12} />
             AI
           </div>
 
           {/* Hover overlay */}
-          <div className="absolute inset-0 bg-black/0 hover:bg-black/10 transition-all duration-200 z-[5]" />
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 z-[5] flex items-center justify-center opacity-0 group-hover:opacity-100">
+             <Maximize2 className="text-white drop-shadow-md transform scale-50 group-hover:scale-100 transition-transform duration-300" size={32} />
+          </div>
         </div>
 
         {/* Footer */}
-        <div className="p-3 flex items-center justify-between">
-          <span className="text-sm font-medium text-foreground/80 truncate max-w-[50%]">
+        <div className="p-4 flex items-center justify-between mt-auto bg-white relative z-10 border-t border-slate-100">
+          <span className="text-sm font-medium text-foreground/80 truncate max-w-[40%]">
             {result.designNameAr || `تصميم ${result.designIndex + 1}`}
           </span>
           <div className="flex items-center gap-1.5">
             {onSaveAsTemplate && (
               <button
                 type="button"
-                onClick={() => onSaveAsTemplate(result.designIndex)}
-                className="p-2 rounded-lg text-muted hover:text-accent hover:bg-accent/10 transition-colors"
+                onClick={handleSave}
+                className="p-2 rounded-lg text-slate-500 hover:text-accent hover:bg-accent/10 transition-colors"
                 title="حفظ كقالب"
               >
-                <Save size={16} />
+                <Save size={18} />
               </button>
             )}
             {typeof navigator !== "undefined" && "share" in navigator && (
               <button
                 type="button"
                 onClick={handleShare}
-                className="p-2 rounded-lg text-muted hover:text-primary hover:bg-primary/10 transition-colors"
+                className="p-2 rounded-lg text-slate-500 hover:text-primary hover:bg-primary/10 transition-colors"
                 title="مشاركة"
               >
-                <Share2 size={16} />
+                <Share2 size={18} />
               </button>
             )}
             <button
               type="button"
               onClick={handleExport}
               disabled={isExporting}
-              className="p-2 rounded-lg text-muted hover:text-success hover:bg-success/10 transition-colors"
+              className="p-2 rounded-lg text-slate-500 hover:text-success hover:bg-success/10 transition-colors"
               title="تصدير PNG"
             >
               {isExporting ? (
-                <Loader2 size={16} className="animate-spin" />
+                <Loader2 size={18} className="animate-spin" />
               ) : (
-                <Download size={16} />
+                <Download size={18} />
               )}
             </button>
           </div>

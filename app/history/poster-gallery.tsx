@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useCallback, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { usePaginatedQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { Download, Calendar, Tag, Loader2, Image as ImageIcon } from "lucide-react";
@@ -22,12 +22,13 @@ interface PosterImageData {
 
 interface PosterGalleryProps {
   orgId: Id<"organizations">;
+  category?: Category;
 }
 
-export function PosterGallery({ orgId }: PosterGalleryProps) {
+export function PosterGallery({ orgId, category }: PosterGalleryProps) {
   const { results, status, loadMore } = usePaginatedQuery(
     api.generations.listByOrgPaginated,
-    { orgId },
+    { orgId, category },
     { initialNumItems: 12 }
   );
 

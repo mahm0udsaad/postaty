@@ -79,7 +79,7 @@ export function CategorySelector({ onSelect }: CategorySelectorProps) {
               </p>
 
               {/* CTA Indicator */}
-              <div className="flex items-center text-sm font-bold text-primary opacity-0 group-hover:opacity-100 transform translate-x-4 group-hover:translate-x-0 transition-all duration-300">
+              <div className="flex items-center text-sm font-bold text-primary opacity-100 md:opacity-0 md:group-hover:opacity-100 transform translate-x-0 md:translate-x-4 md:group-hover:translate-x-0 transition-all duration-300">
                 <span>ابدأ التصميم</span>
                 <ArrowRight size={16} className="mr-2 animate-pulse" />
               </div>

@@ -5,6 +5,8 @@ import { gateway } from "@/lib/ai";
 import {
   getImageDesignSystemPrompt,
   getImageDesignUserMessage,
+  getGiftImageSystemPrompt,
+  getGiftImageUserMessage,
 } from "./poster-prompts";
 import { formatRecipeForPrompt } from "./design-recipes";
 import { selectRecipes } from "./design-recipes";
@@ -23,6 +25,7 @@ export type GeneratedDesign = {
 // ── Model Config ──────────────────────────────────────────────────
 
 const IMAGE_MODEL = "google/gemini-3-pro-image";
+const GIFT_MODEL = "google/gemini-2.5-flash-image";
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -124,21 +127,33 @@ export async function generatePoster(
 
   contentParts.push({ type: "text" as const, text: contextText });
 
-  const result = await generateText({
-    model: gateway(IMAGE_MODEL),
-    system: systemPrompt,
-    messages: [
-      {
-        role: "user" as const,
-        content: contentParts,
-      },
-    ],
-  });
+  let result;
+  try {
+    result = await generateText({
+      model: gateway(IMAGE_MODEL),
+      system: systemPrompt,
+      messages: [
+        {
+          role: "user" as const,
+          content: contentParts,
+        },
+      ],
+    });
+  } catch (err) {
+    console.error("[generatePoster] generateText threw", err);
+    throw new Error(
+      `Image generation failed: ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
 
   // Extract generated image from result.files (AI SDK v6)
-  const imageFile = result.files.find((f) => f.mediaType?.startsWith("image/"));
+  const imageFile = result.files?.find((f) => f.mediaType?.startsWith("image/"));
 
   if (!imageFile) {
+    console.error("[generatePoster] no image in response", {
+      filesCount: result.files?.length ?? 0,
+      textSnippet: result.text?.slice(0, 200),
+    });
     throw new Error("Image model did not return an image");
   }
 
@@ -153,6 +168,85 @@ export async function generatePoster(
   return {
     name: recipe?.name ?? "AI Design",
     nameAr: "تصميم بالذكاء الاصطناعي",
+    imageBase64: base64DataUrl,
+  };
+}
+
+// ── Generate a gift image via Gemini 2.5 Flash (visual-only) ────
+
+export async function generateGiftImage(
+  data: PostFormData
+): Promise<GeneratedDesign> {
+  const systemPrompt = getGiftImageSystemPrompt(data);
+  const userMessage = getGiftImageUserMessage(data);
+
+  const formImages = extractFormImages(data);
+
+  console.info("[generateGiftImage] start", { model: GIFT_MODEL });
+
+  // Build multimodal content — only product + logo, no inspiration images
+  const contentParts: Array<
+    | { type: "image"; image: Buffer; mediaType: string }
+    | { type: "text"; text: string }
+  > = [];
+
+  const productPart = dataUrlToImagePart(formImages.product);
+  if (productPart) {
+    contentParts.push({
+      type: "image" as const,
+      image: productPart.image,
+      mediaType: productPart.mediaType,
+    });
+  }
+
+  const logoPart = dataUrlToImagePart(formImages.logo);
+  if (logoPart) {
+    contentParts.push({
+      type: "image" as const,
+      image: logoPart.image,
+      mediaType: logoPart.mediaType,
+    });
+  }
+
+  contentParts.push({ type: "text" as const, text: userMessage });
+
+  let result;
+  try {
+    result = await generateText({
+      model: gateway(GIFT_MODEL),
+      system: systemPrompt,
+      messages: [
+        {
+          role: "user" as const,
+          content: contentParts,
+        },
+      ],
+    });
+  } catch (err) {
+    console.error("[generateGiftImage] generateText threw", err);
+    throw new Error(
+      `Gift image generation failed: ${err instanceof Error ? err.message : String(err)}`
+    );
+  }
+
+  const imageFile = result.files?.find((f) => f.mediaType?.startsWith("image/"));
+
+  if (!imageFile) {
+    console.error("[generateGiftImage] no image in response", {
+      filesCount: result.files?.length ?? 0,
+      textSnippet: result.text?.slice(0, 200),
+    });
+    throw new Error("Gift image model did not return an image");
+  }
+
+  const base64 = Buffer.from(imageFile.uint8Array).toString("base64");
+  const base64DataUrl = `data:${imageFile.mediaType};base64,${base64}`;
+
+  console.info("[generateGiftImage] success", { model: GIFT_MODEL });
+
+  return {
+    name: "Gift Design",
+    nameAr: "هدية مجانية",
     imageBase64: base64DataUrl,
   };
 }

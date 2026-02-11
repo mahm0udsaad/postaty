@@ -154,7 +154,7 @@ export default function TemplatePickPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {templates.map((template) => (
+            {templates.map((template: any) => (
               <PickerTemplateCard
                 key={template._id}
                 template={template}

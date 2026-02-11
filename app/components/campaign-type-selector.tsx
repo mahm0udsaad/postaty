@@ -22,7 +22,7 @@ export function CampaignTypeSelector({ value, onChange }: CampaignTypeSelectorPr
         <label className="block text-sm font-medium text-foreground/80">نوع الحملة</label>
         <span className="text-[11px] text-muted">اختياري - يغير الطابع البصري</span>
       </div>
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {CAMPAIGN_TYPE_OPTIONS.map((opt) => {
           const Icon = CAMPAIGN_ICONS[opt.value];
           const isActive = value === opt.value;
@@ -31,24 +31,25 @@ export function CampaignTypeSelector({ value, onChange }: CampaignTypeSelectorPr
               key={opt.value}
               type="button"
               onClick={() => onChange(opt.value)}
-              className={`group text-right rounded-xl border px-4 py-3 transition-all shadow-sm hover:shadow-md ${
+              className={`group text-center rounded-xl border px-2 py-1 transition-all shadow-sm hover:shadow-md ${
                 isActive
                   ? "border-primary/60 bg-primary/10"
                   : "border-card-border bg-white/60 hover:border-primary/30"
               }`}
             >
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <div className="text-sm font-semibold text-foreground">{opt.label}</div>
-                  <div className="text-[11px] text-muted mt-1">{opt.description}</div>
-                </div>
-                <div
+              <div className="flex flex-col items-center justify-center gap-3">
+              <div
                   className={`w-9 h-9 rounded-lg flex items-center justify-center ${
                     isActive ? "bg-primary text-white" : "bg-slate-100 text-muted"
                   }`}
                 >
                   <Icon size={16} />
                 </div>
+                <div>
+                  <div className="text-sm font-semibold text-foreground">{opt.label}</div>
+                  <div className="text-[11px] text-muted mt-1">{opt.description}</div>
+                </div>
+             
               </div>
             </button>
           );

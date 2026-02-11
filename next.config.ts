@@ -35,11 +35,13 @@ const nextConfig: NextConfig = {
   async headers() {
     const csp = [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-inline'",
+      "script-src 'self' 'unsafe-inline' https://*.clerk.accounts.dev https://*.clerk.com",
       "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
-      "img-src 'self' data: blob: https://*.convex.cloud https://*.convex.site http://127.0.0.1:* http://localhost:*",
+      "img-src 'self' data: blob: https://*.convex.cloud https://*.convex.site https://img.clerk.com https://*.clerk.accounts.dev https://*.clerk.com http://127.0.0.1:* http://localhost:*",
       "font-src 'self' https://fonts.gstatic.com",
-      "connect-src 'self' data: https://*.convex.cloud wss://*.convex.cloud https://*.convex.site wss://*.convex.site http://127.0.0.1:* ws://127.0.0.1:* http://localhost:* ws://localhost:* https://fonts.googleapis.com https://fonts.gstatic.com",
+      "connect-src 'self' data: https://*.convex.cloud wss://*.convex.cloud https://*.convex.site wss://*.convex.site https://*.clerk.accounts.dev https://*.clerk.com http://127.0.0.1:* ws://127.0.0.1:* http://localhost:* ws://localhost:* https://fonts.googleapis.com https://fonts.gstatic.com",
+      "worker-src 'self' blob:",
+      "frame-src 'self' https://*.clerk.accounts.dev https://*.clerk.com",
       "object-src 'none'",
       "base-uri 'self'",
       "form-action 'self'",

@@ -2,17 +2,54 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
-import { Sparkles, Palette, Clock, Zap } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Palette, Clock, Zap, Plus, Loader2 } from "lucide-react";
+import { useEffect, useRef } from "react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import { SignInButton, UserButton, useAuth, useClerk } from "@clerk/nextjs";
+import { api } from "@/convex/_generated/api";
 
 const NAV_ITEMS = [
-  { href: "/", label: "إنشاء بوستر", icon: Sparkles },
   { href: "/brand-kit", label: "هوية العلامة", icon: Palette },
   { href: "/history", label: "السجل", icon: Clock },
 ] as const;
 
 export function NavBar() {
   const pathname = usePathname();
+  const router = useRouter();
+  const { isAuthenticated: isConvexAuthenticated, isLoading: isConvexLoading } = useConvexAuth();
+  const { isLoaded: isClerkLoaded, userId } = useAuth();
+  const { openSignIn } = useClerk();
+  const isClerkSignedIn = Boolean(userId);
+  const initializeBilling = useMutation(api.billing.initializeBillingForCurrentUser);
+  const didInitBilling = useRef(false);
+
+  // Fetch real credit balance
+  const creditState = useQuery(
+    api.billing.getCreditState,
+    isConvexAuthenticated ? {} : "skip"
+  );
+
+  useEffect(() => {
+    if (!isConvexAuthenticated || !isClerkSignedIn || didInitBilling.current) return;
+    if (creditState !== null) return;
+
+    didInitBilling.current = true;
+    void initializeBilling().catch((error) => {
+      didInitBilling.current = false;
+      console.error("Failed to initialize billing:", error);
+    });
+  }, [creditState, initializeBilling, isClerkSignedIn, isConvexAuthenticated]);
+
+  const handleGenerateClick = () => {
+    if (!isClerkLoaded) return;
+
+    if (!isClerkSignedIn) {
+      openSignIn({ afterSignInUrl: "/" });
+    } else {
+      router.push("/create");
+    }
+  };
 
   return (
     <nav className="sticky top-0 z-50 px-4 py-3 overflow-hidden">
@@ -39,8 +76,7 @@ export function NavBar() {
           <div className="hidden md:flex items-center gap-1 bg-slate-100/50 p-1 rounded-xl border border-slate-200/50">
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
-              const isActive =
-                item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
+              const isActive = pathname.startsWith(item.href);
               return (
                 <Link
                   key={item.href}
@@ -63,16 +99,46 @@ export function NavBar() {
 
           {/* Actions / Credits */}
           <div className="flex items-center gap-3">
-            <div className="hidden sm:flex items-center gap-2 bg-amber-50 text-amber-600 px-3 py-1.5 rounded-lg border border-amber-200 text-xs font-semibold shadow-sm">
-              <Zap size={14} className="fill-amber-500 text-amber-500 animate-pulse" />
-              <span>50 رصيد</span>
-            </div>
             
-            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-accent p-0.5 shadow-md shadow-primary/10 cursor-pointer transition-transform active:scale-95 hover:scale-105">
-              <div className="w-full h-full bg-white rounded-full flex items-center justify-center">
-                <span className="font-bold text-transparent bg-clip-text bg-gradient-to-br from-primary to-accent text-sm">M</span>
+            {/* Desktop Generate Button */}
+            <button 
+              onClick={handleGenerateClick}
+              className="hidden md:flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-primary to-accent text-white text-sm font-bold shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 hover:scale-105 transition-all duration-300"
+            >
+              <Plus size={18} />
+              <span>إنشاء جديد</span>
+            </button>
+
+            {!isClerkLoaded || (isClerkSignedIn && isConvexLoading) ? (
+              <Loader2 size={20} className="animate-spin text-muted" />
+            ) : isClerkSignedIn ? (
+              <>
+                <div className="hidden sm:flex items-center gap-2 bg-amber-50 text-amber-600 px-3 py-1.5 rounded-lg border border-amber-200 text-xs font-semibold shadow-sm">
+                  <Zap size={14} className="fill-amber-500 text-amber-500 animate-pulse" />
+                  <span>
+                    {isConvexLoading
+                      ? "جاري التحميل..."
+                      : !isConvexAuthenticated
+                        ? "مشكلة مزامنة الجلسة"
+                        : creditState === undefined
+                          ? "جاري التحميل..."
+                          : creditState === null
+                            ? "0 رصيد"
+                            : `${creditState.totalRemaining} رصيد`}
+                  </span>
+                </div>
+
+                <UserButton afterSignOutUrl="/" />
+              </>
+            ) : (
+              <div className="hidden sm:block">
+                  <SignInButton mode="modal">
+                    <button className="text-sm font-bold text-slate-600 hover:text-primary transition-colors px-3 py-1.5">
+                        تسجيل دخول
+                    </button>
+                  </SignInButton>
               </div>
-            </div>
+            )}
           </div>
         </div>
       </div>

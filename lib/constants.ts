@@ -92,11 +92,6 @@ export const CAMPAIGN_TYPE_OPTIONS: {
     label: "رمضان",
     description: "لمسات روحانية هادئة",
   },
-  {
-    value: "eid",
-    label: "العيد",
-    description: "طابع احتفالي مبهج",
-  },
 ];
 
 // ── CTA & Headline Options ─────────────────────────────────────────

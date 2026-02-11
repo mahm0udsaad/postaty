@@ -7,15 +7,26 @@ import { GenerationCard } from "./generation-card";
 import { Clock, Grid3x3, List } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
+import type { Category } from "@/lib/types";
+import { CATEGORY_LABELS } from "@/lib/constants";
+
+const HISTORY_FILTERS: Array<{ value: "all" | Category; label: string }> = [
+  { value: "all", label: "الكل" },
+  { value: "restaurant", label: CATEGORY_LABELS.restaurant },
+  { value: "supermarket", label: CATEGORY_LABELS.supermarket },
+  { value: "online", label: CATEGORY_LABELS.online },
+];
 
 export default function HistoryPage() {
   const { orgId } = useDevIdentity();
   const [viewMode, setViewMode] = useState<"gallery" | "list">("gallery");
+  const [selectedCategory, setSelectedCategory] = useState<"all" | Category>("all");
+  const categoryFilter = selectedCategory === "all" ? undefined : selectedCategory;
 
   // Only fetch for list view
   const generations = useQuery(
     api.generations.listByOrg,
-    viewMode === "list" ? { orgId, limit: 50 } : "skip"
+    viewMode === "list" ? { orgId, limit: 50, category: categoryFilter } : "skip"
   );
 
   return (
@@ -67,9 +78,28 @@ export default function HistoryPage() {
           </div>
         </div>
 
+        {/* Category Filter */}
+        <div className="flex justify-center mb-8">
+          <div className="inline-flex flex-wrap justify-center gap-2 bg-white/80 backdrop-blur-sm rounded-xl border border-slate-200/60 shadow-sm p-2">
+            {HISTORY_FILTERS.map((filter) => (
+              <button
+                key={filter.value}
+                onClick={() => setSelectedCategory(filter.value)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${
+                  selectedCategory === filter.value
+                    ? "bg-primary text-white shadow-sm"
+                    : "text-slate-600 hover:text-slate-900 hover:bg-slate-100/70"
+                }`}
+              >
+                {filter.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Content */}
         {viewMode === "gallery" ? (
-          <PosterGallery orgId={orgId} />
+          <PosterGallery orgId={orgId} category={categoryFilter} />
         ) : (
           <div className="max-w-5xl mx-auto space-y-4">
             {generations === undefined ? (

@@ -1,392 +1,118 @@
 "use client";
 
-import { HeroVisual } from "./components/hero-visual";
-import dynamic from "next/dynamic";
-import { useState, useEffect } from "react";
-import { useMutation, useQuery } from "convex/react";
+import { useQuery, useConvexAuth } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import type { Category, PostFormData, PosterResult, PosterGenStep } from "@/lib/types";
-import type { BrandKitPromptData } from "@/lib/prompts";
-import { CATEGORY_LABELS, FORMAT_CONFIGS } from "@/lib/constants";
-import { CategorySelector } from "./components/category-selector";
-import { generatePosters } from "./actions-v2";
 import { useDevIdentity } from "@/hooks/use-dev-identity";
-import { ArrowRight, Sparkles, Palette, ArrowDown } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { motion } from "framer-motion";
+import { Plus, Sparkles, History, ArrowRight } from "lucide-react";
+import { SignInButton } from "@clerk/nextjs";
 
-const RestaurantForm = dynamic(
-  () => import("./components/forms/restaurant-form").then((mod) => mod.RestaurantForm)
-);
-const SupermarketForm = dynamic(
-  () => import("./components/forms/supermarket-form").then((mod) => mod.SupermarketForm)
-);
-const OnlineForm = dynamic(
-  () => import("./components/forms/online-form").then((mod) => mod.OnlineForm)
-);
-const PosterGrid = dynamic(
-  () => import("./components/poster-grid").then((mod) => mod.PosterGrid)
-);
+// Components
+import { HeroVisual } from "./components/hero-visual";
 
-type AppStep =
-  | "select-category"
-  | "fill-form"
-  | "generating"
-  | "results";
-
-function getBusinessName(data: PostFormData): string {
-  switch (data.category) {
-    case "restaurant":
-      return data.restaurantName;
-    case "supermarket":
-      return data.supermarketName;
-    case "online":
-      return data.shopName;
-  }
-}
-
-function getProductName(data: PostFormData): string {
-  switch (data.category) {
-    case "restaurant":
-      return data.mealName;
-    case "supermarket":
-      return data.productName;
-    case "online":
-      return data.productName;
-  }
-}
+// Types
+import type { BrandKitPromptData } from "@/lib/prompts";
 
 export default function Home() {
-  const [step, setStep] = useState<AppStep>("select-category");
-  const [category, setCategory] = useState<Category | null>(null);
-  const [genStep, setGenStep] = useState<PosterGenStep>("idle");
-  const [results, setResults] = useState<PosterResult[]>([]);
-  const [error, setError] = useState<string>();
-  const [lastSubmission, setLastSubmission] = useState<PostFormData | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-
-  useEffect(() => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
-  }, [step]);
-
-  const { orgId, userId } = useDevIdentity();
-
-  const scrollToCategories = () => {
-    document.getElementById("categories-section")?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  // Convex mutations for saving
-  const createGeneration = useMutation(api.generations.create);
-  const updateStatus = useMutation(api.generations.updateStatus);
-  const updateOutput = useMutation(api.generations.updateOutput);
-  const generateUploadUrl = useMutation(api.generations.generateUploadUrl);
-  const savePosterTemplate = useMutation(api.posterTemplates.save);
-
-  // Fetch default brand kit
-  const defaultBrandKit = useQuery(api.brandKits.getDefault, { orgId });
-
-  const brandKitPromptData: BrandKitPromptData | undefined =
-    defaultBrandKit
-      ? {
-          palette: defaultBrandKit.palette,
-          styleAdjectives: defaultBrandKit.styleAdjectives,
-          doRules: defaultBrandKit.doRules,
-          dontRules: defaultBrandKit.dontRules,
-          styleSeed: defaultBrandKit.styleSeed ?? undefined,
-        }
-      : undefined;
-
-  const handleCategorySelect = (cat: Category) => {
-    setCategory(cat);
-    setStep("fill-form");
-  };
-
-  const handleBack = () => {
-    if (step === "fill-form") {
-      setCategory(null);
-      setStep("select-category");
-    } else if (step === "results") {
-      setResults([]);
-      setError(undefined);
-      setGenStep("idle");
-      setLastSubmission(null);
-      setStep("fill-form");
-    }
-  };
-
-  const runGeneration = (data: PostFormData) => {
-    setLastSubmission(data);
-    setGenStep("generating-designs");
-    setError(undefined);
-    setIsGenerating(true);
-    setResults([]);
-    setStep("generating");
-
-    const startTime = Date.now();
-
-    generatePosters(data, brandKitPromptData)
-      .then((posterResult) => {
-        setResults([posterResult]);
-        setGenStep("complete");
-        setStep("results");
-        setIsGenerating(false);
-
-        // Save successful result to Convex in background
-        if (posterResult.status === "complete" && posterResult.imageBase64) {
-          void (async () => {
-            try {
-              const generationId = await createGeneration({
-                orgId,
-                userId,
-                brandKitId: defaultBrandKit?._id,
-                category: data.category,
-                businessName: getBusinessName(data),
-                productName: getProductName(data),
-                inputs: JSON.stringify({
-                  ...data,
-                  logo: undefined,
-                  mealImage: undefined,
-                  productImage: undefined,
-                  productImages: undefined,
-                }),
-                formats: data.formats,
-                creditsCharged: 1,
-              });
-
-              const format = data.formats[0];
-              const formatConfig = FORMAT_CONFIGS[format];
-
-              // Convert base64 to Blob without fetch to avoid CSP issues
-              const base64Data = posterResult.imageBase64!.includes(",")
-                ? posterResult.imageBase64!.split(",")[1]
-                : posterResult.imageBase64!;
-              const mimeType = posterResult.imageBase64!.includes(",")
-                ? posterResult.imageBase64!.split(",")[0].split(":")[1].split(";")[0]
-                : "image/png";
-
-              const binaryStr = atob(base64Data);
-              const bytes = new Uint8Array(binaryStr.length);
-              for (let i = 0; i < binaryStr.length; i++) {
-                bytes[i] = binaryStr.charCodeAt(i);
-              }
-              const blob = new Blob([bytes], { type: mimeType });
-
-              const uploadUrl = await generateUploadUrl();
-              const uploadRes = await fetch(uploadUrl, {
-                method: "POST",
-                headers: { "Content-Type": blob.type || "image/png" },
-                body: blob,
-              });
-              const { storageId } = await uploadRes.json();
-
-              await updateOutput({
-                generationId,
-                format,
-                storageId,
-                width: formatConfig.width,
-                height: formatConfig.height,
-              });
-
-              await updateStatus({
-                generationId,
-                status: "complete",
-                durationMs: Date.now() - startTime,
-              });
-            } catch (saveErr) {
-              console.error("Failed to save generation to Convex:", saveErr);
-            }
-          })();
-        }
-      })
-      .catch((err) => {
-        const errorResult: PosterResult = {
-          designIndex: 0,
-          format: data.formats[0],
-          html: "",
-          status: "error",
-          error: err instanceof Error ? err.message : "Generation failed",
-          designName: "Design",
-          designNameAr: "تصميم",
-        };
-        setResults([errorResult]);
-        setGenStep("complete");
-        setStep("results");
-        setIsGenerating(false);
-      });
-  };
-
-  const handleSubmit = (data: PostFormData) => {
-    runGeneration(data);
-  };
-
-  const handleRegenerate = () => {
-    if (!lastSubmission || isGenerating) return;
-    runGeneration(lastSubmission);
-  };
-
-  const handleSaveAsTemplate = async (designIndex: number) => {
-    const result = results.find((item) => item.designIndex === designIndex);
-    if (!result || result.status !== "complete") return;
-
-    try {
-      await savePosterTemplate({
-        orgId,
-        userId,
-        name: result.designName,
-        nameAr: result.designNameAr,
-        description: result.designName,
-        category: category!,
-        style: "modern",
-        designJson: JSON.stringify({
-          name: result.designName,
-          nameAr: result.designNameAr,
-          imageBase64: result.imageBase64,
-        }),
-      });
-    } catch (err) {
-      console.error("Failed to save template:", err);
-    }
+  const router = useRouter();
+  const { isAuthenticated } = useConvexAuth();
+  const { orgId } = useDevIdentity();
+  
+  // Data Fetching
+  const defaultBrandKit = useQuery(
+    api.brandKits.getDefault,
+    isAuthenticated ? { orgId } : "skip"
+  );
+  
+  // Handlers
+  const handleStartCreate = () => {
+    router.push("/create");
   };
 
   return (
-    <main className="min-h-screen py-12 px-4 relative overflow-hidden bg-grid-pattern">
-      {/* Background Gradients */}
-      <div className="absolute top-[-10%] left-[-10%] w-[300px] h-[300px] md:w-[500px] md:h-[500px] bg-primary/20 rounded-full blur-[72px] md:blur-[120px] pointer-events-none mix-blend-screen" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[300px] h-[300px] md:w-[500px] md:h-[500px] bg-accent/20 rounded-full blur-[72px] md:blur-[120px] pointer-events-none mix-blend-screen" />
-
-      <div className="max-w-7xl mx-auto relative z-10">
-        {/* Hero Section - Show only on main selection step */}
-        {step === "select-category" ? (
-          <div className="flex flex-col-reverse lg:flex-row items-center justify-between gap-12 mb-20 mt-8">
-            {/* Text Content */}
-            <div className="flex-1 text-center lg:text-right space-y-8">
-              <div className="inline-flex items-center gap-2 bg-slate-800/50 backdrop-blur-sm md:backdrop-blur-md border border-white/10 rounded-full px-4 py-1.5 shadow-[0_0_15px_rgba(99,102,241,0.3)] motion-safe:animate-fade-in-up">
-                <Sparkles size={16} className="text-accent motion-safe:animate-pulse" />
-                <span className="text-sm font-semibold text-white/90">الجيل الجديد من التصميم</span>
+    <main className="min-h-screen relative bg-slate-50 overflow-x-hidden pb-32 md:pb-0">
+      <div className="bg-grid-pattern absolute inset-0 opacity-50 pointer-events-none" />
+      
+      {/* Hero / Dashboard Header */}
+      <div className="relative pt-8 pb-12 px-4 md:pt-12 md:pb-16 bg-white border-b border-slate-200">
+        <div className="max-w-7xl mx-auto flex flex-col-reverse lg:flex-row items-center justify-between gap-8">
+           <div className="flex-1 space-y-6 text-center lg:text-right">
+              <div className="inline-flex items-center gap-2 bg-primary/10 text-primary px-3 py-1 rounded-full text-sm font-semibold">
+                <Sparkles size={14} />
+                <span>الذكاء الاصطناعي 2.0</span>
               </div>
-              
-              <h1 className="text-5xl lg:text-7xl font-black leading-tight tracking-tight text-white">
-                <span className="block mb-2">صمم إعلاناتك</span>
-                <span className="text-gradient bg-[length:200%_auto] motion-safe:animate-gradient-flow">
-                  بالذكاء الاصطناعي
+              <h1 className="text-4xl md:text-6xl font-black text-slate-900 leading-tight">
+                أطلق العنان <br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-accent">
+                  لإبداعك
                 </span>
               </h1>
-              
-              <p className="text-xl text-slate-300 leading-relaxed max-w-2xl mx-auto lg:mx-0 font-light">
-                حوّل أفكارك إلى بوسترات احترافية للسوشيال ميديا في ثوانٍ.
-                اختر مجالك، أدخل التفاصيل، واترك الباقي لـ <span className="font-bold text-white">Postaty AI</span>.
+              <p className="text-lg text-slate-600 max-w-xl mx-auto lg:mx-0">
+                أنشئ تصاميم احترافية لمتجرك أو مطعمك في ثوانٍ. ابدأ الآن بلمسة واحدة.
               </p>
-
-              {/* CTA Button */}
-              <div className="pt-4 flex justify-center lg:justify-start">
-                <button 
-                  onClick={scrollToCategories}
-                  className="group relative px-8 py-4 bg-gradient-to-r from-primary to-accent text-white text-lg font-bold rounded-2xl shadow-[0_0_20px_rgba(99,102,241,0.5)] overflow-hidden hover:scale-105 transition-all duration-300 ring-1 ring-white/20"
-                >
-                  <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300" />
-                  <span className="relative flex items-center gap-3">
-                    ابدأ التصميم مجاناً
-                    <ArrowDown className="motion-safe:animate-bounce" size={20} />
-                  </span>
-                </button>
+              
+              <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-4">
+                {!isAuthenticated ? (
+                   <SignInButton mode="modal">
+                     <button className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-bold shadow-xl hover:scale-105 transition-transform">
+                        ابدأ مجاناً
+                     </button>
+                   </SignInButton>
+                ) : (
+                    <button 
+                        onClick={handleStartCreate}
+                        className="flex items-center gap-3 px-8 py-4 bg-gradient-to-r from-primary to-accent text-white rounded-2xl font-bold shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:-translate-y-1 transition-all"
+                    >
+                        <Plus size={24} />
+                        <span>تصميم جديد</span>
+                    </button>
+                )}
               </div>
-
-              {/* Stats / Trust */}
-              <div className="pt-6 flex items-center justify-center lg:justify-start gap-8 opacity-80">
-                <div className="text-center lg:text-right">
-                  <p className="text-2xl font-bold text-white">10k+</p>
-                  <p className="text-sm text-slate-400">تصميم تم إنشاؤه</p>
-                </div>
-                <div className="w-px h-8 bg-white/10" />
-                <div className="text-center lg:text-right">
-                  <p className="text-2xl font-bold text-white">&lt; 30s</p>
-                  <p className="text-sm text-slate-400">سرعة التنفيذ</p>
-                </div>
-              </div>
-            </div>
-
-            {/* Visual Hero Element */}
-            <HeroVisual />
-          </div>
-        ) : (
-          /* Compact Header for inner pages */
-          <div className="text-center mb-8 motion-safe:animate-fade-in">
-             <h2 className="text-3xl font-bold text-white mb-2">
-              {step === "fill-form" && "أدخل تفاصيل الإعلان"}
-              {step === "generating" && "جاري التصميم..."}
-              {step === "results" && "النتائج"}
-            </h2>
-            <p className="text-slate-400">
-               {step === "fill-form" && "أكمل البيانات التالية لنقوم بإنشاء البوستر"}
-               {step === "generating" && "الذكاء الاصطناعي يعمل الآن على تصميمك"}
-               {step === "results" && "اختر التصميم المناسب أو قم بتحميله"}
-            </p>
-          </div>
-        )}
-
-        {/* Brand kit active indicator */}
-        {defaultBrandKit && step === "fill-form" && (
-          <div className="mb-6 flex items-center justify-center gap-2 bg-accent/10 border border-accent/30 rounded-xl px-4 py-2.5 mx-auto max-w-fit shadow-[0_0_10px_rgba(217,70,239,0.2)]">
-            <Palette size={16} className="text-accent" />
-            <span className="text-sm font-medium text-accent-foreground">
-              هوية العلامة التجارية مفعّلة: {defaultBrandKit.name}
-            </span>
-          </div>
-        )}
-
-        {/* Back button */}
-        {step !== "generating" && step !== "select-category" && (
-          <button
-            onClick={handleBack}
-            className="group flex items-center gap-2 mb-8 mx-auto text-slate-400 hover:text-white transition-colors font-medium px-4 py-2 hover:bg-white/5 rounded-lg w-fit"
-          >
-            <div className="p-1 rounded-full bg-slate-800 border border-white/10 group-hover:border-primary/50 transition-colors">
-              <ArrowRight size={16} />
-            </div>
-            {step === "fill-form"
-                ? "تغيير الفئة"
-                : "عودة للنموذج"}
-          </button>
-        )}
-
-        {/* Category label - Only show if not in select-category and no compact header override needed */}
-        {category && step !== "select-category" && (
-          <div className="mb-8 flex justify-center">
-            <span className="inline-block bg-slate-900/80 backdrop-blur shadow-lg border border-primary/30 text-primary-foreground px-6 py-2 rounded-full text-base font-semibold ring-1 ring-primary/20">
-              {CATEGORY_LABELS[category]}
-            </span>
-          </div>
-        )}
-
-        {/* Step content */}
-        <div id="categories-section" className="transition-all duration-300 ease-in-out scroll-mt-24">
-          {step === "select-category" && (
-            <CategorySelector onSelect={handleCategorySelect} />
-          )}
-
-          {step === "fill-form" && (
-            <div className="glass-card p-6 md:p-8">
-              {category === "restaurant" && (
-                <RestaurantForm onSubmit={handleSubmit} isLoading={isGenerating} />
-              )}
-              {category === "supermarket" && (
-                <SupermarketForm onSubmit={handleSubmit} isLoading={isGenerating} />
-              )}
-              {category === "online" && (
-                <OnlineForm onSubmit={handleSubmit} isLoading={isGenerating} />
-              )}
-            </div>
-          )}
-
-          {(step === "generating" || step === "results") && (
-            <PosterGrid
-              results={results}
-              genStep={genStep}
-              error={error}
-              totalExpected={1}
-              onSaveAsTemplate={handleSaveAsTemplate}
-            />
-          )}
+           </div>
+           
+           <div className="w-full max-w-md lg:max-w-lg">
+              <HeroVisual />
+           </div>
         </div>
       </div>
+
+      {/* Main Content Area */}
+      <div className="max-w-7xl mx-auto px-4 py-12">
+        {isAuthenticated && (
+            <div>
+                <div className="flex items-center gap-2 mb-8 opacity-60">
+                    <History size={20} />
+                    <h3 className="text-lg font-bold">أحدث النماذج</h3>
+                </div>
+                
+                {/* Empty State / Call to Action */}
+                <div 
+                    onClick={handleStartCreate}
+                    className="group border-2 border-dashed border-slate-300 rounded-3xl p-12 text-center cursor-pointer hover:border-primary hover:bg-primary/5 transition-all duration-300"
+                >
+                    <div className="w-16 h-16 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4 group-hover:bg-primary/20 transition-colors">
+                        <Plus size={32} className="text-slate-400 group-hover:text-primary" />
+                    </div>
+                    <h3 className="text-xl font-bold text-slate-700 mb-2">أنشئ أول تصميم لك</h3>
+                    <p className="text-slate-500">اضغط هنا لبدء رحلة الإبداع</p>
+                </div>
+            </div>
+        )}
+      </div>
+
+      {/* Mobile FAB Trigger */}
+      {isAuthenticated && (
+        <motion.button
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            onClick={handleStartCreate}
+            className="md:hidden fixed bottom-24 right-4 z-40 w-14 h-14 bg-slate-900 text-white rounded-full shadow-lg flex items-center justify-center hover:scale-110 active:scale-95 transition-all"
+        >
+            <Plus size={28} />
+        </motion.button>
+      )}
+
     </main>
   );
 }

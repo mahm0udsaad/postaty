@@ -1,11 +1,13 @@
 "use client";
 
 import { useState } from "react";
+import { Store, Utensils, Tag, Clock, Phone, MousePointerClick } from "lucide-react";
 import type { RestaurantFormData, OutputFormat, CampaignType } from "@/lib/types";
 import { RESTAURANT_CTA_OPTIONS } from "@/lib/constants";
 import { ImageUpload } from "../image-upload";
 import { FormatSelector } from "../format-selector";
 import { CampaignTypeSelector } from "../campaign-type-selector";
+import { FormInput, FormSelect } from "../ui/form-input";
 
 interface RestaurantFormProps {
   onSubmit: (data: RestaurantFormData) => void;
@@ -41,107 +43,111 @@ export function RestaurantForm({ onSubmit, isLoading }: RestaurantFormProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-8">
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-        <div className="space-y-5">
-          <CampaignTypeSelector value={campaignType} onChange={setCampaignType} />
-          <div>
-            <label className="block text-sm font-medium mb-1.5 text-foreground/80">اسم المطعم</label>
-            <input
-              name="restaurantName"
-              required
-              className="w-full px-5 py-3.5 rounded-xl border border-card-border focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all placeholder:text-muted/50"
-              placeholder="مثال: مطعم الشام"
-            />
+    <form onSubmit={handleSubmit} className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
+        {/* Left Column: Inputs */}
+        <div className="space-y-6">
+          <div className="bg-slate-50/50 p-1 rounded-2xl border border-slate-100">
+             <CampaignTypeSelector value={campaignType} onChange={setCampaignType} />
           </div>
-          <div>
-            <label className="block text-sm font-medium mb-1.5 text-foreground/80">اسم الوجبة</label>
-            <input
-              name="mealName"
-              required
-              className="w-full px-5 py-3.5 rounded-xl border border-card-border focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all placeholder:text-muted/50"
-              placeholder="مثال: شاورما دجاج"
-            />
-          </div>
-          <div className="grid grid-cols-2 gap-5">
-            <div>
-              <label className="block text-sm font-medium mb-1.5 text-foreground/80">السعر الجديد</label>
-              <input
-                name="newPrice"
+
+          <div className="space-y-5">
+            <FormInput
+                label="اسم المطعم"
+                name="restaurantName"
+                placeholder="مثال: مطعم الشام"
                 required
-                className="w-full px-5 py-3.5 rounded-xl border border-card-border focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all placeholder:text-muted/50"
-                placeholder="25 ر.س"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium mb-1.5 text-foreground/80">السعر القديم</label>
-              <input
-                name="oldPrice"
+                icon={Store}
+            />
+            
+            <FormInput
+                label="اسم الوجبة"
+                name="mealName"
+                placeholder="مثال: شاورما دجاج"
                 required
-                className="w-full px-5 py-3.5 rounded-xl border border-card-border focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all placeholder:text-muted/50"
-                placeholder="40 ر.س"
-              />
+                icon={Utensils}
+            />
+
+            <div className="grid grid-cols-2 gap-4">
+                <FormInput
+                    label="السعر الجديد"
+                    name="newPrice"
+                    placeholder="25 ر.س"
+                    required
+                    icon={Tag}
+                />
+                <FormInput
+                    label="السعر القديم"
+                    name="oldPrice"
+                    placeholder="40 ر.س"
+                    required
+                    icon={Tag}
+                />
             </div>
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1.5 text-foreground/80">مدة العرض (اختياري)</label>
-            <input
-              name="offerDuration"
-              className="w-full px-5 py-3.5 rounded-xl border border-card-border focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all placeholder:text-muted/50"
-              placeholder="مثال: حتى نهاية الأسبوع"
+
+            <FormInput
+                label="مدة العرض (اختياري)"
+                name="offerDuration"
+                placeholder="مثال: لفترة محدودة"
+                icon={Clock}
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1.5 text-foreground/80">رقم الواتساب</label>
-            <input
-              name="whatsapp"
-              required
-              type="tel"
-              dir="ltr"
-              className="w-full px-5 py-3.5 rounded-xl border border-card-border bg-slate-50 focus:bg-white focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all placeholder:text-muted/50 text-left"
-              placeholder="+966xxxxxxxxx"
+
+            <FormInput
+                label="رقم الواتساب"
+                name="whatsapp"
+                type="tel"
+                dir="ltr"
+                placeholder="+966xxxxxxxxx"
+                required
+                icon={Phone}
+                className="text-left"
             />
-          </div>
-          <div>
-            <label className="block text-sm font-medium mb-1.5 text-foreground/80">نص الزر (CTA)</label>
-            <div className="relative">
-              <select
+
+            <FormSelect
+                label="نص الزر (CTA)"
                 name="cta"
+                options={RESTAURANT_CTA_OPTIONS}
                 required
-                className="w-full px-5 py-3.5 rounded-xl border border-card-border focus:border-primary focus:ring-4 focus:ring-primary/10 outline-none transition-all appearance-none"
-              >
-                {RESTAURANT_CTA_OPTIONS.map((opt) => (
-                  <option key={opt} value={opt}>
-                    {opt}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute left-4 top-1/2 -translate-y-1/2 pointer-events-none text-muted">
-                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M2.5 4.5L6 8L9.5 4.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </div>
-            </div>
+                icon={MousePointerClick}
+            />
           </div>
         </div>
-        <div className="space-y-6">
-          <ImageUpload label="لوجو المطعم" value={logo} onChange={setLogo} />
-          <ImageUpload label="صورة الوجبة" value={mealImage} onChange={setMealImage} />
-          <FormatSelector selected={formats} onChange={setFormats} />
+
+        {/* Right Column: Uploads */}
+        <div className="space-y-8">
+          <div className="space-y-6">
+             <ImageUpload label="لوجو المطعم" value={logo} onChange={setLogo} />
+             <ImageUpload label="صورة الوجبة" value={mealImage} onChange={setMealImage} />
+          </div>
+          
+          <div className="pt-4 border-t border-slate-100">
+             <FormatSelector selected={formats} onChange={setFormats} />
+          </div>
         </div>
       </div>
-      <button
-        type="submit"
-        disabled={isLoading || !logo || !mealImage}
-        className="w-full py-4 bg-gradient-to-r from-primary to-primary-hover text-white font-bold rounded-xl shadow-lg shadow-primary/25 hover:shadow-primary/40 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:-translate-y-0.5 active:translate-y-0 text-lg"
-      >
-        {isLoading ? (
-            <span className="flex items-center justify-center gap-2">
+
+      {/* Sticky Submit Button */}
+      <div className="sticky bottom-24 z-30 bg-gradient-to-t from-white via-white/95 to-transparent pb-4 pt-8 -mx-6 px-6 md:static md:bg-none md:p-0 md:m-0 transition-all">
+        <button
+          type="submit"
+          disabled={isLoading || !logo || !mealImage}
+          className="w-full py-4 bg-gradient-to-r from-primary to-primary-hover text-white font-bold rounded-xl shadow-xl shadow-primary/25 hover:shadow-primary/40 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:-translate-y-1 active:translate-y-0 text-lg flex items-center justify-center gap-2 group"
+        >
+          {isLoading ? (
+              <>
                 <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
-                جاري الإنشاء...
-            </span>
-        ) : "إنشاء البوستر"}
-      </button>
+                <span>جاري التصميم الذكي...</span>
+              </>
+          ) : (
+              <>
+                <span>إنشاء البوستر</span>
+                <span className="bg-white/20 p-1 rounded-lg group-hover:bg-white/30 transition-colors">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+                </span>
+              </>
+          )}
+        </button>
+      </div>
     </form>
   );
 }

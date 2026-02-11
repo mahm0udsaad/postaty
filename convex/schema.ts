@@ -152,6 +152,79 @@ export default defineSchema(
       .index("by_status", ["status"])
       .index("by_category", ["category"]),
 
+    // ── Stripe Billing ──────────────────────────────────────────────
+    billing: defineTable({
+      clerkUserId: v.string(),
+      stripeCustomerId: v.optional(v.string()),
+      stripeSubscriptionId: v.optional(v.string()),
+      planKey: v.union(
+        v.literal("none"),
+        v.literal("starter"),
+        v.literal("growth"),
+        v.literal("dominant")
+      ),
+      status: v.union(
+        v.literal("none"),
+        v.literal("trialing"),
+        v.literal("active"),
+        v.literal("past_due"),
+        v.literal("canceled"),
+        v.literal("unpaid"),
+        v.literal("incomplete"),
+        v.literal("incomplete_expired")
+      ),
+      currentPeriodStart: v.optional(v.number()),
+      currentPeriodEnd: v.optional(v.number()),
+      monthlyCreditLimit: v.number(),
+      monthlyCreditsUsed: v.number(),
+      addonCreditsBalance: v.number(),
+      updatedAt: v.number(),
+      createdAt: v.number(),
+    })
+      .index("by_clerkUserId", ["clerkUserId"])
+      .index("by_stripeCustomerId", ["stripeCustomerId"])
+      .index("by_stripeSubscriptionId", ["stripeSubscriptionId"]),
+
+    stripeEvents: defineTable({
+      eventId: v.string(),
+      type: v.string(),
+      status: v.union(
+        v.literal("processing"),
+        v.literal("processed"),
+        v.literal("failed")
+      ),
+      error: v.optional(v.string()),
+      processedAt: v.optional(v.number()),
+      createdAt: v.number(),
+      updatedAt: v.number(),
+    }).index("by_eventId", ["eventId"]),
+
+    creditLedger: defineTable({
+      clerkUserId: v.string(),
+      billingId: v.optional(v.id("billing")),
+      amount: v.number(),
+      reason: v.union(
+        v.literal("usage"),
+        v.literal("monthly_reset"),
+        v.literal("addon_purchase"),
+        v.literal("manual_adjustment")
+      ),
+      source: v.union(
+        v.literal("monthly"),
+        v.literal("addon"),
+        v.literal("system")
+      ),
+      stripeEventId: v.optional(v.string()),
+      stripeCheckoutSessionId: v.optional(v.string()),
+      idempotencyKey: v.optional(v.string()),
+      monthlyCreditsUsedAfter: v.number(),
+      addonCreditsBalanceAfter: v.number(),
+      createdAt: v.number(),
+    })
+      .index("by_clerkUserId", ["clerkUserId"])
+      .index("by_stripeEventId", ["stripeEventId"])
+      .index("by_idempotencyKey", ["idempotencyKey"]),
+
     // ── Credits Ledger ───────────────────────────────────────────────
     credits_ledger: defineTable({
       orgId: v.id("organizations"),

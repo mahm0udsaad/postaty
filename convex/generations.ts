@@ -133,14 +133,18 @@ export const listByOrg = query({
   args: {
     orgId: v.id("organizations"),
     limit: v.optional(v.number()),
+    category: v.optional(categoryValidator),
   },
   handler: async (ctx, args) => {
     const limit = args.limit ?? 20;
-    const generations = await ctx.db
+    const baseQuery = ctx.db
       .query("generations")
       .withIndex("by_orgId", (q) => q.eq("orgId", args.orgId))
-      .order("desc")
-      .take(limit);
+      .order("desc");
+
+    const generations = args.category
+      ? await baseQuery.filter((q) => q.eq(q.field("category"), args.category)).take(limit)
+      : await baseQuery.take(limit);
 
     return Promise.all(
       generations.map(async (gen) => ({
@@ -162,14 +166,20 @@ export const listByOrg = query({
 export const listByOrgPaginated = query({
   args: {
     orgId: v.id("organizations"),
+    category: v.optional(categoryValidator),
     paginationOpts: paginationOptsValidator,
   },
   handler: async (ctx, args) => {
-    const results = await ctx.db
+    const baseQuery = ctx.db
       .query("generations")
       .withIndex("by_orgId", (q) => q.eq("orgId", args.orgId))
-      .order("desc")
-      .paginate(args.paginationOpts);
+      .order("desc");
+
+    const results = args.category
+      ? await baseQuery
+          .filter((q) => q.eq(q.field("category"), args.category))
+          .paginate(args.paginationOpts)
+      : await baseQuery.paginate(args.paginationOpts);
 
     const page = await Promise.all(
       results.page.map(async (gen) => ({

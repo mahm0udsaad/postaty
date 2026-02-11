@@ -235,6 +235,12 @@ export interface PosterResult {
   error?: string;
   designName: string;
   designNameAr: string;
+  isGift?: boolean;
+}
+
+export interface GeneratePostersResult {
+  main: PosterResult;
+  gift?: PosterResult;
 }
 
 // ── Credits ────────────────────────────────────────────────────────

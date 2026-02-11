@@ -9,9 +9,12 @@
  */
 
 import type * as auditLogs from "../auditLogs.js";
+import type * as billing from "../billing.js";
 import type * as brandKits from "../brandKits.js";
 import type * as credits from "../credits.js";
+import type * as debug from "../debug.js";
 import type * as generations from "../generations.js";
+import type * as http from "../http.js";
 import type * as organizations from "../organizations.js";
 import type * as posterJobs from "../posterJobs.js";
 import type * as posterTemplates from "../posterTemplates.js";
@@ -28,9 +31,12 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auditLogs: typeof auditLogs;
+  billing: typeof billing;
   brandKits: typeof brandKits;
   credits: typeof credits;
+  debug: typeof debug;
   generations: typeof generations;
+  http: typeof http;
   organizations: typeof organizations;
   posterJobs: typeof posterJobs;
   posterTemplates: typeof posterTemplates;
