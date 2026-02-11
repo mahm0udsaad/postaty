@@ -9,12 +9,21 @@ import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import { SignInButton, UserButton, useAuth, useClerk } from "@clerk/nextjs";
 import { api } from "@/convex/_generated/api";
 
+const AUTH_ENABLED = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
+
 const NAV_ITEMS = [
   { href: "/brand-kit", label: "هوية العلامة", icon: Palette },
   { href: "/history", label: "السجل", icon: Clock },
 ] as const;
 
 export function NavBar() {
+  if (!AUTH_ENABLED) {
+    return <NavBarNoAuth />;
+  }
+  return <NavBarWithAuth />;
+}
+
+function NavBarWithAuth() {
   const pathname = usePathname();
   const router = useRouter();
   const { isAuthenticated: isConvexAuthenticated, isLoading: isConvexLoading } = useConvexAuth();
@@ -139,6 +148,64 @@ export function NavBar() {
                   </SignInButton>
               </div>
             )}
+          </div>
+        </div>
+      </div>
+    </nav>
+  );
+}
+
+function NavBarNoAuth() {
+  const pathname = usePathname();
+
+  return (
+    <nav className="sticky top-0 z-50 px-4 py-3 overflow-hidden">
+      <div className="max-w-7xl mx-auto">
+        <div className="bg-white/80 backdrop-blur-xl border border-slate-200/60 shadow-sm rounded-2xl px-4 h-16 flex items-center justify-between transition-all duration-300 hover:bg-white/90">
+          <Link href="/" className="flex items-center gap-2 group">
+            <div className="relative w-9 h-9 transition-transform duration-300 group-hover:rotate-12">
+              <Image
+                src="/logo-symbol.png"
+                alt="Postaty Symbol"
+                fill
+                className="object-contain"
+                priority
+              />
+            </div>
+            <span className="text-xl font-black tracking-tighter text-slate-900">
+              Postaty
+            </span>
+          </Link>
+
+          <div className="hidden md:flex items-center gap-1 bg-slate-100/50 p-1 rounded-xl border border-slate-200/50">
+            {NAV_ITEMS.map((item) => {
+              const Icon = item.icon;
+              const isActive = pathname.startsWith(item.href);
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
+                    isActive
+                      ? "bg-white text-primary shadow-sm ring-1 ring-slate-200"
+                      : "text-slate-500 hover:text-slate-900 hover:bg-white/50"
+                  }`}
+                >
+                  <Icon size={16} />
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
+          </div>
+
+          <div className="flex items-center gap-3">
+            <Link
+              href="/create"
+              className="hidden md:flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-primary to-accent text-white text-sm font-bold shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 hover:scale-105 transition-all duration-300"
+            >
+              <Plus size={18} />
+              <span>إنشاء جديد</span>
+            </Link>
           </div>
         </div>
       </div>

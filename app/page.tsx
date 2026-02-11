@@ -1,29 +1,20 @@
 "use client";
 
-import { useQuery, useConvexAuth } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { useDevIdentity } from "@/hooks/use-dev-identity";
+import { useConvexAuth } from "convex/react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { motion } from "framer-motion";
-import { Plus, Sparkles, History, ArrowRight } from "lucide-react";
+import { Plus, Sparkles, History } from "lucide-react";
 import { SignInButton } from "@clerk/nextjs";
 
 // Components
 import { HeroVisual } from "./components/hero-visual";
 
-// Types
-import type { BrandKitPromptData } from "@/lib/prompts";
+const AUTH_ENABLED = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
 
 export default function Home() {
   const router = useRouter();
   const { isAuthenticated } = useConvexAuth();
-  const { orgId } = useDevIdentity();
-  
-  // Data Fetching
-  const defaultBrandKit = useQuery(
-    api.brandKits.getDefault,
-    isAuthenticated ? { orgId } : "skip"
-  );
   
   // Handlers
   const handleStartCreate = () => {
@@ -54,11 +45,20 @@ export default function Home() {
               
               <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-4">
                 {!isAuthenticated ? (
-                   <SignInButton mode="modal">
-                     <button className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-bold shadow-xl hover:scale-105 transition-transform">
-                        ابدأ مجاناً
-                     </button>
-                   </SignInButton>
+                   AUTH_ENABLED ? (
+                     <SignInButton mode="modal">
+                       <button className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-bold shadow-xl hover:scale-105 transition-transform">
+                          ابدأ مجاناً
+                       </button>
+                     </SignInButton>
+                   ) : (
+                     <Link
+                       href="/create"
+                       className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-bold shadow-xl hover:scale-105 transition-transform"
+                     >
+                       ابدأ الآن
+                     </Link>
+                   )
                 ) : (
                     <button 
                         onClick={handleStartCreate}

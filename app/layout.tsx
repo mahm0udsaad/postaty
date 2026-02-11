@@ -54,19 +54,30 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const clerkPublishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
+  const appShell = (
+    <>
+      <ScrollToTop />
+      <ConvexClientProvider>
+        <NavBar />
+        <main className="pb-20 md:pb-0 min-h-screen">
+          {children}
+        </main>
+        <BottomDock />
+      </ConvexClientProvider>
+    </>
+  );
+
   return (
     <html lang="ar" dir="rtl">
       <body className={`${notoKufiArabic.variable} antialiased`}>
-        <ClerkProvider>
-          <ScrollToTop />
-          <ConvexClientProvider>
-            <NavBar />
-            <main className="pb-20 md:pb-0 min-h-screen">
-              {children}
-            </main>
-            <BottomDock />
-          </ConvexClientProvider>
-        </ClerkProvider>
+        {clerkPublishableKey ? (
+          <ClerkProvider publishableKey={clerkPublishableKey}>
+            {appShell}
+          </ClerkProvider>
+        ) : (
+          appShell
+        )}
       </body>
     </html>
   );
