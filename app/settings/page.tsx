@@ -5,8 +5,9 @@ import { useConvexAuth, useQuery, useAction } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { ArrowLeft, Loader2, Zap, Calendar } from "lucide-react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
+
+const AUTH_ENABLED = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
 
 const PLAN_NAMES: Record<string, string> = {
   none: "مجاني",
@@ -22,9 +23,8 @@ const PLAN_COLORS: Record<string, string> = {
   dominant: "text-accent",
 };
 
-export default function SettingsPage() {
-  const router = useRouter();
-  const { userId, isLoaded: isClerkLoaded } = useAuth();
+function SettingsPageWithClerk() {
+  const { isLoaded: isClerkLoaded } = useAuth();
   const { user: clerkUser } = useUser();
   const { isAuthenticated: isConvexAuthenticated, isLoading: isConvexLoading } =
     useConvexAuth();
@@ -265,4 +265,41 @@ export default function SettingsPage() {
       </div>
     </main>
   );
+}
+
+export default function SettingsPage() {
+  if (!AUTH_ENABLED) {
+    return (
+      <main className="min-h-screen relative pt-8 pb-16 px-4 md:pt-16 md:pb-24">
+        <div className="max-w-4xl mx-auto">
+          <div className="mb-8">
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 text-muted hover:text-foreground transition-colors mb-6"
+            >
+              <ArrowLeft size={16} />
+              <span className="text-sm font-medium">العودة</span>
+            </Link>
+            <h1 className="text-4xl font-black mb-2">الإعدادات</h1>
+            <p className="text-muted">إدارة حسابك والاشتراك والأرصدة</p>
+          </div>
+
+          <div className="bg-surface-1 border border-card-border rounded-2xl p-8 text-center">
+            <p className="text-lg font-bold mb-2">صفحة الإعدادات تتطلب تفعيل تسجيل الدخول</p>
+            <p className="text-muted mb-6">
+              أضف `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` لتفعيل الحسابات والاشتراكات.
+            </p>
+            <Link
+              href="/"
+              className="inline-flex items-center justify-center px-5 py-3 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-xl font-bold"
+            >
+              الرجوع للرئيسية
+            </Link>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  return <SettingsPageWithClerk />;
 }
