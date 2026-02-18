@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { useDevIdentity } from "@/hooks/use-dev-identity";
@@ -12,6 +13,14 @@ import Link from "next/link";
 const AUTH_ENABLED = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
 
 export default function BrandKitPage() {
+  return (
+    <Suspense fallback={<div className="flex justify-center py-20 min-h-screen"><Loader2 size={32} className="animate-spin text-primary" /></div>}>
+      <BrandKitContent />
+    </Suspense>
+  );
+}
+
+function BrandKitContent() {
   const searchParams = useSearchParams();
   const { isLoading: isIdentityLoading, isAuthenticated } = useDevIdentity();
   const existingKit = useQuery(
