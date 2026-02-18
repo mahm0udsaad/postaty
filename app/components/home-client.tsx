@@ -272,7 +272,7 @@ export default function HomeClient({ pricing, countryCode }: HomeClientProps) {
       {/* ═══════════════════════════════════════════════════════
           SECTION 1: HERO
       ═══════════════════════════════════════════════════════ */}
-      <section className="relative pt-8 pb-16 px-4 md:pt-16 md:pb-24 border-b border-card-border">
+      <section id="hero" className="relative pt-8 pb-16 px-4 md:pt-16 md:pb-24 border-b border-card-border">
         {/* Hero glow */}
         <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-accent/5 rounded-full blur-[100px] pointer-events-none" />

@@ -194,6 +194,7 @@ export const listUsers = query({
 
         return {
           ...user,
+          effectiveStatus: user.status ?? "active",
           billing: billing
             ? {
                 planKey: billing.planKey,
@@ -699,5 +700,284 @@ export const getDailyUsage = query({
     }
 
     return Object.values(daily).sort((a, b) => a.date.localeCompare(b.date));
+  },
+});
+
+// ── User Status Management (Suspend / Ban / Reinstate) ────────────
+
+export const suspendUser = mutation({
+  args: {
+    userId: v.id("users"),
+    reason: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const { clerkUserId } = await requireAdmin(ctx);
+
+    const target = await ctx.db.get(args.userId);
+    if (!target) throw new Error("User not found");
+    if (target.role === "owner") throw new Error("Cannot suspend an owner");
+    if (target.clerkId === clerkUserId) throw new Error("Cannot suspend yourself");
+
+    const now = Date.now();
+    await ctx.db.patch(args.userId, {
+      status: "suspended",
+      statusReason: args.reason,
+      statusUpdatedAt: now,
+    });
+
+    // Audit log
+    const adminUser = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkUserId))
+      .first();
+    if (adminUser) {
+      await ctx.db.insert("audit_logs", {
+        orgId: target.orgId,
+        userId: adminUser._id,
+        action: "suspend_user",
+        resourceType: "users",
+        resourceId: args.userId,
+        metadata: JSON.stringify({ reason: args.reason }),
+        createdAt: now,
+      });
+    }
+
+    // Auto-notify user
+    await ctx.db.insert("notifications", {
+      clerkUserId: target.clerkId,
+      title: "تم إيقاف حسابك",
+      body: args.reason,
+      type: "warning",
+      isRead: false,
+      createdAt: now,
+    });
+  },
+});
+
+export const banUser = mutation({
+  args: {
+    userId: v.id("users"),
+    reason: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const { clerkUserId } = await requireAdmin(ctx);
+
+    const target = await ctx.db.get(args.userId);
+    if (!target) throw new Error("User not found");
+    if (target.role === "owner") throw new Error("Cannot ban an owner");
+    if (target.clerkId === clerkUserId) throw new Error("Cannot ban yourself");
+
+    const now = Date.now();
+    await ctx.db.patch(args.userId, {
+      status: "banned",
+      statusReason: args.reason,
+      statusUpdatedAt: now,
+    });
+
+    const adminUser = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkUserId))
+      .first();
+    if (adminUser) {
+      await ctx.db.insert("audit_logs", {
+        orgId: target.orgId,
+        userId: adminUser._id,
+        action: "ban_user",
+        resourceType: "users",
+        resourceId: args.userId,
+        metadata: JSON.stringify({ reason: args.reason }),
+        createdAt: now,
+      });
+    }
+
+    await ctx.db.insert("notifications", {
+      clerkUserId: target.clerkId,
+      title: "تم حظر حسابك",
+      body: args.reason,
+      type: "warning",
+      isRead: false,
+      createdAt: now,
+    });
+  },
+});
+
+export const reinstateUser = mutation({
+  args: {
+    userId: v.id("users"),
+  },
+  handler: async (ctx, args) => {
+    const { clerkUserId } = await requireAdmin(ctx);
+
+    const target = await ctx.db.get(args.userId);
+    if (!target) throw new Error("User not found");
+
+    const now = Date.now();
+    await ctx.db.patch(args.userId, {
+      status: "active",
+      statusReason: undefined,
+      statusUpdatedAt: now,
+    });
+
+    const adminUser = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkUserId))
+      .first();
+    if (adminUser) {
+      await ctx.db.insert("audit_logs", {
+        orgId: target.orgId,
+        userId: adminUser._id,
+        action: "reinstate_user",
+        resourceType: "users",
+        resourceId: args.userId,
+        metadata: JSON.stringify({ previousStatus: target.status ?? "active" }),
+        createdAt: now,
+      });
+    }
+
+    await ctx.db.insert("notifications", {
+      clerkUserId: target.clerkId,
+      title: "تم إعادة تفعيل حسابك",
+      body: "تمت إعادة تفعيل حسابك بنجاح. يمكنك الآن استخدام جميع الخدمات.",
+      type: "success",
+      isRead: false,
+      createdAt: now,
+    });
+  },
+});
+
+// ── Add Credits ───────────────────────────────────────────────────
+
+export const addCreditsToUser = mutation({
+  args: {
+    userId: v.id("users"),
+    amount: v.number(),
+    reason: v.string(),
+  },
+  handler: async (ctx, args) => {
+    const { clerkUserId } = await requireAdmin(ctx);
+
+    if (args.amount <= 0) throw new Error("Amount must be positive");
+
+    const target = await ctx.db.get(args.userId);
+    if (!target) throw new Error("User not found");
+
+    const billing = await ctx.db
+      .query("billing")
+      .withIndex("by_clerkUserId", (q) => q.eq("clerkUserId", target.clerkId))
+      .first();
+
+    if (!billing) throw new Error("No billing record found for this user");
+
+    const newAddonBalance = billing.addonCreditsBalance + args.amount;
+    await ctx.db.patch(billing._id, {
+      addonCreditsBalance: newAddonBalance,
+      updatedAt: Date.now(),
+    });
+
+    // Credit ledger entry
+    const now = Date.now();
+    await ctx.db.insert("creditLedger", {
+      clerkUserId: target.clerkId,
+      billingId: billing._id,
+      amount: args.amount,
+      reason: "manual_adjustment",
+      source: "system",
+      monthlyCreditsUsedAfter: billing.monthlyCreditsUsed,
+      addonCreditsBalanceAfter: newAddonBalance,
+      createdAt: now,
+    });
+
+    // Audit log
+    const adminUser = await ctx.db
+      .query("users")
+      .withIndex("by_clerkId", (q) => q.eq("clerkId", clerkUserId))
+      .first();
+    if (adminUser) {
+      await ctx.db.insert("audit_logs", {
+        orgId: target.orgId,
+        userId: adminUser._id,
+        action: "add_credits",
+        resourceType: "billing",
+        resourceId: billing._id,
+        metadata: JSON.stringify({ amount: args.amount, reason: args.reason }),
+        createdAt: now,
+      });
+    }
+
+    // Notify user
+    await ctx.db.insert("notifications", {
+      clerkUserId: target.clerkId,
+      title: "تمت إضافة أرصدة",
+      body: `تمت إضافة ${args.amount} رصيد إلى حسابك. السبب: ${args.reason}`,
+      type: "credit",
+      isRead: false,
+      metadata: JSON.stringify({ amount: args.amount }),
+      createdAt: now,
+    });
+  },
+});
+
+// ── Send Notification ─────────────────────────────────────────────
+
+export const sendNotification = mutation({
+  args: {
+    userId: v.id("users"),
+    title: v.string(),
+    body: v.string(),
+    type: v.union(
+      v.literal("info"),
+      v.literal("warning"),
+      v.literal("success"),
+      v.literal("credit"),
+      v.literal("system")
+    ),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    const target = await ctx.db.get(args.userId);
+    if (!target) throw new Error("User not found");
+
+    await ctx.db.insert("notifications", {
+      clerkUserId: target.clerkId,
+      title: args.title,
+      body: args.body,
+      type: args.type,
+      isRead: false,
+      createdAt: Date.now(),
+    });
+  },
+});
+
+export const sendBulkNotification = mutation({
+  args: {
+    userIds: v.array(v.id("users")),
+    title: v.string(),
+    body: v.string(),
+    type: v.union(
+      v.literal("info"),
+      v.literal("warning"),
+      v.literal("success"),
+      v.literal("credit"),
+      v.literal("system")
+    ),
+  },
+  handler: async (ctx, args) => {
+    await requireAdmin(ctx);
+
+    const now = Date.now();
+    for (const userId of args.userIds) {
+      const target = await ctx.db.get(userId);
+      if (!target) continue;
+
+      await ctx.db.insert("notifications", {
+        clerkUserId: target.clerkId,
+        title: args.title,
+        body: args.body,
+        type: args.type,
+        isRead: false,
+        createdAt: now,
+      });
+    }
   },
 });

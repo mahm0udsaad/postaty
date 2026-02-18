@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
+import type { MouseEvent } from "react";
 import { Palette, Clock, Plus, Loader2, Settings, Coins } from "lucide-react";
 import { SignInButton, useAuth, useUser } from "@clerk/nextjs";
 import { useQuery } from "convex/react";
@@ -46,13 +47,19 @@ function NavBarWithAuth() {
     }
   };
 
+  const handleLogoClick = (e: MouseEvent<HTMLAnchorElement>) => {
+    if (pathname !== "/") return;
+    e.preventDefault();
+    document.getElementById("hero")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
   return (
     <nav className="sticky top-0 z-50 px-4 py-3 overflow-hidden">
       <div className="max-w-7xl mx-auto">
         <div className="bg-surface-1/80 backdrop-blur-xl border border-card-border shadow-sm rounded-2xl px-4 h-16 flex items-center justify-between transition-all duration-300 hover:bg-surface-1/90">
 
           {/* Brand / Logo */}
-          <Link href="/" className="flex items-center gap-2 group">
+          <Link href="/#hero" onClick={handleLogoClick} className="flex items-center gap-2 group">
             <div className=" relative size-24 transition-transform duration-300 group-hover:rotate-12">
               <Image
                 src="/name_logo_svg.svg"
@@ -181,12 +188,17 @@ function CreditsBadge() {
 
 function NavBarNoAuth() {
   const pathname = usePathname();
+  const handleLogoClick = (e: MouseEvent<HTMLAnchorElement>) => {
+    if (pathname !== "/") return;
+    e.preventDefault();
+    document.getElementById("hero")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
 
   return (
     <nav className="sticky top-0 z-50 px-4 py-3 overflow-hidden">
       <div className="max-w-7xl mx-auto">
         <div className="bg-surface-1/80 backdrop-blur-xl border border-card-border shadow-sm rounded-2xl px-4 h-16 flex items-center justify-between transition-all duration-300 hover:bg-surface-1/90">
-          <Link href="/" className="flex items-center gap-2 group">
+          <Link href="/#hero" onClick={handleLogoClick} className="flex items-center gap-2 group">
             <div className="relative w-9 h-9 transition-transform duration-300 group-hover:rotate-12">
               <Image
                 src="/icon_logo_svg.svg"

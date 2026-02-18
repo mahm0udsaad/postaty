@@ -31,6 +31,16 @@ export default defineSchema(
       ),
       countryLockedAt: v.optional(v.number()),
       lastSeenAt: v.optional(v.number()),
+      // Account status (ban/suspend)
+      status: v.optional(
+        v.union(
+          v.literal("active"),
+          v.literal("suspended"),
+          v.literal("banned")
+        )
+      ),
+      statusReason: v.optional(v.string()),
+      statusUpdatedAt: v.optional(v.number()),
       createdAt: v.number(),
     })
       .index("by_clerkId", ["clerkId"])
@@ -477,6 +487,25 @@ export default defineSchema(
       createdAt: v.number(),
     })
       .index("by_order", ["order"]),
+
+    // ── Notifications ───────────────────────────────────────────────
+    notifications: defineTable({
+      clerkUserId: v.string(),
+      title: v.string(),
+      body: v.string(),
+      type: v.union(
+        v.literal("info"),
+        v.literal("warning"),
+        v.literal("success"),
+        v.literal("credit"),
+        v.literal("system")
+      ),
+      isRead: v.boolean(),
+      metadata: v.optional(v.string()),
+      createdAt: v.number(),
+    })
+      .index("by_clerkUserId", ["clerkUserId"])
+      .index("by_clerkUserId_isRead", ["clerkUserId", "isRead"]),
 
     // ── Country Pricing (admin-adjustable per-country plan prices) ────
     countryPricing: defineTable({

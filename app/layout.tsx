@@ -31,10 +31,14 @@ const notoKufiArabic = localFont({
   ],
 });
 
-const FALLBACK_SITE_URL = "https://postaty.com";
+const FALLBACK_SITE_URL = "https://www.postaty.com";
 const metadataBase = (() => {
   try {
-    return new URL(process.env.NEXT_PUBLIC_SITE_URL ?? FALLBACK_SITE_URL);
+    const configuredUrl =
+      process.env.NEXT_PUBLIC_SITE_URL ??
+      process.env.SITE_URL ??
+      FALLBACK_SITE_URL;
+    return new URL(configuredUrl);
   } catch {
     return new URL(FALLBACK_SITE_URL);
   }
@@ -45,10 +49,14 @@ const metadataDescription = "أنشئ منشورات احترافية لعروض
 
 export const metadata: Metadata = {
   metadataBase,
+  alternates: {
+    canonical: "/",
+  },
   title: metadataTitle,
   description: metadataDescription,
   openGraph: {
     type: "website",
+    url: "/",
     locale: "ar_AR",
     siteName: "Postaty",
     title: metadataTitle,
