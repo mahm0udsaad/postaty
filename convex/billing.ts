@@ -183,6 +183,13 @@ export const getCreditState = query({
 
     if (!billing) {
       return {
+        planKey: "none" as const,
+        status: "none" as const,
+        monthlyCreditLimit: 0,
+        monthlyCreditsUsed: 0,
+        currentPeriodStart: undefined,
+        currentPeriodEnd: undefined,
+        addonCreditsBalance: 0,
         monthlyRemaining: 0,
         addonRemaining: 0,
         totalRemaining: 0,
@@ -196,10 +203,15 @@ export const getCreditState = query({
     );
     const addonRemaining = billing.addonCreditsBalance;
     const totalRemaining = monthlyRemaining + addonRemaining;
-    const canGenerate =
-      !["past_due", "canceled", "none", "unpaid", "incomplete_expired"].includes(
-        billing.status
-      ) && totalRemaining > 0;
+    const hasSubscription = billing.planKey !== "none";
+    const hasEligibleStatus = ![
+      "past_due",
+      "canceled",
+      "none",
+      "unpaid",
+      "incomplete_expired",
+    ].includes(billing.status);
+    const canGenerate = hasSubscription && hasEligibleStatus && totalRemaining > 0;
 
     return {
       ...billing,
@@ -223,36 +235,20 @@ export const initializeBillingForCurrentUser = mutation({
       .first();
     if (existing) return existing._id;
 
-    const billingId = await ctx.db.insert("billing", {
+    return await ctx.db.insert("billing", {
       clerkUserId,
       stripeCustomerId: undefined,
       stripeSubscriptionId: undefined,
       planKey: "none",
-      status: "active",
+      status: "none",
       currentPeriodStart: undefined,
       currentPeriodEnd: undefined,
       monthlyCreditLimit: 0,
       monthlyCreditsUsed: 0,
-      addonCreditsBalance: 10,
+      addonCreditsBalance: 0,
       createdAt: Date.now(),
       updatedAt: Date.now(),
     });
-
-    await ctx.db.insert("creditLedger", {
-      clerkUserId,
-      billingId,
-      amount: 10,
-      reason: "manual_adjustment",
-      source: "system",
-      stripeEventId: undefined,
-      stripeCheckoutSessionId: undefined,
-      idempotencyKey: undefined,
-      monthlyCreditsUsedAfter: 0,
-      addonCreditsBalanceAfter: 10,
-      createdAt: Date.now(),
-    });
-
-    return billingId;
   },
 });
 
@@ -282,6 +278,10 @@ export const consumeGenerationCredit = mutation({
 
     if (!billing) {
       throw new Error("Billing record not found");
+    }
+
+    if (billing.planKey === "none") {
+      throw new Error("Active subscription is required");
     }
 
     if (

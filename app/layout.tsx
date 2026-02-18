@@ -6,6 +6,7 @@ import { NavBar } from "./components/nav-bar";
 import { BottomDock } from "./components/bottom-dock";
 import { ScrollToTop } from "./components/scroll-to-top";
 import { AuthSync } from "./components/auth-sync";
+import { Footer } from "./components/footer";
 import "./globals.css";
 
 const notoKufiArabic = localFont({
@@ -50,6 +51,7 @@ export default function RootLayout({
         <main className="pb-20 md:pb-0 min-h-screen">
           {children}
         </main>
+        <Footer />
         <BottomDock />
       </ConvexClientProvider>
     </>

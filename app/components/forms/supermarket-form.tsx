@@ -13,7 +13,7 @@ import { FormInput, FormSelect } from "../ui/form-input";
 interface SupermarketFormProps {
   onSubmit: (data: SupermarketFormData) => void;
   isLoading: boolean;
-  defaultValues?: { businessName?: string };
+  defaultValues?: { businessName?: string; logo?: string | null };
 }
 
 const POST_TYPE_OPTIONS = ["منتج", "عروض يومية", "تخفيضات قسم"] as const;
@@ -24,10 +24,11 @@ const POST_TYPE_VALUES: Record<string, SupermarketFormData["postType"]> = {
 };
 
 export function SupermarketForm({ onSubmit, isLoading, defaultValues }: SupermarketFormProps) {
-  const [logo, setLogo] = useState<string | null>(null);
+  const [logoOverride, setLogoOverride] = useState<string | null | undefined>(undefined);
   const [productImages, setProductImages] = useState<string[]>([]);
   const [formats, setFormats] = useState<OutputFormat[]>(["instagram-square"]);
   const [campaignType, setCampaignType] = useState<CampaignType>("standard");
+  const logo = logoOverride === undefined ? (defaultValues?.logo ?? null) : logoOverride;
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -170,7 +171,7 @@ export function SupermarketForm({ onSubmit, isLoading, defaultValues }: Supermar
         {/* Right Column */}
         <div className="space-y-8">
           <div className="space-y-6">
-             <ImageUpload label="لوجو السوبر ماركت" value={logo} onChange={setLogo} />
+             <ImageUpload label="لوجو السوبر ماركت" value={logo} onChange={setLogoOverride} />
              <MultiImageUpload
                 label="صور المنتج (يمكن رفع أكثر من صورة)"
                 values={productImages}

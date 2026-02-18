@@ -1,11 +1,11 @@
 "use client";
 
 import { Suspense } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useAction } from "convex/react";
 import { useEffect, useState } from "react";
 import { api } from "@/convex/_generated/api";
-import { CheckCircle2, XCircle, Loader2 } from "lucide-react";
+import { XCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
 
 export default function CheckoutReturnPage() {
@@ -23,16 +23,16 @@ export default function CheckoutReturnPage() {
 }
 
 function CheckoutReturnContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const sessionId = searchParams.get("session_id");
   const getStatus = useAction(api.billing.getCheckoutSessionStatus);
 
   const [status, setStatus] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(Boolean(sessionId));
 
   useEffect(() => {
     if (!sessionId) {
-      setLoading(false);
       return;
     }
 
@@ -41,6 +41,12 @@ function CheckoutReturnContent() {
       .catch(() => setStatus("error"))
       .finally(() => setLoading(false));
   }, [sessionId, getStatus]);
+
+  useEffect(() => {
+    if (status === "complete") {
+      router.replace("/brand-kit?next=/create");
+    }
+  }, [status, router]);
 
   if (loading) {
     return (
@@ -57,25 +63,17 @@ function CheckoutReturnContent() {
     return (
       <main className="min-h-screen flex items-center justify-center px-4">
         <div className="text-center max-w-md">
-          <CheckCircle2 size={64} className="text-success mx-auto mb-6" />
-          <h1 className="text-3xl font-black mb-4">تم بنجاح!</h1>
+          <Loader2 size={64} className="animate-spin text-primary mx-auto mb-6" />
+          <h1 className="text-3xl font-black mb-4">جاري تحويلك</h1>
           <p className="text-muted mb-8">
-            شكراً لك. تم تفعيل اشتراكك وأرصدتك بنجاح.
+            تم تفعيل اشتراكك بنجاح. الخطوة التالية: حفظ هوية العلامة التجارية.
           </p>
-          <div className="flex flex-col sm:flex-row gap-3 justify-center">
-            <Link
-              href="/create"
-              className="inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-xl font-bold"
-            >
-              ابدأ بالتصميم
-            </Link>
-            <Link
-              href="/settings"
-              className="inline-flex items-center justify-center px-6 py-3 bg-surface-2 border border-card-border text-foreground rounded-xl font-bold hover:bg-surface-2/80 transition-colors"
-            >
-              إعدادات الحساب
-            </Link>
-          </div>
+          <Link
+            href="/brand-kit?next=/create"
+            className="inline-flex items-center justify-center px-6 py-3 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-xl font-bold"
+          >
+            المتابعة الآن
+          </Link>
         </div>
       </main>
     );

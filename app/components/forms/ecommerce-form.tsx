@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Store, ShoppingBag, Tag, Truck, Phone, MousePointerClick, FileText, Palette, Package, Clock, Link } from "lucide-react";
+import { Store, ShoppingBag, Tag, Truck, Phone, MousePointerClick, FileText, Palette, Package, Link } from "lucide-react";
 import type { EcommerceFormData, OutputFormat, CampaignType } from "@/lib/types";
 import { ECOMMERCE_CTA_OPTIONS } from "@/lib/constants";
 import { ImageUpload } from "../image-upload";
@@ -12,7 +12,7 @@ import { FormInput, FormSelect } from "../ui/form-input";
 interface EcommerceFormProps {
   onSubmit: (data: EcommerceFormData) => void;
   isLoading: boolean;
-  defaultValues?: { businessName?: string };
+  defaultValues?: { businessName?: string; logo?: string | null };
 }
 
 const POST_TYPE_OPTIONS = ["منتج", "تخفيضات", "وصل حديثاً"] as const;
@@ -30,10 +30,11 @@ const AVAILABILITY_VALUES: Record<string, EcommerceFormData["availability"]> = {
 };
 
 export function EcommerceForm({ onSubmit, isLoading, defaultValues }: EcommerceFormProps) {
-  const [logo, setLogo] = useState<string | null>(null);
+  const [logoOverride, setLogoOverride] = useState<string | null | undefined>(undefined);
   const [productImage, setProductImage] = useState<string | null>(null);
   const [formats, setFormats] = useState<OutputFormat[]>(["instagram-square"]);
   const [campaignType, setCampaignType] = useState<CampaignType>("standard");
+  const logo = logoOverride === undefined ? (defaultValues?.logo ?? null) : logoOverride;
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -179,7 +180,7 @@ export function EcommerceForm({ onSubmit, isLoading, defaultValues }: EcommerceF
         {/* Right Column */}
         <div className="space-y-8">
           <div className="space-y-6">
-             <ImageUpload label="لوجو المتجر" value={logo} onChange={setLogo} />
+             <ImageUpload label="لوجو المتجر" value={logo} onChange={setLogoOverride} />
              <ImageUpload label="صورة المنتج" value={productImage} onChange={setProductImage} />
           </div>
 

@@ -6,8 +6,9 @@ import { api } from "@/convex/_generated/api";
 import { useDevIdentity } from "@/hooks/use-dev-identity";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Sparkles, LayoutGrid, LogIn } from "lucide-react";
+import { ArrowRight, Sparkles, LayoutGrid, LogIn, AlertCircle } from "lucide-react";
 import { SignInButton } from "@clerk/nextjs";
+import Link from "next/link";
 import dynamic from "next/dynamic";
 
 // Components
@@ -55,6 +56,19 @@ const ALL_CATEGORIES: Category[] = ["restaurant", "supermarket", "ecommerce", "s
 
 function getNowMs(): number {
   return Date.now();
+}
+
+async function urlToDataUrl(url: string): Promise<string> {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error("Failed to fetch logo");
+  const blob = await response.blob();
+
+  return await new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => resolve(reader.result as string);
+    reader.onerror = () => reject(new Error("Failed to read logo"));
+    reader.readAsDataURL(blob);
+  });
 }
 
 function FormLoadingFallback() {
@@ -120,6 +134,8 @@ function CreatePageContent() {
   const [results, setResults] = useState<PosterResult[]>([]);
   const [giftResult, setGiftResult] = useState<PosterResult | null>(null);
   const [error, setError] = useState<string>();
+  const [lastSubmittedData, setLastSubmittedData] = useState<PostFormData | null>(null);
+  const [defaultLogo, setDefaultLogo] = useState<string | null>(null);
   const generatingRef = useRef(false);
 
   // Get category theme
@@ -129,12 +145,19 @@ function CreatePageContent() {
   useEffect(() => {
     const catParam = searchParams.get("category");
     if (catParam && ALL_CATEGORIES.includes(catParam as Category)) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setCategory(catParam as Category);
     }
   }, [searchParams]);
 
   const AUTH_ENABLED = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
+
+  // Billing
+  const creditState = useQuery(
+    api.billing.getCreditState,
+    isAuthenticated ? {} : "skip"
+  );
+  const canGenerate = creditState?.canGenerate ?? false;
+  const consumeCredit = useMutation(api.billing.consumeGenerationCredit);
 
   // Data Fetching
   const createGeneration = useMutation(api.generations.create);
@@ -158,6 +181,51 @@ function CreatePageContent() {
         styleSeed: defaultBrandKit.styleSeed ?? undefined,
       }
     : undefined;
+
+  useEffect(() => {
+    let isCancelled = false;
+
+    if (!defaultBrandKit?.logoUrl) {
+      setDefaultLogo(null);
+      return;
+    }
+
+    urlToDataUrl(defaultBrandKit.logoUrl)
+      .then((dataUrl) => {
+        if (!isCancelled) setDefaultLogo(dataUrl);
+      })
+      .catch((err) => {
+        console.error("Failed to preload brand logo:", err);
+        if (!isCancelled) setDefaultLogo(null);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [defaultBrandKit?.logoUrl]);
+
+  useEffect(() => {
+    if (!AUTH_ENABLED || isAuthLoading || !isAuthenticated || isIdentityLoading) {
+      return;
+    }
+
+    if (creditState === undefined) {
+      return;
+    }
+
+    if ("planKey" in creditState && creditState.planKey === "none") {
+      router.replace("/pricing");
+      return;
+    }
+
+  }, [
+    AUTH_ENABLED,
+    isAuthLoading,
+    isAuthenticated,
+    isIdentityLoading,
+    creditState,
+    router,
+  ]);
 
   const persistUsageEvents = async (usages: GenerationUsage[]) => {
     if (usages.length === 0) return;
@@ -202,10 +270,17 @@ function CreatePageContent() {
     }
   };
 
-  const runGeneration = (data: PostFormData) => {
+  const runGeneration = async (data: PostFormData) => {
     if (generatingRef.current) return;
-    generatingRef.current = true;
 
+    // Gate: must have credits
+    if (!canGenerate) {
+      setError("لا يوجد لديك رصيد كافٍ. يرجى ترقية اشتراكك أو شراء رصيد إضافي.");
+      return;
+    }
+
+    generatingRef.current = true;
+    setLastSubmittedData(data);
     setGenStep("generating-designs");
     setError(undefined);
     setIsGenerating(true);
@@ -213,6 +288,22 @@ function CreatePageContent() {
     setGiftResult(null);
 
     const startTime = getNowMs();
+    const idempotencyKey = `gen_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+
+    // Consume credit BEFORE calling the expensive AI generation
+    try {
+      const creditResult = await consumeCredit({ idempotencyKey });
+      if (!creditResult.ok) {
+        throw new Error("لا يوجد لديك رصيد كافٍ");
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "فشل خصم الرصيد";
+      setError(msg);
+      setGenStep("error");
+      setIsGenerating(false);
+      generatingRef.current = false;
+      return;
+    }
 
     generatePosters(data, brandKitPromptData)
       .then(({ main: posterResult, gift, usages }) => {
@@ -361,20 +452,26 @@ function CreatePageContent() {
     );
   }
 
+  const formDisabled = isGenerating || !canGenerate;
+  const sharedDefaultValues = {
+    businessName: defaultBrandKit?.name,
+    logo: defaultLogo,
+  };
+
   const renderForm = () => {
     switch (category) {
       case "restaurant":
-        return <RestaurantForm onSubmit={runGeneration} isLoading={isGenerating} />;
+        return <RestaurantForm onSubmit={runGeneration} isLoading={formDisabled} defaultValues={sharedDefaultValues} />;
       case "supermarket":
-        return <SupermarketForm onSubmit={runGeneration} isLoading={isGenerating} />;
+        return <SupermarketForm onSubmit={runGeneration} isLoading={formDisabled} defaultValues={sharedDefaultValues} />;
       case "ecommerce":
-        return <EcommerceForm onSubmit={runGeneration} isLoading={isGenerating} />;
+        return <EcommerceForm onSubmit={runGeneration} isLoading={formDisabled} defaultValues={sharedDefaultValues} />;
       case "services":
-        return <ServicesForm onSubmit={runGeneration} isLoading={isGenerating} />;
+        return <ServicesForm onSubmit={runGeneration} isLoading={formDisabled} defaultValues={sharedDefaultValues} />;
       case "fashion":
-        return <FashionForm onSubmit={runGeneration} isLoading={isGenerating} />;
+        return <FashionForm onSubmit={runGeneration} isLoading={formDisabled} defaultValues={sharedDefaultValues} />;
       case "beauty":
-        return <BeautyForm onSubmit={runGeneration} isLoading={isGenerating} />;
+        return <BeautyForm onSubmit={runGeneration} isLoading={formDisabled} defaultValues={sharedDefaultValues} />;
       default:
         return null;
     }
@@ -447,7 +544,19 @@ function CreatePageContent() {
                     />
                 </div>
 
-                <div className="flex justify-center">
+                <div className="flex flex-wrap justify-center gap-3">
+                    <motion.button
+                        whileTap={TAP_SCALE}
+                        onClick={() => {
+                          if (!lastSubmittedData || isGenerating || !canGenerate) return;
+                          void runGeneration(lastSubmittedData);
+                        }}
+                        disabled={!lastSubmittedData || isGenerating || !canGenerate}
+                        className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        <Sparkles size={18} />
+                        <span>إنشاء صورة إضافية بنفس المحتوى</span>
+                    </motion.button>
                     <motion.button
                         whileTap={TAP_SCALE}
                         onClick={() => { setResults([]); setGenStep("idle"); }}
@@ -464,9 +573,27 @@ function CreatePageContent() {
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -20 }}
+                className="max-w-3xl mx-auto space-y-4"
             >
+                {/* No credits banner */}
+                {creditState && !canGenerate && (
+                  <div className="flex items-center gap-3 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400">
+                    <AlertCircle size={20} className="shrink-0" />
+                    <div className="flex-1">
+                      <p className="font-bold text-sm">لا يوجد لديك رصيد كافٍ</p>
+                      <p className="text-xs mt-0.5 opacity-80">يرجى ترقية اشتراكك أو شراء رصيد إضافي للمتابعة</p>
+                    </div>
+                    <Link
+                      href="/pricing"
+                      className="shrink-0 px-4 py-2 bg-primary text-primary-foreground rounded-xl text-xs font-bold hover:bg-primary-hover transition-colors"
+                    >
+                      ترقية الاشتراك
+                    </Link>
+                  </div>
+                )}
+
                 <div
-                  className="bg-surface-1 rounded-3xl p-6 md:p-10 shadow-xl border max-w-3xl mx-auto"
+                  className="bg-surface-1 rounded-3xl p-6 md:p-10 shadow-xl border"
                   style={{ borderColor: theme ? theme.border : "var(--card-border)" }}
                 >
                     {renderForm()}

@@ -53,18 +53,15 @@ function NavBarWithAuth() {
 
           {/* Brand / Logo */}
           <Link href="/" className="flex items-center gap-2 group">
-            <div className="relative w-9 h-9 transition-transform duration-300 group-hover:rotate-12">
+            <div className=" relative size-24 transition-transform duration-300 group-hover:rotate-12">
               <Image
-                src="/icon_logo_svg.svg"
+                src="/name_logo_svg.svg"
                 alt="Postaty Symbol"
                 fill
-                className="object-contain"
+                className="object-contain "
                 priority
               />
             </div>
-            <span className="text-xl font-black tracking-tighter text-foreground">
-              Postaty
-            </span>
           </Link>
 
           {/* Navigation Items */}
@@ -129,20 +126,31 @@ function NavBarWithAuth() {
 
 function CreditsBadge() {
   const creditState = useQuery(api.billing.getCreditState);
+  const requiresSubscription =
+    !!creditState &&
+    "planKey" in creditState &&
+    creditState.planKey === "none";
+  const href = requiresSubscription ? "/pricing" : "/checkout?addon=addon_5";
 
   return (
     <div className="flex items-center gap-2">
       <Link
-        href="/checkout?addon=addon_5"
+        href={href}
         className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-2/60 border border-card-border text-sm font-bold transition-all hover:bg-surface-2 hover:border-primary/30 group"
       >
         <Coins size={14} className="text-amber-500" />
         <span className="text-foreground tabular-nums">
           {creditState?.totalRemaining ?? "—"}
         </span>
-        <span className="text-[10px] font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity mr-1">
-          شحن+
-        </span>
+        {requiresSubscription ? (
+          <span className="text-[10px] font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity mr-1">
+            اشترك
+          </span>
+        ) : (
+          <span className="text-[10px] font-bold text-primary opacity-0 group-hover:opacity-100 transition-opacity mr-1">
+            شحن+
+          </span>
+        )}
       </Link>
       <UserButton />
     </div>

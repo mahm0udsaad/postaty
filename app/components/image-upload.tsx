@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";
 import { ImagePlus, X } from "lucide-react";
 import { compressImage } from "@/lib/image-compression";
@@ -19,6 +19,10 @@ export function ImageUpload({
   accept = { "image/*": [".png", ".jpg", ".jpeg", ".webp"] },
 }: ImageUploadProps) {
   const [preview, setPreview] = useState<string | null>(value);
+
+  useEffect(() => {
+    setPreview(value);
+  }, [value]);
 
   const onDrop = useCallback(
     async (acceptedFiles: File[]) => {

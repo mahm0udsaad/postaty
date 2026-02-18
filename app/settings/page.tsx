@@ -10,7 +10,7 @@ import { useState } from "react";
 const AUTH_ENABLED = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
 
 const PLAN_NAMES: Record<string, string> = {
-  none: "مجاني",
+  none: "غير مشترك",
   starter: "مبتدي",
   growth: "نمو",
   dominant: "هيمنة",

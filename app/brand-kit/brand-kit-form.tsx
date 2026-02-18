@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -9,7 +10,6 @@ import { STYLE_ADJECTIVE_OPTIONS } from "@/lib/constants";
 import { extractColorsFromImage } from "@/lib/brand-extraction";
 import { uploadBase64ToConvex } from "@/lib/convex-upload";
 import {
-  Upload,
   X,
   Plus,
   Check,
@@ -44,6 +44,7 @@ const DEFAULT_PALETTE: BrandPalette = {
 };
 
 interface BrandKitFormProps {
+  redirectTo?: string;
   existingKit?: {
     _id: Id<"brand_kits">;
     name: string;
@@ -59,7 +60,8 @@ interface BrandKitFormProps {
   };
 }
 
-export function BrandKitForm({ existingKit }: BrandKitFormProps) {
+export function BrandKitForm({ existingKit, redirectTo }: BrandKitFormProps) {
+  const router = useRouter();
   const [name, setName] = useState(existingKit?.name ?? "");
   const [logoBase64, setLogoBase64] = useState<string | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(
@@ -229,6 +231,9 @@ export function BrandKitForm({ existingKit }: BrandKitFormProps) {
       }
 
       setSaveMessage({ type: "success", text: "تم حفظ هوية العلامة التجارية بنجاح" });
+      if (redirectTo) {
+        router.push(redirectTo);
+      }
     } catch (err) {
       setSaveMessage({
         type: "error",

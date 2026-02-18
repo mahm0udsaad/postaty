@@ -6,16 +6,20 @@ import { useDevIdentity } from "@/hooks/use-dev-identity";
 import { BrandKitForm } from "./brand-kit-form";
 import { Palette, Loader2 } from "lucide-react";
 import { SignInButton } from "@clerk/nextjs";
+import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 
 const AUTH_ENABLED = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
 
 export default function BrandKitPage() {
+  const searchParams = useSearchParams();
   const { isLoading: isIdentityLoading, isAuthenticated } = useDevIdentity();
   const existingKit = useQuery(
     api.brandKits.getDefault,
     isAuthenticated ? {} : "skip"
   );
+  const nextParam = searchParams.get("next");
+  const redirectTo = nextParam?.startsWith("/") ? nextParam : undefined;
 
   // Show loading while query initializes (undefined = loading, null = no kit)
   const isLoading = isIdentityLoading || (isAuthenticated && existingKit === undefined);
@@ -59,10 +63,23 @@ export default function BrandKitPage() {
             )}
           </div>
         ) : (
-          <div className="glass-card p-6 md:p-8">
-            <BrandKitForm
-              existingKit={existingKit ?? undefined}
-            />
+          <div className="space-y-4">
+            {redirectTo && (
+              <div className="text-center">
+                <Link
+                  href={redirectTo}
+                  className="text-sm text-muted hover:text-foreground underline underline-offset-4"
+                >
+                  تخطي حالياً والمتابعة للتصميم
+                </Link>
+              </div>
+            )}
+            <div className="glass-card p-6 md:p-8">
+              <BrandKitForm
+                redirectTo={redirectTo}
+                existingKit={existingKit ?? undefined}
+              />
+            </div>
           </div>
         )}
       </div>

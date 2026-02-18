@@ -1,5 +1,6 @@
 "use server";
 
+import { auth } from "@clerk/nextjs/server";
 import { generatePoster, generateGiftImage } from "@/lib/generate-designs";
 import { removeBackgroundWithFallback } from "@/lib/gift-editor/remove-background";
 import { postFormDataSchema } from "@/lib/validation";
@@ -32,6 +33,12 @@ export async function generatePosters(
   data: PostFormData,
   brandKit?: BrandKitPromptData
 ): Promise<GeneratePostersResult & { usages: GenerationUsage[] }> {
+  // Server-side auth gate — block unauthenticated requests
+  const { userId } = await auth();
+  if (!userId) {
+    throw new Error("يجب تسجيل الدخول لإنشاء تصاميم");
+  }
+
   const validation = postFormDataSchema.safeParse(data);
   if (!validation.success) {
     console.error("[generatePosters] validation_failed", {
@@ -44,7 +51,7 @@ export async function generatePosters(
 
   const format: OutputFormat = data.formats[0];
 
-  console.info("[generatePosters] start", { category: data.category });
+  console.info("[generatePosters] start", { category: data.category, userId });
 
   const usages: GenerationUsage[] = [];
 

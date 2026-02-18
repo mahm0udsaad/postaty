@@ -12,7 +12,7 @@ import { FormInput, FormSelect } from "../ui/form-input";
 interface RestaurantFormProps {
   onSubmit: (data: RestaurantFormData) => void;
   isLoading: boolean;
-  defaultValues?: { businessName?: string };
+  defaultValues?: { businessName?: string; logo?: string | null };
 }
 
 const POST_TYPE_OPTIONS = ["قائمة طعام", "عرض وجبة", "توصيل"] as const;
@@ -36,10 +36,11 @@ const DELIVERY_VALUES: Record<string, NonNullable<RestaurantFormData["deliveryTy
 };
 
 export function RestaurantForm({ onSubmit, isLoading, defaultValues }: RestaurantFormProps) {
-  const [logo, setLogo] = useState<string | null>(null);
+  const [logoOverride, setLogoOverride] = useState<string | null | undefined>(undefined);
   const [mealImage, setMealImage] = useState<string | null>(null);
   const [formats, setFormats] = useState<OutputFormat[]>(["instagram-square"]);
   const [campaignType, setCampaignType] = useState<CampaignType>("standard");
+  const logo = logoOverride === undefined ? (defaultValues?.logo ?? null) : logoOverride;
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -192,7 +193,7 @@ export function RestaurantForm({ onSubmit, isLoading, defaultValues }: Restauran
         {/* Right Column: Uploads */}
         <div className="space-y-8">
           <div className="space-y-6">
-             <ImageUpload label="لوجو المطعم" value={logo} onChange={setLogo} />
+             <ImageUpload label="لوجو المطعم" value={logo} onChange={setLogoOverride} />
              <ImageUpload label="صورة الوجبة" value={mealImage} onChange={setMealImage} />
           </div>
 

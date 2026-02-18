@@ -21,20 +21,17 @@ export function Footer() {
           {/* Brand Column */}
           <div className="space-y-6">
             <Link href="/" className="flex items-center gap-2 group">
-              <div className="relative w-8 h-8 transition-transform duration-300 group-hover:rotate-12">
+              <div className="relative size-24 transition-transform duration-300 group-hover:rotate-12">
                 <Image
-                  src="/icon_logo_svg.svg"
+                  src="/name_logo_svg.svg"
                   alt="Postaty Symbol"
                   fill
                   className="object-contain"
                 />
               </div>
-              <span className="text-xl font-black tracking-tighter text-foreground">
-                Postaty
-              </span>
             </Link>
             <p className="text-muted text-sm leading-relaxed max-w-xs">
-              منصتك الذكية لتصميم إعلانات احترافية في ثوانٍ. دع الذكاء الاصطناعي يتولى التصميم، وركز أنت على نمو عملك.
+              منصتك الذكية لتصميم إعلانات احترافية في ثوانٍ. دع بوستاتي يتولى التصميم، وركز أنت على نمو عملك.
             </p>
             <div className="flex items-center gap-4">
               <a href="#" className="text-muted hover:text-primary transition-colors">

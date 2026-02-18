@@ -224,17 +224,17 @@ export default function HomeClient({ pricing, countryCode }: HomeClientProps) {
             <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-4">
               {!isAuthenticated ? (
                 AUTH_ENABLED ? (
-                  <SignInButton forceRedirectUrl="/create">
+                  <SignInButton forceRedirectUrl="/pricing">
                     <motion.button
                       whileTap={TAP_SCALE}
                       className="px-8 py-4 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-2xl font-bold shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:-translate-y-0.5 transition-all text-lg"
                     >
-                      ابدأ مجاناً
+                      ابدأ الآن
                     </motion.button>
                   </SignInButton>
                 ) : (
                   <Link
-                    href="/create"
+                    href="/pricing"
                     className="px-8 py-4 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-2xl font-bold shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all text-lg"
                   >
                     ابدأ الآن
@@ -613,49 +613,62 @@ export default function HomeClient({ pricing, countryCode }: HomeClientProps) {
       {/* ═══════════════════════════════════════════════════════
           SECTION 7: FINAL CTA
       ═══════════════════════════════════════════════════════ */}
-      <section className="py-20 md:py-28 px-4 border-t border-card-border relative overflow-hidden">
+      <section className="py-24 md:py-32 px-4 relative overflow-hidden">
         {/* Background glow */}
-        <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-transparent to-accent/5 pointer-events-none" />
+        <div className="absolute inset-0 pointer-events-none">
+          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/8 rounded-full blur-[120px]" />
+        </div>
 
-        <AnimateOnScroll className="max-w-2xl mx-auto text-center relative">
+        <AnimateOnScroll className="max-w-3xl mx-auto text-center relative">
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-semibold mb-8">
+            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
+            أكثر من 500 صاحب مشروع بدأوا معنا
+          </div>
+
           <h2 className="text-3xl md:text-5xl font-black mb-6 leading-tight">
-            أول بوستر عليك
+            وقتك أغلى من إنك
             <br />
-            <span className="text-gradient">الباقي علينا</span>
+            <span className="text-gradient">تصمم بوستر بنفسك</span>
           </h2>
-          <p className="text-muted text-lg mb-8">
-            ابدأ الآن وشوف الفرق بنفسك.
+          <p className="text-muted text-lg md:text-xl mb-4 max-w-xl mx-auto leading-relaxed">
+            بدل ما تدفع لمصمم وتنتظر أيام، خلّي بوستاتي يطلع لك تصميم احترافي في ثوانٍ.
+          </p>
+          <p className="text-muted/60 text-sm mb-10">
+            اشتراك شهري مرن · إلغاء في أي وقت
           </p>
 
-          {!isAuthenticated ? (
-            AUTH_ENABLED ? (
-              <SignInButton forceRedirectUrl="/create">
-                <motion.button
-                  whileTap={TAP_SCALE}
-                  className="px-10 py-5 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-2xl font-bold text-xl shadow-xl shadow-primary/25 hover:shadow-primary/40 hover:-translate-y-1 transition-all"
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
+            {!isAuthenticated ? (
+              AUTH_ENABLED ? (
+                <SignInButton forceRedirectUrl="/pricing">
+                  <motion.button
+                    whileTap={TAP_SCALE}
+                    className="px-10 py-4 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-2xl font-bold text-lg shadow-xl shadow-primary/25 hover:shadow-primary/40 hover:-translate-y-0.5 transition-all"
+                  >
+                    اشترك وابدأ الآن
+                  </motion.button>
+                </SignInButton>
+              ) : (
+                <Link
+                  href="/pricing"
+                  className="inline-block px-10 py-4 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-2xl font-bold text-lg shadow-xl shadow-primary/25 hover:shadow-primary/40 transition-all"
                 >
-                  ابدأ مجاناً الآن
-                </motion.button>
-              </SignInButton>
+                  اشترك وابدأ الآن
+                </Link>
+              )
             ) : (
-              <Link
-                href="/create"
-                className="inline-block px-10 py-5 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-2xl font-bold text-xl shadow-xl shadow-primary/25 hover:shadow-primary/40 transition-all"
+              <motion.button
+                whileTap={TAP_SCALE}
+                onClick={() => router.push("/create")}
+                className="px-10 py-4 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-2xl font-bold text-lg shadow-xl shadow-primary/25 hover:shadow-primary/40 hover:-translate-y-0.5 transition-all"
               >
-                ابدأ الآن
-              </Link>
-            )
-          ) : (
-            <motion.button
-              whileTap={TAP_SCALE}
-              onClick={() => router.push("/create")}
-              className="px-10 py-5 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-2xl font-bold text-xl shadow-xl shadow-primary/25 hover:shadow-primary/40 hover:-translate-y-1 transition-all"
-            >
-              صمم بوسترك الآن
-            </motion.button>
-          )}
+                صمم بوسترك الآن
+              </motion.button>
+            )}
+          </div>
         </AnimateOnScroll>
       </section>
+
     </main>
   );
 }

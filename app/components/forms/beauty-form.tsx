@@ -24,14 +24,15 @@ import { FormInput, FormSelect } from "../ui/form-input";
 interface BeautyFormProps {
   onSubmit: (data: BeautyFormData) => void;
   isLoading: boolean;
-  defaultValues?: { businessName?: string };
+  defaultValues?: { businessName?: string; logo?: string | null };
 }
 
 export function BeautyForm({ onSubmit, isLoading, defaultValues }: BeautyFormProps) {
-  const [logo, setLogo] = useState<string | null>(null);
+  const [logoOverride, setLogoOverride] = useState<string | null | undefined>(undefined);
   const [serviceImage, setServiceImage] = useState<string | null>(null);
   const [formats, setFormats] = useState<OutputFormat[]>(["instagram-square"]);
   const [campaignType, setCampaignType] = useState<CampaignType>("standard");
+  const logo = logoOverride === undefined ? (defaultValues?.logo ?? null) : logoOverride;
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -172,7 +173,7 @@ export function BeautyForm({ onSubmit, isLoading, defaultValues }: BeautyFormPro
         {/* Right Column: Uploads */}
         <div className="space-y-8">
           <div className="space-y-6">
-             <ImageUpload label="لوجو الصالون" value={logo} onChange={setLogo} />
+             <ImageUpload label="لوجو الصالون" value={logo} onChange={setLogoOverride} />
              <ImageUpload label="صورة الخدمة/المنتج" value={serviceImage} onChange={setServiceImage} />
           </div>
 

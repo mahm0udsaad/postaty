@@ -25,14 +25,15 @@ import { FormInput, FormSelect } from "../ui/form-input";
 interface ServicesFormProps {
   onSubmit: (data: ServicesFormData) => void;
   isLoading: boolean;
-  defaultValues?: { businessName?: string };
+  defaultValues?: { businessName?: string; logo?: string | null };
 }
 
 export function ServicesForm({ onSubmit, isLoading, defaultValues }: ServicesFormProps) {
-  const [logo, setLogo] = useState<string | null>(null);
+  const [logoOverride, setLogoOverride] = useState<string | null | undefined>(undefined);
   const [serviceImage, setServiceImage] = useState<string | null>(null);
   const [formats, setFormats] = useState<OutputFormat[]>(["instagram-square"]);
   const [campaignType, setCampaignType] = useState<CampaignType>("standard");
+  const logo = logoOverride === undefined ? (defaultValues?.logo ?? null) : logoOverride;
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -180,7 +181,7 @@ export function ServicesForm({ onSubmit, isLoading, defaultValues }: ServicesFor
         {/* Right Column: Uploads */}
         <div className="space-y-8">
           <div className="space-y-6">
-             <ImageUpload label="لوجو الشركة" value={logo} onChange={setLogo} />
+             <ImageUpload label="لوجو الشركة" value={logo} onChange={setLogoOverride} />
              <ImageUpload label="صورة الخدمة" value={serviceImage} onChange={setServiceImage} />
           </div>
 
