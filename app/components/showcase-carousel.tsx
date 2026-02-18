@@ -87,13 +87,14 @@ export function ShowcaseCarousel() {
 
     if (!images.length) return;
     const initialIndex = activeIndexRef.current >= images.length ? 0 : activeIndexRef.current;
-    scrollToIndex(initialIndex, {
+    const node = cardRefs.current[initialIndex];
+    if (!node || !isSectionInViewport()) return;
+    node.scrollIntoView({
       behavior: "auto",
-      syncState: false,
-      markInteraction: false,
-      requireVisible: true,
+      inline: "center",
+      block: "nearest",
     });
-  }, [images.length, scrollToIndex]);
+  }, [images.length, isSectionInViewport]);
 
   useEffect(() => {
     const el = scrollRef.current;
