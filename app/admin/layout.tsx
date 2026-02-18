@@ -19,6 +19,7 @@ import {
   X,
   Shield,
   ImageIcon,
+  Tag,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -28,6 +29,7 @@ const ADMIN_NAV = [
   { href: "/admin/finance", label: "المالية", icon: DollarSign },
   { href: "/admin/users", label: "المستخدمون", icon: Users },
   { href: "/admin/subscriptions", label: "الاشتراكات", icon: CreditCard },
+  { href: "/admin/stripe", label: "إدارة الأسعار", icon: Tag },
   { href: "/admin/support", label: "الدعم الفني", icon: LifeBuoy },
   { href: "/admin/feedback", label: "التقييمات", icon: ThumbsUp },
   { href: "/admin/showcase", label: "المعرض", icon: ImageIcon },

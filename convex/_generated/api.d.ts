@@ -22,8 +22,10 @@ import type * as organizations from "../organizations.js";
 import type * as posterJobs from "../posterJobs.js";
 import type * as posterTemplates from "../posterTemplates.js";
 import type * as seed from "../seed.js";
+import type * as seedCountryPricing from "../seedCountryPricing.js";
 import type * as seedTemplates from "../seedTemplates.js";
 import type * as showcase from "../showcase.js";
+import type * as stripeAdmin from "../stripeAdmin.js";
 import type * as templates from "../templates.js";
 import type * as users from "../users.js";
 
@@ -48,8 +50,10 @@ declare const fullApi: ApiFromModules<{
   posterJobs: typeof posterJobs;
   posterTemplates: typeof posterTemplates;
   seed: typeof seed;
+  seedCountryPricing: typeof seedCountryPricing;
   seedTemplates: typeof seedTemplates;
   showcase: typeof showcase;
+  stripeAdmin: typeof stripeAdmin;
   templates: typeof templates;
   users: typeof users;
 }>;

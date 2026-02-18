@@ -36,9 +36,6 @@ function SettingsPageWithClerk() {
   );
 
   const createPortalSession = useAction(api.billing.createPortalSession);
-  const createSubscriptionCheckout = useAction(
-    api.billing.createSubscriptionCheckout
-  );
 
   const handleManageSubscription = async () => {
     setLoadingAction("portal");
@@ -49,21 +46,6 @@ function SettingsPageWithClerk() {
       window.location.href = url;
     } catch (error) {
       console.error("Failed to open portal:", error);
-      setLoadingAction(null);
-    }
-  };
-
-  const handleUpgradePlan = async () => {
-    setLoadingAction("checkout");
-    try {
-      const { url } = await createSubscriptionCheckout({
-        planKey: "growth",
-        successUrl: window.location.href,
-        cancelUrl: window.location.href,
-      });
-      window.location.href = url;
-    } catch (error) {
-      console.error("Failed to create checkout:", error);
       setLoadingAction(null);
     }
   };
@@ -228,23 +210,13 @@ function SettingsPageWithClerk() {
               )}
 
               {creditState.planKey === "none" && (
-                <button
-                  onClick={handleUpgradePlan}
-                  disabled={loadingAction === "checkout"}
-                  className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-xl font-bold hover:shadow-lg hover:shadow-primary/25 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                <Link
+                  href="/pricing"
+                  className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-xl font-bold hover:shadow-lg hover:shadow-primary/25 transition-all"
                 >
-                  {loadingAction === "checkout" ? (
-                    <>
-                      <Loader2 size={16} className="animate-spin" />
-                      <span>جاري التحميل...</span>
-                    </>
-                  ) : (
-                    <>
-                      <Zap size={16} />
-                      <span>ترقية الخطة</span>
-                    </>
-                  )}
-                </button>
+                  <Zap size={16} />
+                  <span>عرض الخطط والأسعار</span>
+                </Link>
               )}
             </div>
           </div>

@@ -477,19 +477,19 @@ export default function HomeClient({ pricing, countryCode }: HomeClientProps) {
               </ul>
               {!isAuthenticated ? (
                 AUTH_ENABLED ? (
-                  <SignInButton forceRedirectUrl="/create">
+                  <SignInButton forceRedirectUrl="/checkout?plan=starter">
                     <button className="w-full py-3 border border-card-border rounded-xl font-bold text-foreground hover:bg-surface-2 transition-colors">
-                      ابدأ الآن
+                      اشترك الآن
                     </button>
                   </SignInButton>
                 ) : (
-                  <Link href="/create" className="block w-full py-3 border border-card-border rounded-xl font-bold text-foreground text-center hover:bg-surface-2 transition-colors">
-                    ابدأ الآن
+                  <Link href="/checkout?plan=starter" className="block w-full py-3 border border-card-border rounded-xl font-bold text-foreground text-center hover:bg-surface-2 transition-colors">
+                    اشترك الآن
                   </Link>
                 )
               ) : (
-                <button onClick={() => router.push("/create")} className="w-full py-3 border border-card-border rounded-xl font-bold text-foreground hover:bg-surface-2 transition-colors">
-                  ابدأ الآن
+                <button onClick={() => router.push("/checkout?plan=starter")} className="w-full py-3 border border-card-border rounded-xl font-bold text-foreground hover:bg-surface-2 transition-colors">
+                  اشترك الآن
                 </button>
               )}
             </motion.div>
@@ -529,9 +529,23 @@ export default function HomeClient({ pricing, countryCode }: HomeClientProps) {
                   </li>
                 ))}
               </ul>
-              <button className="w-full py-3 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-xl font-bold hover:shadow-lg hover:shadow-primary/25 transition-all">
-                اشترك الآن
-              </button>
+              {!isAuthenticated ? (
+                AUTH_ENABLED ? (
+                  <SignInButton forceRedirectUrl="/checkout?plan=growth">
+                    <button className="w-full py-3 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-xl font-bold hover:shadow-lg hover:shadow-primary/25 transition-all">
+                      اشترك الآن
+                    </button>
+                  </SignInButton>
+                ) : (
+                  <Link href="/checkout?plan=growth" className="block w-full py-3 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-xl font-bold text-center hover:shadow-lg hover:shadow-primary/25 transition-all">
+                    اشترك الآن
+                  </Link>
+                )
+              ) : (
+                <button onClick={() => router.push("/checkout?plan=growth")} className="w-full py-3 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-xl font-bold hover:shadow-lg hover:shadow-primary/25 transition-all">
+                  اشترك الآن
+                </button>
+              )}
             </motion.div>
 
             {/* Dominant Plan */}
@@ -569,19 +583,19 @@ export default function HomeClient({ pricing, countryCode }: HomeClientProps) {
               </ul>
               {!isAuthenticated ? (
                 AUTH_ENABLED ? (
-                  <SignInButton forceRedirectUrl="/create">
+                  <SignInButton forceRedirectUrl="/checkout?plan=dominant">
                     <button className="w-full py-3 border border-card-border rounded-xl font-bold text-foreground hover:bg-surface-2 transition-colors">
-                      ابدأ الآن
+                      اشترك الآن
                     </button>
                   </SignInButton>
                 ) : (
-                  <Link href="/create" className="block w-full py-3 border border-card-border rounded-xl font-bold text-foreground text-center hover:bg-surface-2 transition-colors">
-                    ابدأ الآن
+                  <Link href="/checkout?plan=dominant" className="block w-full py-3 border border-card-border rounded-xl font-bold text-foreground text-center hover:bg-surface-2 transition-colors">
+                    اشترك الآن
                   </Link>
                 )
               ) : (
-                <button onClick={() => router.push("/create")} className="w-full py-3 border border-card-border rounded-xl font-bold text-foreground hover:bg-surface-2 transition-colors">
-                  ابدأ الآن
+                <button onClick={() => router.push("/checkout?plan=dominant")} className="w-full py-3 border border-card-border rounded-xl font-bold text-foreground hover:bg-surface-2 transition-colors">
+                  اشترك الآن
                 </button>
               )}
             </motion.div>
