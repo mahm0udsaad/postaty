@@ -34,16 +34,16 @@ export function Footer() {
               منصتك الذكية لتصميم إعلانات احترافية في ثوانٍ. دع بوستاتي يتولى التصميم، وركز أنت على نمو عملك.
             </p>
             <div className="flex items-center gap-4">
-              <a href="#" className="text-muted hover:text-primary transition-colors">
+              <a href="https://instagram.com/postaty.app" target="_blank" rel="noopener noreferrer" className="text-muted hover:text-primary transition-colors" aria-label="Instagram">
                 <Instagram size={20} />
               </a>
-              <a href="#" className="text-muted hover:text-primary transition-colors">
+              <a href="https://x.com/postatyapp" target="_blank" rel="noopener noreferrer" className="text-muted hover:text-primary transition-colors" aria-label="X (Twitter)">
                 <Twitter size={20} />
               </a>
-              <a href="#" className="text-muted hover:text-primary transition-colors">
+              <a href="https://linkedin.com/company/postaty" target="_blank" rel="noopener noreferrer" className="text-muted hover:text-primary transition-colors" aria-label="LinkedIn">
                 <Linkedin size={20} />
               </a>
-              <a href="#" className="text-muted hover:text-primary transition-colors">
+              <a href="https://facebook.com/postaty.app" target="_blank" rel="noopener noreferrer" className="text-muted hover:text-primary transition-colors" aria-label="Facebook">
                 <Facebook size={20} />
               </a>
             </div>

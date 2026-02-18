@@ -1,5 +1,6 @@
 import { mutation, query } from "./_generated/server";
 import { v } from "convex/values";
+import { requireCurrentUser } from "./auth";
 
 const planValidator = v.union(
   v.literal("free"),
@@ -43,6 +44,7 @@ export const create = mutation({
     plan: v.optional(planValidator),
   },
   handler: async (ctx, args) => {
+    await requireCurrentUser(ctx);
     // Check slug uniqueness
     const existing = await ctx.db
       .query("organizations")
@@ -66,19 +68,25 @@ export const create = mutation({
 });
 
 export const get = query({
-  args: { orgId: v.id("organizations") },
+  args: { orgId: v.optional(v.id("organizations")) },
   handler: async (ctx, args) => {
-    return await ctx.db.get(args.orgId);
+    const currentUser = await requireCurrentUser(ctx);
+    const orgId = args.orgId ?? currentUser.orgId;
+    if (orgId !== currentUser.orgId) throw new Error("Unauthorized");
+    return await ctx.db.get(orgId);
   },
 });
 
 export const getBySlug = query({
   args: { slug: v.string() },
   handler: async (ctx, args) => {
-    return await ctx.db
+    const currentUser = await requireCurrentUser(ctx);
+    const org = await ctx.db
       .query("organizations")
       .withIndex("by_slug", (q) => q.eq("slug", args.slug))
       .first();
+    if (org && org._id !== currentUser.orgId) throw new Error("Unauthorized");
+    return org;
   },
 });
 
@@ -88,6 +96,10 @@ export const updatePlan = mutation({
     plan: planValidator,
   },
   handler: async (ctx, args) => {
+    const currentUser = await requireCurrentUser(ctx);
+    if (currentUser.role !== "admin" && currentUser.role !== "owner") {
+      throw new Error("Only admins can update plans");
+    }
     const limits = PLAN_LIMITS[args.plan];
     await ctx.db.patch(args.orgId, {
       plan: args.plan,
@@ -97,9 +109,12 @@ export const updatePlan = mutation({
 });
 
 export const getPlanLimits = query({
-  args: { orgId: v.id("organizations") },
+  args: { orgId: v.optional(v.id("organizations")) },
   handler: async (ctx, args) => {
-    const org = await ctx.db.get(args.orgId);
+    const currentUser = await requireCurrentUser(ctx);
+    const orgId = args.orgId ?? currentUser.orgId;
+    if (orgId !== currentUser.orgId) throw new Error("Unauthorized");
+    const org = await ctx.db.get(orgId);
     if (!org) return null;
     return {
       ...PLAN_LIMITS[org.plan],

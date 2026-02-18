@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Mail, MapPin, MessageCircle, Clock } from "lucide-react";
+import { ContactForm } from "./contact-form";
 
 export const metadata: Metadata = {
   title: "اتصل بنا | Postaty",
@@ -89,52 +90,7 @@ export default function ContactPage() {
       <section className="py-16 px-4">
         <div className="max-w-2xl mx-auto">
           <h2 className="text-3xl font-black mb-8 text-center">أرسل لنا رسالة</h2>
-          <form className="space-y-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
-              <div>
-                <label className="block text-sm font-semibold mb-2">الاسم</label>
-                <input
-                  type="text"
-                  placeholder="اسمك الكامل"
-                  className="w-full px-4 py-3 rounded-xl bg-surface-1 border border-card-border text-foreground placeholder:text-muted/50 focus:outline-none focus:border-primary transition-colors"
-                />
-              </div>
-              <div>
-                <label className="block text-sm font-semibold mb-2">البريد الإلكتروني</label>
-                <input
-                  type="email"
-                  placeholder="email@example.com"
-                  dir="ltr"
-                  className="w-full px-4 py-3 rounded-xl bg-surface-1 border border-card-border text-foreground placeholder:text-muted/50 focus:outline-none focus:border-primary transition-colors text-left"
-                />
-              </div>
-            </div>
-            <div>
-              <label className="block text-sm font-semibold mb-2">الموضوع</label>
-              <select className="w-full px-4 py-3 rounded-xl bg-surface-1 border border-card-border text-foreground focus:outline-none focus:border-primary transition-colors">
-                <option value="">اختر الموضوع</option>
-                <option value="support">دعم فني</option>
-                <option value="billing">استفسار عن الاشتراك</option>
-                <option value="partnership">شراكات</option>
-                <option value="feedback">اقتراحات</option>
-                <option value="other">أخرى</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-semibold mb-2">الرسالة</label>
-              <textarea
-                rows={5}
-                placeholder="اكتب رسالتك هنا..."
-                className="w-full px-4 py-3 rounded-xl bg-surface-1 border border-card-border text-foreground placeholder:text-muted/50 focus:outline-none focus:border-primary transition-colors resize-none"
-              />
-            </div>
-            <button
-              type="submit"
-              className="w-full py-4 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-xl font-bold text-lg shadow-xl shadow-primary/25 hover:shadow-primary/40 transition-all"
-            >
-              أرسل الرسالة
-            </button>
-          </form>
+          <ContactForm />
         </div>
       </section>
     </div>

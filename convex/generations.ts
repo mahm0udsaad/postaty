@@ -303,14 +303,20 @@ export const list = query({
     category: v.optional(categoryValidator),
   },
   handler: async (ctx, args) => {
+    const user = await requireCurrentUser(ctx);
     if (args.category) {
       return await ctx.db
         .query("generations")
         .withIndex("by_category", (q) => q.eq("category", args.category!))
+        .filter((q) => q.eq(q.field("orgId"), user.orgId))
         .order("desc")
         .take(20);
     }
-    return await ctx.db.query("generations").order("desc").take(20);
+    return await ctx.db
+      .query("generations")
+      .filter((q) => q.eq(q.field("orgId"), user.orgId))
+      .order("desc")
+      .take(20);
   },
 });
 

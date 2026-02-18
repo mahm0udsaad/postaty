@@ -11,6 +11,10 @@ const isProtectedRoute = createRouteMatcher([
   "/history(.*)",
   "/settings(.*)",
   "/admin(.*)",
+  "/checkout(.*)",
+  "/onboarding(.*)",
+  "/templates/editor(.*)",
+  "/templates/pick(.*)",
 ]);
 
 function resolveCountry(req: NextRequest): string {

@@ -160,6 +160,8 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   );
 }
 
+const ALLOW_BOOTSTRAP = process.env.NEXT_PUBLIC_ALLOW_ADMIN_BOOTSTRAP === "true";
+
 function AdminAccessDenied() {
   const bootstrapAdmin = useMutation(api.admin.bootstrapAdmin);
   const [bootstrapping, setBootstrapping] = useState(false);
@@ -193,7 +195,7 @@ function AdminAccessDenied() {
         <h1 className="text-2xl font-bold mb-2">صلاحيات غير كافية</h1>
         <p className="text-muted mb-4">هذه الصفحة متاحة فقط للمسؤولين.</p>
 
-        {!bootstrapDone && (
+        {ALLOW_BOOTSTRAP && !bootstrapDone && (
           <div className="space-y-3 mb-4">
             {showSecretInput && (
               <input

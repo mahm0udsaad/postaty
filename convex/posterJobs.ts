@@ -1,12 +1,11 @@
 import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
+import { requireCurrentUser } from "./auth";
 
 // ── Create a new poster generation job ──────────────────────────────
 
 export const create = mutation({
   args: {
-    orgId: v.id("organizations"),
-    userId: v.id("users"),
     category: v.union(
       v.literal("restaurant"),
       v.literal("supermarket"),
@@ -21,6 +20,7 @@ export const create = mutation({
     totalDesigns: v.number(),
   },
   handler: async (ctx, args) => {
+    const currentUser = await requireCurrentUser(ctx);
     const results = Array.from({ length: args.totalDesigns }, (_, i) => ({
       designIndex: i,
       format: args.format,
@@ -28,8 +28,8 @@ export const create = mutation({
     }));
 
     const jobId = await ctx.db.insert("poster_jobs", {
-      orgId: args.orgId,
-      userId: args.userId,
+      orgId: currentUser.orgId,
+      userId: currentUser._id,
       category: args.category,
       formDataJson: args.formDataJson,
       status: "pending",
@@ -58,6 +58,11 @@ export const updateStatus = mutation({
     error: v.optional(v.string()),
   },
   handler: async (ctx, { jobId, status, error }) => {
+    const currentUser = await requireCurrentUser(ctx);
+    const job = await ctx.db.get(jobId);
+    if (!job) throw new Error("Job not found");
+    if (job.orgId !== currentUser.orgId) throw new Error("Unauthorized");
+
     const updates: Record<string, unknown> = { status };
     if (error !== undefined) updates.error = error;
     if (status === "complete" || status === "error") {
@@ -75,6 +80,11 @@ export const updateDesigns = mutation({
     designsJson: v.string(),
   },
   handler: async (ctx, { jobId, designsJson }) => {
+    const currentUser = await requireCurrentUser(ctx);
+    const job = await ctx.db.get(jobId);
+    if (!job) throw new Error("Job not found");
+    if (job.orgId !== currentUser.orgId) throw new Error("Unauthorized");
+
     await ctx.db.patch(jobId, {
       designsJson,
       status: "rendering",
@@ -98,8 +108,10 @@ export const updateResult = mutation({
     error: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
+    const currentUser = await requireCurrentUser(ctx);
     const job = await ctx.db.get(args.jobId);
     if (!job) throw new Error("Job not found");
+    if (job.orgId !== currentUser.orgId) throw new Error("Unauthorized");
 
     const results = job.results.map((r) =>
       r.designIndex === args.designIndex
@@ -134,8 +146,10 @@ export const updateResult = mutation({
 export const get = query({
   args: { jobId: v.id("poster_jobs") },
   handler: async (ctx, { jobId }) => {
+    const currentUser = await requireCurrentUser(ctx);
     const job = await ctx.db.get(jobId);
     if (!job) return null;
+    if (job.orgId !== currentUser.orgId) throw new Error("Unauthorized");
 
     const results = await Promise.all(
       job.results.map(async (r) => ({
@@ -154,13 +168,13 @@ export const get = query({
 
 export const listByOrg = query({
   args: {
-    orgId: v.id("organizations"),
     limit: v.optional(v.number()),
   },
-  handler: async (ctx, { orgId, limit }) => {
+  handler: async (ctx, { limit }) => {
+    const currentUser = await requireCurrentUser(ctx);
     return await ctx.db
       .query("poster_jobs")
-      .withIndex("by_orgId", (q) => q.eq("orgId", orgId))
+      .withIndex("by_orgId", (q) => q.eq("orgId", currentUser.orgId))
       .order("desc")
       .take(limit ?? 20);
   },
