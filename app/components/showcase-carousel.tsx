@@ -11,6 +11,7 @@ const PAUSE_AFTER_INTERACTION_MS = 7000;
 
 export function ShowcaseCarousel() {
   const showcaseImages = useQuery(api.showcase.list);
+  const sectionRef = useRef<HTMLElement>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<Array<HTMLElement | null>>([]);
   const lastInteractionRef = useRef(0);
@@ -24,6 +25,14 @@ export function ShowcaseCarousel() {
     ? ((activeIndex % images.length) + images.length) % images.length
     : 0;
 
+  const isSectionInViewport = useCallback(() => {
+    const section = sectionRef.current;
+    if (!section) return false;
+
+    const rect = section.getBoundingClientRect();
+    return rect.top < window.innerHeight && rect.bottom > 0;
+  }, []);
+
   const scrollToIndex = useCallback(
     (
       index: number,
@@ -31,6 +40,7 @@ export function ShowcaseCarousel() {
         behavior?: ScrollBehavior;
         syncState?: boolean;
         markInteraction?: boolean;
+        requireVisible?: boolean;
       }
     ) => {
       if (!images.length) return;
@@ -39,7 +49,13 @@ export function ShowcaseCarousel() {
         behavior = "smooth",
         syncState = true,
         markInteraction = true,
+        requireVisible = false,
       } = options ?? {};
+
+      if (requireVisible && !isSectionInViewport()) {
+        return;
+      }
+
       const normalized = (index + images.length) % images.length;
       const node = cardRefs.current[normalized];
       if (!node) return;
@@ -56,7 +72,7 @@ export function ShowcaseCarousel() {
         setActiveIndex(normalized);
       }
     },
-    [images.length]
+    [images.length, isSectionInViewport]
   );
 
   const goNext = () => scrollToIndex(currentIndex + 1);
@@ -71,15 +87,13 @@ export function ShowcaseCarousel() {
 
     if (!images.length) return;
     const initialIndex = activeIndexRef.current >= images.length ? 0 : activeIndexRef.current;
-    const node = cardRefs.current[initialIndex];
-    if (node) {
-      node.scrollIntoView({
-        behavior: "auto",
-        inline: "center",
-        block: "nearest",
-      });
-    }
-  }, [images.length]);
+    scrollToIndex(initialIndex, {
+      behavior: "auto",
+      syncState: false,
+      markInteraction: false,
+      requireVisible: true,
+    });
+  }, [images.length, scrollToIndex]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -127,7 +141,10 @@ export function ShowcaseCarousel() {
     const timer = setInterval(() => {
       const isRecentlyInteracted = Date.now() - lastInteractionRef.current < PAUSE_AFTER_INTERACTION_MS;
       if (isHovered || isRecentlyInteracted) return;
-      scrollToIndex(activeIndexRef.current + 1, { markInteraction: false });
+      scrollToIndex(activeIndexRef.current + 1, {
+        markInteraction: false,
+        requireVisible: true,
+      });
     }, AUTOPLAY_MS);
 
     return () => clearInterval(timer);
@@ -136,7 +153,7 @@ export function ShowcaseCarousel() {
   if (!images.length) return null;
 
   return (
-    <section className="py-16 md:py-24 px-4 border-t border-card-border">
+    <section ref={sectionRef} className="py-16 md:py-24 px-4 border-t border-card-border">
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-10">
           <h2 className="text-3xl md:text-4xl font-black mb-4">

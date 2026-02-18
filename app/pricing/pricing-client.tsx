@@ -1,10 +1,8 @@
 "use client";
 
-import { useQuery } from "convex/react";
 import { useAuth } from "@clerk/nextjs";
 import { SignInButton } from "@clerk/nextjs";
 import { useRouter } from "next/navigation";
-import { api } from "@/convex/_generated/api";
 import type { PricingSet } from "@/lib/country-pricing";
 import { PricingCard } from "@/app/components/pricing-card";
 import { ArrowLeft, Zap, Loader2 } from "lucide-react";
@@ -15,16 +13,18 @@ const AUTH_ENABLED = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
 type PlanKey = "starter" | "growth" | "dominant";
 
 type PricingClientProps = {
-  countryCode: string;
   fallbackPricing: PricingSet;
 };
 
-export default function PricingClient({ countryCode, fallbackPricing }: PricingClientProps) {
+export default function PricingClient({ fallbackPricing }: PricingClientProps) {
   const router = useRouter();
-  const convexPricing = useQuery(api.stripeAdmin.getCountryPricing, { countryCode });
 
-  // Build pricing from Convex data or static fallback
-  const prices = buildPrices(convexPricing, fallbackPricing);
+  const prices = {
+    symbol: fallbackPricing.symbol,
+    starter: fallbackPricing.starter,
+    growth: fallbackPricing.growth,
+    dominant: fallbackPricing.dominant,
+  };
 
   return (
     <main className="min-h-screen relative pt-8 pb-16 px-4 md:pt-16 md:pb-24">
@@ -43,9 +43,6 @@ export default function PricingClient({ countryCode, fallbackPricing }: PricingC
           </h1>
           <p className="text-muted text-lg text-center">
             جميع الخطط مع ضمان استرجاع الأموال 30 يوم
-            <span className="block text-xs mt-2 opacity-70">
-              الأسعار المعروضة حسب موقعك: {countryCode}
-            </span>
           </p>
         </div>
 
@@ -87,50 +84,6 @@ export default function PricingClient({ countryCode, fallbackPricing }: PricingC
       </div>
     </main>
   );
-}
-
-function buildPrices(
-  convexPricing: Array<{
-    planKey: string;
-    monthlyAmountCents: number;
-    firstMonthAmountCents: number;
-    currencySymbol: string;
-  }> | undefined,
-  fallback: PricingSet
-): {
-  symbol: string;
-  starter: { monthly: number; firstMonth: number };
-  growth: { monthly: number; firstMonth: number };
-  dominant: { monthly: number; firstMonth: number };
-} {
-  if (!convexPricing || convexPricing.length === 0) {
-    return {
-      symbol: fallback.symbol,
-      starter: fallback.starter,
-      growth: fallback.growth,
-      dominant: fallback.dominant,
-    };
-  }
-
-  const symbol = convexPricing[0]?.currencySymbol ?? fallback.symbol;
-  const result = {
-    symbol,
-    starter: fallback.starter,
-    growth: fallback.growth,
-    dominant: fallback.dominant,
-  };
-
-  for (const row of convexPricing) {
-    const key = row.planKey as PlanKey;
-    if (key in result) {
-      result[key] = {
-        monthly: row.monthlyAmountCents / 100,
-        firstMonth: row.firstMonthAmountCents / 100,
-      };
-    }
-  }
-
-  return result;
 }
 
 function PlanCTA({

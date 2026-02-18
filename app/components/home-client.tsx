@@ -258,10 +258,9 @@ const TESTIMONIALS = [
 
 type HomeClientProps = {
   pricing: PricingSet;
-  countryCode: string;
 };
 
-export default function HomeClient({ pricing, countryCode }: HomeClientProps) {
+export default function HomeClient({ pricing }: HomeClientProps) {
   const router = useRouter();
   const { isAuthenticated } = useConvexAuth();
 
@@ -665,9 +664,6 @@ export default function HomeClient({ pricing, countryCode }: HomeClientProps) {
             </h2>
             <p className="text-muted text-lg">
               جميع الخطط مع ضمان استرجاع الأموال 30 يوم
-              <span className="block text-xs mt-2 opacity-70">
-                الأسعار المعروضة حسب موقعك: {countryCode}
-              </span>
             </p>
           </AnimateOnScroll>
 

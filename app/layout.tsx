@@ -64,7 +64,7 @@ export const metadata: Metadata = {
     description: metadataDescription,
     images: [
       {
-        url: "/opengraph-image.png",
+        url: "https://www.postaty.com/opengraph-image.png",
         width: 1200,
         height: 630,
         alt: "Postaty - AI social media post generator",
@@ -77,7 +77,7 @@ export const metadata: Metadata = {
     description: metadataDescription,
     site: "@postatyapp",
     creator: "@postatyapp",
-    images: ["/twitter-image.png"],
+    images: ["https://www.postaty.com/twitter-image.png"],
   },
 };
 
