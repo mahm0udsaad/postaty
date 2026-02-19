@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Mail, MapPin, MessageCircle, Clock } from "lucide-react";
+import { Mail } from "lucide-react";
 import { ContactForm } from "./contact-form";
 
 export const metadata: Metadata = {
@@ -14,27 +14,6 @@ const contactMethods = [
     description: "أرسل لنا وبنرد خلال 24 ساعة",
     value: "hello@postaty.com",
     href: "mailto:hello@postaty.com",
-  },
-  {
-    icon: MessageCircle,
-    title: "واتساب",
-    description: "تواصل معنا مباشرة",
-    value: "+966 50 000 0000",
-    href: "https://wa.me/9665000000000",
-  },
-  {
-    icon: MapPin,
-    title: "الموقع",
-    description: "مقرنا الرئيسي",
-    value: "الرياض، المملكة العربية السعودية",
-    href: null,
-  },
-  {
-    icon: Clock,
-    title: "ساعات العمل",
-    description: "الأحد - الخميس",
-    value: "9:00 ص - 6:00 م (توقيت السعودية)",
-    href: null,
   },
 ];
 
@@ -60,7 +39,7 @@ export default function ContactPage() {
 
       {/* Contact methods */}
       <section className="py-12 px-4">
-        <div className="max-w-4xl mx-auto grid grid-cols-1 sm:grid-cols-2 gap-6">
+        <div className="max-w-2xl mx-auto grid grid-cols-1 gap-6">
           {contactMethods.map((method) => (
             <div
               key={method.title}

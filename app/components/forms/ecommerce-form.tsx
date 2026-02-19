@@ -161,7 +161,7 @@ export function EcommerceForm({ onSubmit, isLoading, defaultValues }: EcommerceF
                 name="whatsapp"
                 type="tel"
                 dir="ltr"
-                placeholder="+966xxxxxxxxx"
+                placeholder="+971xxxxxxxxx"
                 required
                 icon={Phone}
                 className="text-left"

@@ -1,20 +1,12 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
+import { ShowcaseGalleryClient } from "./showcase-gallery-client";
 
 export const metadata: Metadata = {
   title: "أعمالنا | Postaty",
   description: "شاهد نماذج من التصاميم الاحترافية التي أنشأها مستخدمو Postaty بالذكاء الاصطناعي",
 };
-
-const categories = [
-  { id: "restaurants", name: "مطاعم وكافيهات", color: "from-orange-500 to-amber-500" },
-  { id: "supermarkets", name: "سوبر ماركت", color: "from-emerald-500 to-green-500" },
-  { id: "ecommerce", name: "متاجر إلكترونية", color: "from-violet-500 to-purple-500" },
-  { id: "services", name: "خدمات", color: "from-blue-500 to-cyan-500" },
-  { id: "fashion", name: "أزياء وموضة", color: "from-pink-500 to-rose-500" },
-  { id: "beauty", name: "تجميل وعناية", color: "from-fuchsia-500 to-pink-500" },
-];
 
 export default function ShowcasePage() {
   return (
@@ -40,35 +32,7 @@ export default function ShowcasePage() {
         </div>
       </section>
 
-      {/* Categories */}
-      <section className="py-12 px-4">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex flex-wrap justify-center gap-3 mb-16">
-            {categories.map((cat) => (
-              <button
-                key={cat.id}
-                className="px-5 py-2.5 rounded-full border border-card-border text-sm font-semibold hover:bg-surface-2 transition-colors"
-              >
-                {cat.name}
-              </button>
-            ))}
-          </div>
-
-          {/* Placeholder grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-            {categories.map((cat) => (
-              <div
-                key={cat.id}
-                className="aspect-square rounded-2xl border border-card-border bg-surface-1 flex flex-col items-center justify-center gap-4 p-8"
-              >
-                <div className={`w-16 h-16 rounded-2xl bg-gradient-to-br ${cat.color} opacity-20`} />
-                <span className="text-muted text-sm font-semibold">{cat.name}</span>
-                <span className="text-muted/50 text-xs">قريباً...</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
+      <ShowcaseGalleryClient />
 
       {/* CTA */}
       <section className="py-20 px-4 text-center">

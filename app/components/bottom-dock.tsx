@@ -2,17 +2,25 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Sparkles, Palette, Clock, LayoutTemplate, Settings, Plus } from "lucide-react";
+import { Sparkles, Palette, Clock, Images, Settings, Plus } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
 import { motion } from "framer-motion";
 import { SPRING } from "@/lib/animation";
 
-const NAV_ITEMS = [
+type NavItemConfig = {
+  href: string;
+  label: string;
+  icon: LucideIcon;
+  disabled?: boolean;
+};
+
+const NAV_ITEMS: NavItemConfig[] = [
   { href: "/history", label: "سجلي", icon: Clock },
   { href: "/brand-kit", label: "هويتي", icon: Palette },
   // Center FAB is handled separately
-  { href: "/templates", label: "القوالب", icon: LayoutTemplate },
+  { href: "/showcase", label: "المعرض", icon: Images },
   { href: "/settings", label: "إعدادات", icon: Settings },
-] as const;
+];
 
 export function BottomDock() {
   const pathname = usePathname();
@@ -68,7 +76,7 @@ export function BottomDock() {
   );
 }
 
-function NavItem({ item, pathname }: { item: any; pathname: string }) {
+function NavItem({ item, pathname }: { item: NavItemConfig; pathname: string }) {
   const isActive = item.href === "/" ? pathname === "/" : pathname.startsWith(item.href);
   const Icon = item.icon;
 

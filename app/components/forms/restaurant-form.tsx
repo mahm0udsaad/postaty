@@ -158,7 +158,7 @@ export function RestaurantForm({ onSubmit, isLoading, defaultValues }: Restauran
             <FormInput
                 label="المناطق التي يغطيها (اختياري)"
                 name="coverageAreas"
-                placeholder="مثال: جدة - الرياض"
+                placeholder="مثال: دبي - أبوظبي"
                 icon={MapPin}
             />
 
@@ -174,7 +174,7 @@ export function RestaurantForm({ onSubmit, isLoading, defaultValues }: Restauran
                 name="whatsapp"
                 type="tel"
                 dir="ltr"
-                placeholder="+966xxxxxxxxx"
+                placeholder="+971xxxxxxxxx"
                 required
                 icon={Phone}
                 className="text-left"

@@ -2,13 +2,13 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { 
-  Instagram, 
-  Twitter, 
-  Linkedin, 
-  Facebook, 
-  Mail, 
-  MapPin 
+import {
+  Instagram,
+  Twitter,
+  Linkedin,
+  Facebook,
+  Mail,
+  MapPin
 } from "lucide-react";
 
 export function Footer() {
@@ -59,11 +59,6 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/templates" className="hover:text-primary transition-colors">
-                  القوالب
-                </Link>
-              </li>
-              <li>
                 <Link href="/#pricing" className="hover:text-primary transition-colors">
                   الأسعار
                 </Link>
@@ -91,11 +86,6 @@ export function Footer() {
                 </Link>
               </li>
               <li>
-                <Link href="/careers" className="hover:text-primary transition-colors">
-                  وظائف
-                </Link>
-              </li>
-              <li>
                 <Link href="/contact" className="hover:text-primary transition-colors">
                   اتصل بنا
                 </Link>
@@ -113,7 +103,7 @@ export function Footer() {
               </li>
               <li className="flex items-start gap-3">
                 <MapPin size={18} className="text-primary mt-0.5" />
-                <span>الرياض، المملكة العربية السعودية</span>
+                <span>دبي، الإمارات العربية المتحدة</span>
               </li>
             </ul>
           </div>

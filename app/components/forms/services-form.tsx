@@ -132,7 +132,7 @@ export function ServicesForm({ onSubmit, isLoading, defaultValues }: ServicesFor
             <FormInput
                 label="منطقة الخدمة (اختياري)"
                 name="coverageArea"
-                placeholder="مثال: الرياض وضواحيها"
+                placeholder="مثال: دبي وضواحيها"
                 icon={MapPin}
             />
 
@@ -162,7 +162,7 @@ export function ServicesForm({ onSubmit, isLoading, defaultValues }: ServicesFor
                 name="whatsapp"
                 type="tel"
                 dir="ltr"
-                placeholder="+966xxxxxxxxx"
+                placeholder="+971xxxxxxxxx"
                 required
                 icon={Phone}
                 className="text-left"
