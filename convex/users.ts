@@ -161,7 +161,7 @@ export const syncCurrentUser = mutation({
       email: args.email,
       name: args.name,
       orgId,
-      role: "owner",
+      role: "member",
       detectedCountry: args.detectedCountry,
       countrySource: args.detectedCountry ? "vercel_geo" : undefined,
       lastSeenAt: now,

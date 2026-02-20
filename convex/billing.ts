@@ -346,6 +346,80 @@ export const consumeGenerationCredit = mutation({
       createdAt: Date.now(),
     });
 
+    // ── Low-credit notification ──────────────────────────────────
+    const newMonthlyRemaining = Math.max(
+      billing.monthlyCreditLimit - monthlyCreditsUsed,
+      0
+    );
+    const newTotalRemaining = newMonthlyRemaining + addonCreditsBalance;
+
+    const CREDIT_THRESHOLDS = [
+      {
+        remaining: 0,
+        key: "remaining_0",
+        title: "نفد رصيدك",
+        body: "لقد استخدمت جميع أرصدتك. اشترِ أرصدة إضافية أو انتظر تجديد الاشتراك.",
+      },
+      {
+        remaining: 1,
+        key: "remaining_1",
+        title: "رصيد واحد متبقي!",
+        body: "باقي لديك رصيد واحد فقط! اشترِ أرصدة إضافية لتتمكن من الاستمرار.",
+      },
+      {
+        remaining: 3,
+        key: "remaining_3",
+        title: "رصيدك ينخفض",
+        body: "باقي لديك 3 أرصدة فقط. فكّر بشراء أرصدة إضافية.",
+      },
+    ];
+
+    const matchedThreshold = CREDIT_THRESHOLDS.find(
+      (t) => newTotalRemaining <= t.remaining
+    );
+
+    if (matchedThreshold) {
+      const periodStart = billing.currentPeriodStart ?? 0;
+
+      const existingNotifications = await ctx.db
+        .query("notifications")
+        .withIndex("by_clerkUserId", (q) =>
+          q.eq("clerkUserId", clerkUserId)
+        )
+        .filter((q) =>
+          q.and(
+            q.eq(q.field("type"), "credit"),
+            q.gte(q.field("createdAt"), periodStart)
+          )
+        )
+        .collect();
+
+      const alreadySent = existingNotifications.some((n) => {
+        if (!n.metadata) return false;
+        try {
+          const meta = JSON.parse(n.metadata);
+          return meta.threshold === matchedThreshold.key;
+        } catch {
+          return false;
+        }
+      });
+
+      if (!alreadySent) {
+        await ctx.db.insert("notifications", {
+          clerkUserId,
+          title: matchedThreshold.title,
+          body: matchedThreshold.body,
+          type: "credit",
+          isRead: false,
+          metadata: JSON.stringify({
+            threshold: matchedThreshold.key,
+            totalRemaining: newTotalRemaining,
+          }),
+          createdAt: Date.now(),
+        });
+      }
+    }
+
     return {
       ok: true,
       alreadyConsumed: false,
@@ -933,6 +1007,19 @@ export const upsertBillingFromSubscription = internalMutation({
           createdAt: Date.now(),
         });
       }
+
+      if (args.status === "canceled" && existing.status !== "canceled") {
+        await ctx.db.insert("notifications", {
+          clerkUserId,
+          title: "تم إلغاء اشتراكك",
+          body: "تم إلغاء اشتراكك. يمكنك إعادة الاشتراك في أي وقت من صفحة الإعدادات.",
+          type: "warning",
+          isRead: false,
+          metadata: JSON.stringify({ event: "subscription_canceled" }),
+          createdAt: Date.now(),
+        });
+      }
+
       return existing._id;
     }
 
@@ -1078,6 +1165,18 @@ export const updateStatusByCustomerId = internalMutation({
       status: args.status,
       updatedAt: Date.now(),
     });
+
+    if (args.status === "past_due") {
+      await ctx.db.insert("notifications", {
+        clerkUserId: billing.clerkUserId,
+        title: "مشكلة في الدفع",
+        body: "لم نتمكن من تحصيل اشتراكك. يرجى تحديث طريقة الدفع لتجنب انقطاع الخدمة.",
+        type: "warning",
+        isRead: false,
+        metadata: JSON.stringify({ event: "payment_failed" }),
+        createdAt: Date.now(),
+      });
+    }
   },
 });
 

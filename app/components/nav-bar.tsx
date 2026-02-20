@@ -91,7 +91,7 @@ function NavBarWithAuth({ locale }: NavBarProps) {
   };
 
   return (
-    <nav className="sticky top-0 z-50 px-4 py-3 overflow-hidden">
+    <nav className="sticky top-0 z-50 px-4 py-3">
       <div className="max-w-7xl mx-auto">
         <div className="bg-surface-1/80 backdrop-blur-xl border border-card-border shadow-sm rounded-2xl px-4 h-16 flex items-center justify-between transition-all duration-300 hover:bg-surface-1/90">
           <Link href="/" onClick={handleLogoClick} className="flex items-center gap-2 group">
@@ -249,7 +249,7 @@ function NavBarNoAuth({ locale }: NavBarProps) {
   };
 
   return (
-    <nav className="sticky top-0 z-50 px-4 py-3 overflow-hidden">
+    <nav className="sticky top-0 z-50 px-4 py-3">
       <div className="max-w-7xl mx-auto">
         <div className="bg-surface-1/80 backdrop-blur-xl border border-card-border shadow-sm rounded-2xl px-4 h-16 flex items-center justify-between transition-all duration-300 hover:bg-surface-1/90">
           <Link href="/" onClick={handleLogoClick} className="flex items-center gap-2 group">

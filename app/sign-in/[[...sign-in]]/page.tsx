@@ -30,16 +30,18 @@ export default function SignInPage() {
         <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-accent/5 rounded-full blur-[100px] pointer-events-none" />
 
-        <div className="relative z-10 flex flex-col items-center max-w-lg text-center p-8">
-          <div className="mb-8 scale-125">
+        <div className="relative z-10 flex flex-col items-center max-w-md text-center px-8">
+          <div className="w-64 shrink-0">
             <HeroVisual />
           </div>
-          <h2 className="text-3xl font-black mb-4 mt-8">
-            {t("أهلاً بك في", "Welcome to")} <span className="text-gradient">Postaty</span>
-          </h2>
-          <p className="text-muted text-lg">
-            {t("منصتك الذكية لتصميم إعلانات احترافية في ثوانٍ. سجل دخولك وابدأ الإبداع.", "Your smart platform for creating professional ads in seconds. Sign in and start creating.")}
-          </p>
+          <div className="mt-6">
+            <h2 className="text-3xl font-black mb-3">
+              {t("أهلاً بك في", "Welcome to")} <span className="text-gradient">Postaty</span>
+            </h2>
+            <p className="text-muted text-base leading-relaxed">
+              {t("منصتك الذكية لتصميم إعلانات احترافية في ثوانٍ. سجل دخولك وابدأ الإبداع.", "Your smart platform for creating professional ads in seconds. Sign in and start creating.")}
+            </p>
+          </div>
         </div>
       </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useConvexAuth } from "convex/react";
+import { useConvexAuth, useQuery } from "convex/react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -30,6 +30,7 @@ import {
 import { SignInButton } from "@clerk/nextjs";
 import { AnimateOnScroll, StaggerOnScroll } from "./animate-on-scroll";
 import { STAGGER_ITEM, TAP_SCALE } from "@/lib/animation";
+import { api } from "@/convex/_generated/api";
 import type { PricingSet } from "@/lib/country-pricing";
 import { formatPrice } from "@/lib/country-pricing";
 import type { AppLocale } from "@/lib/i18n";
@@ -201,57 +202,6 @@ const CATEGORIES = [
   },
 ];
 
-const RESULTS_SHOWCASE = [
-  {
-    src: "/showcase/burger-stack.jpeg",
-    alt: { ar: "تصميم عرض برجر لمطعم", en: "Burger offer design for a restaurant" },
-    badge: { ar: "مطاعم", en: "Restaurants" },
-    grid: "col-span-1 row-span-2 md:col-span-2 md:row-span-2",
-  },
-  {
-    src: "/showcase/supermarket-fruits.jpeg",
-    alt: { ar: "تصميم خصم فواكه لسوبرماركت", en: "Fruit discount design for a supermarket" },
-    badge: { ar: "سوبرماركت", en: "Supermarket" },
-    grid: "col-span-1 row-span-1",
-  },
-  {
-    src: "/showcase/book-promo.jpeg",
-    alt: { ar: "تصميم عرض منتجات", en: "Product promotion design" },
-    badge: { ar: "منتجات", en: "Products" },
-    grid: "col-span-1 row-span-1",
-  },
-  {
-    src: "/showcase/chicken-offer.jpeg",
-    alt: { ar: "تصميم عرض دجاج مقلي", en: "Fried chicken offer design" },
-    badge: { ar: "مطاعم", en: "Restaurants" },
-    grid: "col-span-1 row-span-1",
-  },
-  {
-    src: "/showcase/ramadan-platter.jpeg",
-    alt: { ar: "تصميم رمضاني لوجبة عائلية", en: "Ramadan family meal campaign design" },
-    badge: { ar: "رمضان", en: "Ramadan" },
-    grid: "col-span-1 row-span-2",
-  },
-  {
-    src: "/showcase/skincare-promo.jpeg",
-    alt: { ar: "تصميم منتجات العناية بالبشرة", en: "Skincare products campaign design" },
-    badge: { ar: "تجميل", en: "Beauty" },
-    grid: "col-span-1 row-span-1",
-  },
-  {
-    src: "/showcase/supermarket-basics.jpeg",
-    alt: { ar: "تصميم عروض السلع الأساسية", en: "Essentials promotion design for supermarket" },
-    badge: { ar: "سوبرماركت", en: "Supermarket" },
-    grid: "col-span-1 row-span-2",
-  },
-  {
-    src: "/showcase/ramadan-card.jpeg",
-    alt: { ar: "بطاقة عرض رمضانية", en: "Seasonal Ramadan campaign card" },
-    badge: { ar: "موسمي", en: "Seasonal" },
-    grid: "col-span-1 row-span-1",
-  },
-] as const;
-
 const TRUST_LOGOS = {
   ar: ["برجر البرو", "Fresh Market", "Glow Beauty", "Daily Bites", "Style Hub", "Coffee Spot"],
   en: ["Burger Pro", "Fresh Market", "Glow Beauty", "Daily Bites", "Style Hub", "Coffee Spot"],
@@ -293,7 +243,13 @@ type HomeClientProps = {
 export default function HomeClient({ pricing, countryCode, locale }: HomeClientProps) {
   const router = useRouter();
   const { isAuthenticated } = useConvexAuth();
+  const showcaseImages = useQuery(api.showcase.list) ?? [];
   const t = (ar: string, en: string) => (locale === "ar" ? ar : en);
+  const showcaseBefore = showcaseImages[0];
+  const showcaseAfter = showcaseImages[1];
+  const showcaseCard1 = showcaseImages[2];
+  const showcaseTall = showcaseImages[3];
+  const showcaseCard2 = showcaseImages[4];
   const starterFeatures =
     locale === "ar"
       ? ["10 تصاميم ذكية شهرياً", "1–2 محتوى أسبوعياً", "حجم تصدير واحد", "نصوص تسويقية أساسية", "تنزيل HD", "معرض بسيط"]
@@ -444,11 +400,19 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
                   {/* Before/After Visual */}
                   <div className="relative w-full h-full flex gap-2 items-end">
                       <div className="flex-1 h-[80%] relative rounded-xl overflow-hidden border border-card-border/50 rotate-[-3deg] translate-y-4 group-hover:translate-y-2 group-hover:rotate-[-5deg] transition-all duration-500 shadow-lg">
-                         <Image src="/showcase/shawrma.jpeg" alt={t("قبل", "Before")} fill className="object-cover grayscale" />
+                         {showcaseBefore?.url ? (
+                           <Image src={showcaseBefore.url} alt={showcaseBefore.title || t("قبل", "Before")} fill className="object-cover grayscale" />
+                         ) : (
+                           <div className="w-full h-full bg-surface-2" />
+                         )}
                          <div className="absolute top-2 right-2 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded">{t("قبل", "Before")}</div>
                       </div>
                       <div className="flex-1 h-full relative rounded-xl overflow-hidden border border-primary/30 rotate-[2deg] z-10 shadow-2xl group-hover:scale-105 transition-all duration-500">
-                         <Image src="/showcase/image.png" alt={t("بعد", "After")} fill className="object-cover" />
+                         {showcaseAfter?.url ? (
+                           <Image src={showcaseAfter.url} alt={showcaseAfter.title || t("بعد", "After")} fill className="object-cover" />
+                         ) : (
+                           <div className="w-full h-full bg-surface-2" />
+                         )}
                          <div className="absolute top-2 right-2 bg-primary text-white text-[10px] px-2 py-0.5 rounded">{t("بعد", "After")}</div>
                       </div>
                   </div>
@@ -476,9 +440,13 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
                viewport={{ once: true }}
                transition={{ delay: 0.2 }}
             >
-               <Image src={RESULTS_SHOWCASE[1].src} alt={RESULTS_SHOWCASE[1].alt[locale]} fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
+               {showcaseCard1?.url ? (
+                 <Image src={showcaseCard1.url} alt={showcaseCard1.title || t("تصميم مُنشأ بالذكاء الاصطناعي", "AI generated design")} fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
+               ) : (
+                 <div className="w-full h-full bg-surface-2" />
+               )}
                 <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60" />
-                <span className="absolute bottom-4 right-4 text-white font-bold text-sm">{RESULTS_SHOWCASE[1].badge[locale]}</span>
+                {showcaseCard1?.category && <span className="absolute bottom-4 right-4 text-white font-bold text-sm">{showcaseCard1.category}</span>}
             </motion.div>
 
             {/* 4. Stat Card 2 */}
@@ -503,9 +471,13 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
                viewport={{ once: true }}
                transition={{ delay: 0.4 }}
             >
-               <Image src={RESULTS_SHOWCASE[4].src} alt={RESULTS_SHOWCASE[4].alt[locale]} fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
+               {showcaseTall?.url ? (
+                 <Image src={showcaseTall.url} alt={showcaseTall.title || t("تصميم مُنشأ بالذكاء الاصطناعي", "AI generated design")} fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
+               ) : (
+                 <div className="w-full h-full bg-surface-2" />
+               )}
                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60" />
-               <span className="absolute bottom-4 right-4 text-white font-bold text-sm">{RESULTS_SHOWCASE[4].badge[locale]}</span>
+               {showcaseTall?.category && <span className="absolute bottom-4 right-4 text-white font-bold text-sm">{showcaseTall.category}</span>}
             </motion.div>
 
              {/* 6. Text/CTA Card */}
@@ -540,9 +512,13 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
                viewport={{ once: true }}
                transition={{ delay: 0.6 }}
             >
-               <Image src={RESULTS_SHOWCASE[6].src} alt={RESULTS_SHOWCASE[6].alt[locale]} fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
+               {showcaseCard2?.url ? (
+                 <Image src={showcaseCard2.url} alt={showcaseCard2.title || t("تصميم مُنشأ بالذكاء الاصطناعي", "AI generated design")} fill className="object-cover transition-transform duration-700 group-hover:scale-110" />
+               ) : (
+                 <div className="w-full h-full bg-surface-2" />
+               )}
                <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-60" />
-               <span className="absolute bottom-4 right-4 text-white font-bold text-sm">{RESULTS_SHOWCASE[6].badge[locale]}</span>
+               {showcaseCard2?.category && <span className="absolute bottom-4 right-4 text-white font-bold text-sm">{showcaseCard2.category}</span>}
             </motion.div>
 
           </div>

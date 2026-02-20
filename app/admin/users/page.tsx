@@ -6,7 +6,7 @@ import {
   Users, Loader2, Search, Shield, Crown, Ban, ShieldX, CheckCircle,
   Coins, Bell, MoreHorizontal, UserCog, X,
 } from "lucide-react";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import type { Id } from "@/convex/_generated/dataModel";
 
 const PLAN_LABELS: Record<string, string> = {
@@ -441,8 +441,10 @@ function ManageRoleModal({
 
 function ActionsDropdown({ user, currentUserId }: { user: ModalUser; currentUserId?: Id<"users"> }) {
   const [open, setOpen] = useState(false);
+  const [openUpward, setOpenUpward] = useState(false);
   const [modal, setModal] = useState<"suspend" | "ban" | "credits" | "notify" | "role" | null>(null);
   const reinstateUser = useMutation(api.admin.reinstateUser);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   const isSelf = currentUserId === user._id;
   const isSuspendedOrBanned = user.effectiveStatus === "suspended" || user.effectiveStatus === "banned";
@@ -456,11 +458,23 @@ function ActionsDropdown({ user, currentUserId }: { user: ModalUser; currentUser
     setOpen(false);
   };
 
+  const toggleMenu = () => {
+    if (!open && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect();
+      const estimatedMenuHeight = 280;
+      const spaceBelow = window.innerHeight - rect.bottom;
+      const spaceAbove = rect.top;
+      setOpenUpward(spaceBelow < estimatedMenuHeight && spaceAbove > spaceBelow);
+    }
+    setOpen((prev) => !prev);
+  };
+
   return (
     <>
       <div className="relative">
         <button
-          onClick={() => setOpen(!open)}
+          ref={triggerRef}
+          onClick={toggleMenu}
           className="p-1.5 rounded-lg hover:bg-surface-2 transition-colors"
         >
           <MoreHorizontal size={16} />
@@ -469,7 +483,11 @@ function ActionsDropdown({ user, currentUserId }: { user: ModalUser; currentUser
         {open && (
           <>
             <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
-            <div className="absolute left-0 top-full mt-1 w-48 bg-surface-1 border border-card-border rounded-xl shadow-xl z-40 overflow-hidden">
+            <div
+              className={`absolute left-0 w-48 bg-surface-1 border border-card-border rounded-xl shadow-xl z-40 overflow-hidden max-h-[70vh] overflow-y-auto ${
+                openUpward ? "bottom-full mb-1" : "top-full mt-1"
+              }`}
+            >
               {/* Manage Role */}
               {!isSelf && (
                 <button
@@ -650,8 +668,8 @@ export default function AdminUsersPage() {
 
       {/* Users Table */}
       {filteredUsers.length > 0 ? (
-        <div className="bg-surface-1 border border-card-border rounded-2xl overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className="bg-surface-1 border border-card-border rounded-2xl overflow-visible">
+          <div className="overflow-x-auto overflow-y-visible rounded-2xl">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-card-border bg-surface-2/30">
@@ -670,7 +688,7 @@ export default function AdminUsersPage() {
               <tbody>
                 {filteredUsers.map((user) => (
                   <tr key={user._id} className="border-b border-card-border/50 hover:bg-surface-2/20 transition-colors">
-                    <td className="py-3 px-4">
+                    <td className="py-3 px-4 relative overflow-visible">
                       <div>
                         <div className="font-medium flex items-center gap-1.5">
                           {user.role === "owner" && <Crown size={14} className="text-accent" />}
