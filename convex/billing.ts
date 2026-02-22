@@ -236,11 +236,11 @@ export const getCreditState = query({
     const hasEligibleStatus = ![
       "past_due",
       "canceled",
-      "none",
       "unpaid",
       "incomplete_expired",
     ].includes(billing.status);
-    const canGenerate = hasSubscription && hasEligibleStatus && totalRemaining > 0;
+    // Allow generation if user has credits, even without a plan subscription
+    const canGenerate = hasEligibleStatus && totalRemaining > 0;
 
     return {
       ...billing,
@@ -309,12 +309,8 @@ export const consumeGenerationCredit = mutation({
       throw new Error("Billing record not found");
     }
 
-    if (billing.planKey === "none") {
-      throw new Error("Active subscription is required");
-    }
-
     if (
-      ["past_due", "canceled", "none", "unpaid", "incomplete_expired"].includes(
+      ["past_due", "canceled", "unpaid", "incomplete_expired"].includes(
         billing.status
       )
     ) {

@@ -255,7 +255,7 @@ function CreatePageContent() {
       return;
     }
 
-    if ("planKey" in creditState && creditState.planKey === "none") {
+    if ("totalRemaining" in creditState && creditState.totalRemaining < 1) {
       router.replace("/pricing");
       return;
     }
