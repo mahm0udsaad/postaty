@@ -41,6 +41,13 @@ type StripeInvoiceShape = {
   currency?: string;
   created?: number;
   charge?: string | null;
+  // Stripe API v2026-01-28+ moves subscription to parent.subscription_details
+  parent?: {
+    subscription_details?: {
+      subscription?: string | null;
+      metadata?: Record<string, string>;
+    } | null;
+  } | null;
 };
 
 const PLAN_CONFIG: Record<
@@ -87,6 +94,13 @@ function resolvePriceId(prices: PriceMap, key: string): string {
     throw new Error(`No active Stripe price configured for "${key}". Set it in admin → Price Mappings.`);
   }
   return priceId;
+}
+
+function extractInvoiceSubscriptionId(invoice: StripeInvoiceShape): string | null {
+  if (typeof invoice.subscription === "string") return invoice.subscription;
+  const parentSub = invoice.parent?.subscription_details?.subscription;
+  if (typeof parentSub === "string") return parentSub;
+  return null;
 }
 
 function planKeyFromPriceId(prices: PriceMap, priceId: string | undefined): PlanKey | null {
@@ -567,8 +581,10 @@ export const createPortalSession = action({
 export const stripeWebhook = httpAction(async (ctx, request) => {
   const signature = request.headers.get("stripe-signature");
   if (!signature) {
+    console.error("[Stripe Webhook] Missing stripe-signature header");
     return new Response("Missing stripe-signature header", { status: 400 });
   }
+  console.log("[Stripe Webhook] Received event, verifying signature...");
 
   const prices = await ctx.runQuery(internal.billing.getActivePrices);
   const stripe = getStripe();
@@ -576,12 +592,13 @@ export const stripeWebhook = httpAction(async (ctx, request) => {
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(
+    event = await stripe.webhooks.constructEventAsync(
       body,
       signature,
       requireEnv("STRIPE_WEBHOOK_SECRET")
     );
   } catch (error) {
+    console.error("[Stripe Webhook] Signature verification failed:", String(error));
     return new Response(`Webhook signature verification failed: ${String(error)}`, {
       status: 400,
     });
@@ -596,6 +613,7 @@ export const stripeWebhook = httpAction(async (ctx, request) => {
     return new Response("Event already processed", { status: 200 });
   }
 
+  console.log(`[Stripe Webhook] Processing event: ${event.type} (${event.id})`);
   try {
     switch (event.type) {
       case "checkout.session.completed": {
@@ -629,6 +647,26 @@ export const stripeWebhook = httpAction(async (ctx, request) => {
               ? subscription.current_period_end * 1000
               : undefined,
           });
+
+          // Send subscription confirmation email
+          const customerEmail =
+            (session as unknown as { customer_details?: { email?: string; name?: string } })
+              .customer_details?.email ??
+            (session as unknown as { customer_email?: string }).customer_email;
+          const customerName =
+            (session as unknown as { customer_details?: { name?: string } })
+              .customer_details?.name ?? "عميل";
+          if (customerEmail) {
+            await ctx.scheduler.runAfter(0, internal.emailing.sendSubscriptionConfirmationEmail, {
+              toEmail: customerEmail,
+              userName: customerName,
+              planKey,
+              amountCents: session.amount_total ?? 0,
+              currency: (session.currency ?? "usd").toUpperCase(),
+              monthlyCredits: PLAN_CONFIG[planKey]?.monthlyCredits ?? 0,
+              clerkUserId: session.metadata?.clerkUserId,
+            });
+          }
         }
 
         if (session.mode === "payment") {
@@ -723,9 +761,10 @@ export const stripeWebhook = httpAction(async (ctx, request) => {
       }
       case "invoice.paid": {
         const invoice = event.data.object as unknown as StripeInvoiceShape;
-        if (typeof invoice.subscription !== "string") break;
+        const invoiceSubId = extractInvoiceSubscriptionId(invoice);
+        if (!invoiceSubId) break;
         const subscription = (await stripe.subscriptions.retrieve(
-          invoice.subscription
+          invoiceSubId
         )) as unknown as StripeSubscriptionShape;
         const planKey = planKeyFromPriceId(prices,subscription.items.data[0]?.price?.id);
         const stripeCustomerId = extractStripeCustomerId(subscription.customer);

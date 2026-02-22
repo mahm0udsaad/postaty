@@ -48,22 +48,26 @@ type ActiveLayer = "text" | "overlay";
 
 function defaultEditorState(defaultText: string): GiftEditorState {
   return {
-    text: {
-      content: defaultText,
-      color: "#ffffff",
-      fontSize: 54,
-      fontWeight: 800,
-      fontFamily: "noto-kufi",
-      x: 0.5,
-      y: 0.12,
-    },
-    overlay: {
-      imageBase64: null,
-      x: 0.5,
-      y: 0.58,
-      scale: 0.75,
-      borderRadius: 24,
-    },
+    texts: [
+      {
+        content: defaultText,
+        color: "#ffffff",
+        fontSize: 54,
+        fontWeight: 800,
+        fontFamily: "noto-kufi",
+        x: 0.5,
+        y: 0.12,
+      },
+    ],
+    overlays: [
+      {
+        imageBase64: null,
+        x: 0.5,
+        y: 0.58,
+        scale: 0.75,
+        borderRadius: 24,
+      },
+    ],
   };
 }
 
@@ -102,7 +106,7 @@ export function PosterModal({
   generationId,
   imageStorageId,
 }: PosterModalProps) {
-  const { t } = useLocale();
+  const { locale, t } = useLocale();
   const [isExporting, setIsExporting] = useState(false);
   const [feedbackState, setFeedbackState] = useState<"idle" | "like" | "dislike" | "submitted">("idle");
   const [showCommentBox, setShowCommentBox] = useState(false);
@@ -110,6 +114,8 @@ export function PosterModal({
   const [isSendingFeedback, setIsSendingFeedback] = useState(false);
   const [tab, setTab] = useState<ModalTab>("preview");
   const [activeLayer, setActiveLayer] = useState<ActiveLayer>("text");
+  const [selectedTextIndex, setSelectedTextIndex] = useState(0);
+  const [selectedOverlayIndex, setSelectedOverlayIndex] = useState(0);
   const [editorState, setEditorState] = useState<GiftEditorState>(() => defaultEditorState(t("هدية مجانية", "Free gift")));
   const [removeBgLoading, setRemoveBgLoading] = useState(false);
   const [removeBgMessage, setRemoveBgMessage] = useState<string>();
@@ -118,6 +124,10 @@ export function PosterModal({
   const submitFeedback = useMutation(api.admin.submitFeedback);
 
   const isGift = Boolean(result?.isGift);
+  const defaultGiftLabel = useMemo(
+    () => (locale === "ar" ? "هدية مجانية" : "Free gift"),
+    [locale]
+  );
 
   const fileName = useMemo(() => {
     const name = result?.designNameAr || (result ? `${result.designIndex + 1}` : "poster");
@@ -132,10 +142,12 @@ export function PosterModal({
     setFeedbackComment("");
     setTab("preview");
     setActiveLayer("text");
-    setEditorState(defaultEditorState(t("هدية مجانية", "Free gift")));
+    setSelectedTextIndex(0);
+    setSelectedOverlayIndex(0);
+    setEditorState(defaultEditorState(defaultGiftLabel));
     setRemoveBgLoading(false);
     setRemoveBgMessage(undefined);
-  }, [result, isOpen, t]);
+  }, [result, isOpen, defaultGiftLabel]);
 
   useEffect(() => {
     document.body.style.overflow = isOpen ? "hidden" : "unset";
@@ -146,17 +158,21 @@ export function PosterModal({
 
   if (!isOpen || !result) return null;
 
-  const handleRemoveBackground = async (overlayBase64: string) => {
+  const handleRemoveBackground = async (overlayBase64: string, overlayIndex: number) => {
     setRemoveBgLoading(true);
     setRemoveBgMessage(undefined);
     try {
       const output = await removeOverlayBackground(overlayBase64);
       setEditorState((prev) => ({
         ...prev,
-        overlay: {
-          ...prev.overlay,
-          imageBase64: output.imageBase64,
-        },
+        overlays: prev.overlays.map((overlay, index) =>
+          index === overlayIndex
+            ? {
+                ...overlay,
+                imageBase64: output.imageBase64,
+              }
+            : overlay
+        ),
       }));
       setRemoveBgMessage(output.warning ?? t("تمت إزالة الخلفية بنجاح.", "Background removed successfully."));
     } catch (error) {
@@ -275,6 +291,10 @@ export function PosterModal({
                     state={editorState}
                     activeLayer={activeLayer}
                     onActiveLayerChange={setActiveLayer}
+                    selectedTextIndex={selectedTextIndex}
+                    onSelectedTextIndexChange={setSelectedTextIndex}
+                    selectedOverlayIndex={selectedOverlayIndex}
+                    onSelectedOverlayIndexChange={setSelectedOverlayIndex}
                     onChange={setEditorState}
                   />
                 </div>
@@ -345,6 +365,10 @@ export function PosterModal({
                     state={editorState}
                     activeLayer={activeLayer}
                     onActiveLayerChange={setActiveLayer}
+                    selectedTextIndex={selectedTextIndex}
+                    onSelectedTextIndexChange={setSelectedTextIndex}
+                    selectedOverlayIndex={selectedOverlayIndex}
+                    onSelectedOverlayIndexChange={setSelectedOverlayIndex}
                     onChange={setEditorState}
                     onRemoveBackground={handleRemoveBackground}
                     removeBgLoading={removeBgLoading}

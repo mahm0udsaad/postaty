@@ -38,7 +38,7 @@ export interface RestaurantFormData {
   offerDuration?: string;
   whatsapp: string;
   cta: string;
-  formats: OutputFormat[];
+  format: OutputFormat;
   brandKitId?: string;
 }
 
@@ -59,7 +59,7 @@ export interface SupermarketFormData {
   expiryDate?: string;
   whatsapp: string;
   cta: string;
-  formats: OutputFormat[];
+  format: OutputFormat;
   brandKitId?: string;
 }
 
@@ -80,7 +80,7 @@ export interface EcommerceFormData {
   purchaseLink?: string;
   whatsapp: string;
   cta: string;
-  formats: OutputFormat[];
+  format: OutputFormat;
   brandKitId?: string;
 }
 
@@ -102,7 +102,7 @@ export interface ServicesFormData {
   offerDuration?: string;
   whatsapp: string;
   cta: string;
-  formats: OutputFormat[];
+  format: OutputFormat;
   brandKitId?: string;
 }
 
@@ -123,7 +123,7 @@ export interface FashionFormData {
   offerDuration?: string;
   whatsapp: string;
   cta: string;
-  formats: OutputFormat[];
+  format: OutputFormat;
   brandKitId?: string;
 }
 
@@ -144,7 +144,7 @@ export interface BeautyFormData {
   offerDuration?: string;
   whatsapp: string;
   cta: string;
-  formats: OutputFormat[];
+  format: OutputFormat;
   brandKitId?: string;
 }
 
@@ -341,8 +341,8 @@ export interface GiftEditorOverlayLayer {
 }
 
 export interface GiftEditorState {
-  text: GiftEditorTextLayer;
-  overlay: GiftEditorOverlayLayer;
+  texts: GiftEditorTextLayer[];
+  overlays: GiftEditorOverlayLayer[];
 }
 
 export interface GeneratePostersResult {

@@ -8,6 +8,7 @@ import {
   Calendar,
   Tag,
   Image as ImageIcon,
+  Gift,
 } from "lucide-react";
 import { CATEGORY_LABELS, FORMAT_CONFIGS } from "@/lib/constants";
 import type { Category, OutputFormat } from "@/lib/types";
@@ -34,6 +35,7 @@ interface GenerationData {
 
 interface GenerationCardProps {
   generation: GenerationData;
+  imageType?: "all" | "pro" | "gift";
 }
 
 const CATEGORY_LABELS_EN: Record<Category, string> = {
@@ -45,7 +47,7 @@ const CATEGORY_LABELS_EN: Record<Category, string> = {
   beauty: "Beauty & Care",
 };
 
-export function GenerationCard({ generation }: GenerationCardProps) {
+export function GenerationCard({ generation, imageType = "all" }: GenerationCardProps) {
   const { locale, t } = useLocale();
   const [expanded, setExpanded] = useState(false);
 
@@ -77,7 +79,14 @@ export function GenerationCard({ generation }: GenerationCardProps) {
     ? CATEGORY_LABELS[generation.category as Category] ?? generation.category
     : CATEGORY_LABELS_EN[generation.category as Category] ?? generation.category;
 
-  const outputsWithUrls = generation.outputs.filter(
+  const filteredOutputs = generation.outputs.filter((o) => {
+    const isGift = o.format === "gift";
+    if (imageType === "pro" && isGift) return false;
+    if (imageType === "gift" && !isGift) return false;
+    return true;
+  });
+
+  const outputsWithUrls = filteredOutputs.filter(
     (o) => o.url || o.storageId
   );
 
@@ -158,15 +167,18 @@ export function GenerationCard({ generation }: GenerationCardProps) {
             </div>
           )}
 
-          {generation.outputs.length === 0 ? (
+          {filteredOutputs.length === 0 ? (
             <p className="text-sm text-muted text-center py-4">
               {t("لا توجد صور متاحة", "No images available")}
             </p>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {generation.outputs.map((output, i) => {
+              {filteredOutputs.map((output, i) => {
+                const isGiftOutput = output.format === "gift";
                 const formatConfig = FORMAT_CONFIGS[output.format as OutputFormat];
-                const label = formatConfig?.label ?? output.format;
+                const label = isGiftOutput
+                  ? (locale === "ar" ? "هدية" : "Gift")
+                  : (formatConfig?.label ?? output.format);
 
                 return (
                   <div
@@ -174,7 +186,8 @@ export function GenerationCard({ generation }: GenerationCardProps) {
                     className="bg-surface-1 rounded-xl border border-card-border overflow-hidden shadow-sm"
                   >
                     <div className="p-3 border-b border-card-border bg-surface-2/50">
-                      <p className="text-xs font-bold text-center text-foreground">
+                      <p className="text-xs font-bold text-center text-foreground flex items-center justify-center gap-1.5">
+                        {isGiftOutput && <Gift size={12} className="text-amber-500" />}
                         {label}
                       </p>
                     </div>

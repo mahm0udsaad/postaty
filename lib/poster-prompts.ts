@@ -1,3 +1,4 @@
+import { FORMAT_CONFIGS } from "./constants";
 import type { PostFormData, Category, CampaignType } from "./types";
 import type { BrandKitPromptData } from "./prompts";
 
@@ -53,11 +54,22 @@ export function getImageDesignSystemPrompt(
   data: PostFormData,
   brandKit?: BrandKitPromptData
 ): string {
+  const fmt = FORMAT_CONFIGS[data.format];
+  const orientation = fmt.height > fmt.width ? "vertical (portrait)" : fmt.height < fmt.width ? "horizontal (landscape)" : "square";
+
   let prompt = `You are an expert Arabic graphic designer creating a professional social media marketing poster for MENA audiences.
 
-Generate a SINGLE high-quality poster IMAGE (1080x1080 pixels, square format).
+Generate a SINGLE high-quality poster IMAGE (${fmt.width}x${fmt.height} pixels, ${fmt.aspectRatio} ${orientation} format).
 
-${CATEGORY_STYLES[data.category]}
+${orientation === "vertical (portrait)" ? `## Layout Guidance for Vertical Format
+- Stack elements vertically: headline at top, hero product in center, price/CTA at bottom
+- Use the full vertical space — avoid cramping content into the center
+- Text should be large and readable even on mobile screens
+` : orientation === "horizontal (landscape)" ? `## Layout Guidance for Horizontal Format
+- Use a side-by-side layout: product on one side, text/details on the other
+- Or use a cinematic wide composition with text overlay
+- Ensure text is large enough to read at small sizes (social media thumbnails)
+` : ""}${CATEGORY_STYLES[data.category]}
 ${CAMPAIGN_STYLE_GUIDANCE[data.campaignType] ? `\n${CAMPAIGN_STYLE_GUIDANCE[data.campaignType]}\n` : `\nIMPORTANT: This is a STANDARD (non-seasonal) campaign. Do NOT use any religious, seasonal, or holiday motifs. Specifically:
 - No Ramadan elements: no crescents, no lanterns, no Islamic arches, no mosque silhouettes, no arabesque patterns
 - No Eid elements: no festive confetti, no starbursts
@@ -239,6 +251,8 @@ const GIFT_CATEGORY_VIBES: Record<Category, string> = {
 };
 
 export function getGiftImageSystemPrompt(data: PostFormData): string {
+  const fmt = FORMAT_CONFIGS[data.format];
+
   return `You are an expert visual designer creating a beautiful promotional image.
 
 CRITICAL RULES — follow these EXACTLY:
@@ -257,7 +271,7 @@ CRITICAL RULES — follow these EXACTLY:
 
 Visual mood: ${GIFT_CATEGORY_VIBES[data.category]}
 
-Output: A single 1080x1080 square image. Pure visual art — zero text.`;
+Output: A single ${fmt.width}x${fmt.height} (${fmt.aspectRatio}) image. Pure visual art — zero text.`;
 }
 
 export function getGiftImageUserMessage(data: PostFormData): string {

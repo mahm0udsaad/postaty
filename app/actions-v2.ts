@@ -69,7 +69,7 @@ export async function generatePosters(
     );
   }
 
-  const format: OutputFormat = data.formats[0];
+  const format: OutputFormat = data.format;
 
   console.info("[generatePosters] start", { category: data.category, userId });
 

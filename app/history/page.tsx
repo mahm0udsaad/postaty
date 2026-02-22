@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useDevIdentity } from "@/hooks/use-dev-identity";
 import { PosterGallery } from "./poster-gallery";
 import { GenerationCard } from "./generation-card";
-import { Clock, Grid3x3, List } from "lucide-react";
+import { Clock, Grid3x3, List, Sparkles, Gift } from "lucide-react";
 import { useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import type { Category } from "@/lib/types";
@@ -24,11 +24,14 @@ const CATEGORY_LABELS_EN: Record<Category, string> = {
   beauty: "Beauty & Care",
 };
 
+export type ImageTypeFilter = "all" | "pro" | "gift";
+
 export default function HistoryPage() {
   const { isLoading: isIdentityLoading, isAuthenticated } = useDevIdentity();
   const { locale, t } = useLocale();
   const [viewMode, setViewMode] = useState<"gallery" | "list">("gallery");
   const [selectedCategory, setSelectedCategory] = useState<"all" | Category>("all");
+  const [imageType, setImageType] = useState<ImageTypeFilter>("all");
   const categoryFilter = selectedCategory === "all" ? undefined : selectedCategory;
 
   const HISTORY_FILTERS: Array<{ value: "all" | Category; label: string }> = [
@@ -96,7 +99,7 @@ export default function HistoryPage() {
           </div>
         </div>
 
-        <div className="flex justify-center mb-8">
+        <div className="flex justify-center mb-4">
           <div className="inline-flex flex-wrap justify-center gap-2 bg-surface-1/80 backdrop-blur-sm rounded-xl border border-card-border shadow-sm p-2">
             {HISTORY_FILTERS.map((filter) => (
               <button
@@ -111,6 +114,43 @@ export default function HistoryPage() {
                 {filter.label}
               </button>
             ))}
+          </div>
+        </div>
+
+        <div className="flex justify-center mb-8">
+          <div className="inline-flex bg-surface-1/80 backdrop-blur-sm rounded-xl border border-card-border shadow-sm p-1">
+            <button
+              onClick={() => setImageType("all")}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                imageType === "all"
+                  ? "bg-primary text-white shadow-sm"
+                  : "text-muted hover:text-foreground"
+              }`}
+            >
+              {t("الكل", "All")}
+            </button>
+            <button
+              onClick={() => setImageType("pro")}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                imageType === "pro"
+                  ? "bg-primary text-white shadow-sm"
+                  : "text-muted hover:text-foreground"
+              }`}
+            >
+              <Sparkles size={14} />
+              {t("التصميم", "Pro")}
+            </button>
+            <button
+              onClick={() => setImageType("gift")}
+              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                imageType === "gift"
+                  ? "bg-primary text-white shadow-sm"
+                  : "text-muted hover:text-foreground"
+              }`}
+            >
+              <Gift size={14} />
+              {t("الهدية", "Gift")}
+            </button>
           </div>
         </div>
 
@@ -130,7 +170,7 @@ export default function HistoryPage() {
             )}
           </div>
         ) : viewMode === "gallery" ? (
-          <PosterGallery category={categoryFilter} />
+          <PosterGallery category={categoryFilter} imageType={imageType} />
         ) : (
           <div className="max-w-5xl mx-auto space-y-4">
             {isIdentityLoading || generations === undefined ? (
@@ -142,9 +182,16 @@ export default function HistoryPage() {
                 <p className="text-muted">{t("لا توجد إنشاءات بعد", "No generations yet")}</p>
               </div>
             ) : (
-              generations.map((gen) => (
-                <GenerationCard key={gen._id} generation={gen} />
-              ))
+              generations
+                .filter((gen) => {
+                  if (imageType === "all") return true;
+                  return gen.outputs.some((o: { format: string }) =>
+                    imageType === "gift" ? o.format === "gift" : o.format !== "gift"
+                  );
+                })
+                .map((gen) => (
+                  <GenerationCard key={gen._id} generation={gen} imageType={imageType} />
+                ))
             )}
           </div>
         )}

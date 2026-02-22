@@ -44,7 +44,7 @@ const textFieldSchema = (name: string, maxLen = 100) =>
 
 const campaignTypeSchema = z.enum(["standard", "ramadan", "eid"]);
 
-const formatsSchema = z.array(outputFormatSchema).min(1, "Select at least one format");
+const formatSchema = outputFormatSchema;
 
 // ── Form data validators ───────────────────────────────────────────
 
@@ -66,7 +66,7 @@ export const restaurantFormSchema = z.object({
   offerDuration: z.string().max(50).optional(),
   whatsapp: phoneSchema,
   cta: textFieldSchema("CTA", 200),
-  formats: formatsSchema,
+  format: formatSchema,
   brandKitId: z.string().optional(),
 });
 
@@ -90,7 +90,7 @@ export const supermarketFormSchema = z.object({
   expiryDate: z.string().max(50).optional(),
   whatsapp: phoneSchema,
   cta: textFieldSchema("CTA", 200),
-  formats: formatsSchema,
+  format: formatSchema,
   brandKitId: z.string().optional(),
 });
 
@@ -111,7 +111,7 @@ export const ecommerceFormSchema = z.object({
   purchaseLink: z.string().max(500).optional(),
   whatsapp: phoneSchema,
   cta: textFieldSchema("CTA", 200),
-  formats: formatsSchema,
+  format: formatSchema,
   brandKitId: z.string().optional(),
 });
 
@@ -133,7 +133,7 @@ export const servicesFormSchema = z.object({
   offerDuration: z.string().max(50).optional(),
   whatsapp: phoneSchema,
   cta: textFieldSchema("CTA", 200),
-  formats: formatsSchema,
+  format: formatSchema,
   brandKitId: z.string().optional(),
 });
 
@@ -154,7 +154,7 @@ export const fashionFormSchema = z.object({
   offerDuration: z.string().max(50).optional(),
   whatsapp: phoneSchema,
   cta: textFieldSchema("CTA", 200),
-  formats: formatsSchema,
+  format: formatSchema,
   brandKitId: z.string().optional(),
 });
 
@@ -175,7 +175,7 @@ export const beautyFormSchema = z.object({
   offerDuration: z.string().max(50).optional(),
   whatsapp: phoneSchema,
   cta: textFieldSchema("CTA", 200),
-  formats: formatsSchema,
+  format: formatSchema,
   brandKitId: z.string().optional(),
 });
 

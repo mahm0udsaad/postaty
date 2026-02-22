@@ -25,7 +25,7 @@ export function SupermarketForm({ onSubmit, isLoading, defaultValues }: Supermar
   const { locale, t } = useLocale();
   const [logoOverride, setLogoOverride] = useState<string | null | undefined>(undefined);
   const [productImages, setProductImages] = useState<string[]>([]);
-  const [formats, setFormats] = useState<OutputFormat[]>(["instagram-square"]);
+  const [format, setFormat] = useState<OutputFormat>("instagram-square");
   const [campaignType, setCampaignType] = useState<CampaignType>("standard");
   const logo = logoOverride === undefined ? (defaultValues?.logo ?? null) : logoOverride;
 
@@ -60,7 +60,7 @@ export function SupermarketForm({ onSubmit, isLoading, defaultValues }: Supermar
       expiryDate: (fd.get("expiryDate") as string) || undefined,
       whatsapp: fd.get("whatsapp") as string,
       cta: fd.get("cta") as string,
-      formats,
+      format,
     });
   };
 
@@ -99,7 +99,7 @@ export function SupermarketForm({ onSubmit, isLoading, defaultValues }: Supermar
           </div>
 
           <div className="pt-4 border-t border-card-border">
-             <FormatSelector selected={formats} onChange={setFormats} />
+             <FormatSelector selected={format} onChange={setFormat} />
           </div>
         </div>
       </div>

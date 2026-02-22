@@ -27,7 +27,7 @@ function withRoundedRect(
   ctx.closePath();
 }
 
-function getFontFamily(family: GiftEditorState["text"]["fontFamily"]): string {
+function getFontFamily(family: GiftEditorState["texts"][number]["fontFamily"]): string {
   if (family === "noto-kufi") {
     return '"Noto Kufi Arabic", sans-serif';
   }
@@ -51,36 +51,38 @@ export async function renderEditedGiftToBlob(
 
   ctx.drawImage(baseImage, 0, 0, canvas.width, canvas.height);
 
-  if (state.overlay.imageBase64) {
-    const overlay = await loadImage(state.overlay.imageBase64);
+  for (const overlayState of state.overlays) {
+    if (!overlayState.imageBase64) continue;
+    const overlay = await loadImage(overlayState.imageBase64);
     const maxBase = Math.min(canvas.width, canvas.height) * 0.5;
-    const scale = Math.max(0.1, state.overlay.scale);
+    const scale = Math.max(0.1, overlayState.scale);
 
     const drawWidth = maxBase * scale;
     const drawHeight = (overlay.naturalHeight / overlay.naturalWidth) * drawWidth;
-    const cx = state.overlay.x * canvas.width;
-    const cy = state.overlay.y * canvas.height;
+    const cx = overlayState.x * canvas.width;
+    const cy = overlayState.y * canvas.height;
     const left = cx - drawWidth / 2;
     const top = cy - drawHeight / 2;
 
     ctx.save();
-    withRoundedRect(ctx, left, top, drawWidth, drawHeight, state.overlay.borderRadius);
+    withRoundedRect(ctx, left, top, drawWidth, drawHeight, overlayState.borderRadius);
     ctx.clip();
     ctx.drawImage(overlay, left, top, drawWidth, drawHeight);
     ctx.restore();
   }
 
-  if (state.text.content.trim()) {
-    const x = state.text.x * canvas.width;
-    const y = state.text.y * canvas.height;
+  for (const text of state.texts) {
+    if (!text.content.trim()) continue;
+    const x = text.x * canvas.width;
+    const y = text.y * canvas.height;
 
     ctx.save();
-    ctx.fillStyle = state.text.color;
+    ctx.fillStyle = text.color;
     ctx.direction = "rtl";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.font = `${state.text.fontWeight} ${Math.max(12, state.text.fontSize)}px ${getFontFamily(state.text.fontFamily)}`;
-    ctx.fillText(state.text.content, x, y);
+    ctx.font = `${text.fontWeight} ${Math.max(12, text.fontSize)}px ${getFontFamily(text.fontFamily)}`;
+    ctx.fillText(text.content, x, y);
     ctx.restore();
   }
 

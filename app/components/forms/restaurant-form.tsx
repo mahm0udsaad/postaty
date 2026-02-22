@@ -31,7 +31,7 @@ export function RestaurantForm({ onSubmit, isLoading, defaultValues }: Restauran
   const { locale, t } = useLocale();
   const [logoOverride, setLogoOverride] = useState<string | null | undefined>(undefined);
   const [mealImage, setMealImage] = useState<string | null>(null);
-  const [formats, setFormats] = useState<OutputFormat[]>(["instagram-square"]);
+  const [format, setFormat] = useState<OutputFormat>("instagram-square");
   const [campaignType, setCampaignType] = useState<CampaignType>("standard");
   const logo = logoOverride === undefined ? (defaultValues?.logo ?? null) : logoOverride;
 
@@ -80,7 +80,7 @@ export function RestaurantForm({ onSubmit, isLoading, defaultValues }: Restauran
       offerDuration: (fd.get("offerDuration") as string) || undefined,
       whatsapp: fd.get("whatsapp") as string,
       cta: fd.get("cta") as string,
-      formats,
+      format,
     });
   };
 
@@ -120,7 +120,7 @@ export function RestaurantForm({ onSubmit, isLoading, defaultValues }: Restauran
           </div>
 
           <div className="pt-4 border-t border-card-border">
-             <FormatSelector selected={formats} onChange={setFormats} />
+             <FormatSelector selected={format} onChange={setFormat} />
           </div>
         </div>
       </div>

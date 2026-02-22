@@ -561,3 +561,195 @@ export const sendBalanceReminderCampaign = action({
     };
   },
 });
+
+// ── Subscription Confirmation Email ─────────────────────────────────
+
+const PLAN_LABELS_AR: Record<string, string> = {
+  starter: "مبتدئ",
+  growth: "نمو",
+  dominant: "هيمنة",
+};
+
+const PLAN_CREDITS: Record<string, number> = {
+  starter: 10,
+  growth: 25,
+  dominant: 50,
+};
+
+function buildSubscriptionConfirmationTemplate(input: {
+  name: string;
+  planKey: string;
+  amountCents: number;
+  currency: string;
+  monthlyCredits: number;
+}): MarketingTemplate {
+  const planLabel = PLAN_LABELS_AR[input.planKey] ?? input.planKey;
+  const amount = (input.amountCents / 100).toFixed(2);
+  const currencySymbol = input.currency.toUpperCase() === "USD" ? "$" : input.currency;
+
+  const subject = `تم تفعيل اشتراكك في خطة ${planLabel} - Postaty`;
+
+  const html = `
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="margin: 0; padding: 0; background-color: #f4f4f7; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Arial, sans-serif; -webkit-font-smoothing: antialiased;">
+  <div style="max-width: 560px; margin: 40px auto; padding: 0 16px;">
+
+    <!-- Logo -->
+    <div style="text-align: center; padding: 32px 0 24px;">
+      <img src="https://www.postaty.com/postaty-og-logo.png" alt="Postaty" style="height: 40px;" />
+    </div>
+
+    <!-- Main Card -->
+    <div style="background: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 2px 8px rgba(0,0,0,0.06);">
+
+      <!-- Success Banner -->
+      <div style="background: linear-gradient(135deg, #8b5cf6 0%, #7c3aed 50%, #6d28d9 100%); padding: 40px 32px; text-align: center;">
+        <div style="width: 64px; height: 64px; background: rgba(255,255,255,0.2); border-radius: 50%; margin: 0 auto 20px; line-height: 64px; font-size: 32px;">&#10003;</div>
+        <h1 style="margin: 0 0 8px; font-size: 22px; color: #ffffff; font-weight: 700; letter-spacing: -0.3px;">تم تفعيل اشتراكك بنجاح!</h1>
+        <p style="margin: 0; font-size: 14px; color: rgba(255,255,255,0.8);">مرحباً بك في عائلة بوستاتي</p>
+      </div>
+
+      <!-- Body -->
+      <div style="padding: 32px;">
+
+        <p style="margin: 0 0 20px; font-size: 15px; color: #374151; line-height: 1.7; text-align: right;">
+          أهلاً <strong style="color: #111827;">${input.name}</strong>،
+          <br/>شكراً لثقتك في بوستاتي! اشتراكك الآن فعّال ويمكنك البدء فوراً.
+        </p>
+
+        <!-- Plan Card -->
+        <div style="background: #faf5ff; border: 1px solid #e9d5ff; border-radius: 12px; padding: 24px; margin-bottom: 24px;">
+          <div style="text-align: center; margin-bottom: 16px;">
+            <span style="display: inline-block; background: #8b5cf6; color: #fff; font-size: 12px; font-weight: 700; padding: 4px 14px; border-radius: 20px; letter-spacing: 0.5px;">خطة ${planLabel}</span>
+          </div>
+          <table style="width: 100%; border-collapse: collapse; font-size: 14px; color: #374151;">
+            <tr>
+              <td style="padding: 10px 0; border-bottom: 1px solid #e9d5ff; text-align: right; color: #6b7280;">الأرصدة الشهرية</td>
+              <td style="padding: 10px 0; border-bottom: 1px solid #e9d5ff; text-align: left; font-weight: 700; color: #111827;">${input.monthlyCredits} تصميم</td>
+            </tr>
+            <tr>
+              <td style="padding: 10px 0; text-align: right; color: #6b7280;">المبلغ الشهري</td>
+              <td style="padding: 10px 0; text-align: left; font-weight: 700; color: #111827;">${currencySymbol}${amount}</td>
+            </tr>
+          </table>
+        </div>
+
+        <!-- CTA -->
+        <div style="text-align: center; margin-bottom: 28px;">
+          <a href="https://www.postaty.com/create" style="display: inline-block; background: #8b5cf6; color: #ffffff; text-decoration: none; padding: 14px 40px; border-radius: 10px; font-weight: 700; font-size: 15px; letter-spacing: -0.2px;">ابدأ التصميم الآن &larr;</a>
+        </div>
+
+        <!-- Divider -->
+        <div style="border-top: 1px solid #f3f4f6; margin: 0 0 24px;"></div>
+
+        <!-- Features Grid -->
+        <p style="margin: 0 0 16px; font-size: 13px; color: #6b7280; font-weight: 600; text-align: right;">ماذا يمكنك أن تفعل الآن؟</p>
+        <table style="width: 100%; border-collapse: collapse;">
+          <tr>
+            <td style="padding: 8px 4px 8px 0; vertical-align: top; width: 50%;">
+              <div style="background: #f9fafb; border-radius: 10px; padding: 14px; text-align: center;">
+                <div style="font-size: 24px; margin-bottom: 6px;">&#9889;</div>
+                <div style="font-size: 12px; color: #374151; font-weight: 600;">توليد تصاميم بالذكاء الاصطناعي</div>
+              </div>
+            </td>
+            <td style="padding: 8px 0 8px 4px; vertical-align: top; width: 50%;">
+              <div style="background: #f9fafb; border-radius: 10px; padding: 14px; text-align: center;">
+                <div style="font-size: 24px; margin-bottom: 6px;">&#128444;</div>
+                <div style="font-size: 12px; color: #374151; font-weight: 600;">أحجام جاهزة لكل المنصات</div>
+              </div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 8px 4px 8px 0; vertical-align: top; width: 50%;">
+              <div style="background: #f9fafb; border-radius: 10px; padding: 14px; text-align: center;">
+                <div style="font-size: 24px; margin-bottom: 6px;">&#127912;</div>
+                <div style="font-size: 12px; color: #374151; font-weight: 600;">حفظ هوية علامتك تلقائياً</div>
+              </div>
+            </td>
+            <td style="padding: 8px 0 8px 4px; vertical-align: top; width: 50%;">
+              <div style="background: #f9fafb; border-radius: 10px; padding: 14px; text-align: center;">
+                <div style="font-size: 24px; margin-bottom: 6px;">&#128640;</div>
+                <div style="font-size: 12px; color: #374151; font-weight: 600;">تحميل بجودة عالية فوراً</div>
+              </div>
+            </td>
+          </tr>
+        </table>
+
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <div style="text-align: center; padding: 24px 0 16px;">
+      <p style="margin: 0 0 8px; font-size: 12px; color: #9ca3af;">هذا البريد أُرسل لأنك اشتركت في بوستاتي</p>
+      <p style="margin: 0; font-size: 12px; color: #9ca3af;">
+        <a href="https://www.postaty.com" style="color: #8b5cf6; text-decoration: none;">postaty.com</a>
+      </p>
+    </div>
+
+  </div>
+</body>
+</html>`;
+
+  const text = `مرحباً ${input.name}
+
+شكراً لاختيارك بوستاتي! تم تفعيل اشتراكك بنجاح.
+
+تفاصيل الاشتراك:
+- الخطة: ${planLabel}
+- الأرصدة الشهرية: ${input.monthlyCredits} تصميم
+- المبلغ: ${currencySymbol}${amount}/شهر
+
+ابدأ التصميم الآن: https://www.postaty.com/create
+
+فريق بوستاتي`;
+
+  return { subject, html, text };
+}
+
+export const sendSubscriptionConfirmationEmail = internalAction({
+  args: {
+    toEmail: v.string(),
+    userName: v.string(),
+    planKey: v.string(),
+    amountCents: v.number(),
+    currency: v.string(),
+    monthlyCredits: v.number(),
+    clerkUserId: v.optional(v.string()),
+  },
+  handler: async (ctx, args) => {
+    const template = buildSubscriptionConfirmationTemplate({
+      name: args.userName,
+      planKey: args.planKey,
+      amountCents: args.amountCents,
+      currency: args.currency,
+      monthlyCredits: args.monthlyCredits,
+    });
+
+    await sendEmailWithResend({
+      to: args.toEmail,
+      subject: template.subject,
+      html: template.html,
+      text: template.text,
+      tags: [
+        { name: "type", value: "subscription_confirmation" },
+        { name: "plan", value: args.planKey },
+      ],
+    });
+
+    // In-app notification
+    if (args.clerkUserId) {
+      await ctx.runMutation(createSystemNotificationFn, {
+        clerkUserId: args.clerkUserId,
+        title: "تم تفعيل اشتراكك",
+        body: `مرحباً بك في خطة ${PLAN_LABELS_AR[args.planKey] ?? args.planKey}! يمكنك الآن إنشاء تصاميمك.`,
+      });
+    }
+
+    return { success: true };
+  },
+});

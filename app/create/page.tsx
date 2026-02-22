@@ -18,6 +18,7 @@ import { CategorySelector } from "../components/category-selector";
 // Types & Libs
 import type { Category, PostFormData, PosterResult, PosterGenStep } from "@/lib/types";
 import type { BrandKitPromptData } from "@/lib/prompts";
+import type { Id } from "@/convex/_generated/dataModel";
 import type { GenerationUsage } from "@/lib/generate-designs";
 import { CATEGORY_LABELS, FORMAT_CONFIGS } from "@/lib/constants";
 import { CATEGORY_THEMES } from "@/lib/category-themes";
@@ -356,14 +357,14 @@ function CreatePageContent() {
         generatingRef.current = false;
 
         if (posterResult.status === "complete" && posterResult.imageBase64) {
-          saveToConvex(data, posterResult, startTime);
+          saveToConvex(data, posterResult, gift ?? null, startTime);
         }
       })
       .catch((err) => {
         const localizedMessage = toLocalizedErrorMessage(err);
         const errorResult: PosterResult = {
           designIndex: 0,
-          format: data.formats[0],
+          format: data.format,
           html: "",
           status: "error",
           error: localizedMessage,
@@ -378,12 +379,42 @@ function CreatePageContent() {
       });
   };
 
+  const uploadImageToStorage = async (imageBase64: string): Promise<Id<"_storage">> => {
+    const base64Data = imageBase64.includes(",")
+      ? imageBase64.split(",")[1]
+      : imageBase64;
+    const mimeType = imageBase64.includes(",")
+      ? imageBase64.split(",")[0].split(":")[1].split(";")[0]
+      : "image/png";
+
+    const binaryStr = atob(base64Data);
+    const bytes = new Uint8Array(binaryStr.length);
+    for (let i = 0; i < binaryStr.length; i++) {
+      bytes[i] = binaryStr.charCodeAt(i);
+    }
+    const blob = new Blob([bytes], { type: mimeType });
+
+    const uploadUrl = await generateUploadUrl();
+    const uploadRes = await fetch(uploadUrl, {
+      method: "POST",
+      headers: { "Content-Type": blob.type || "image/png" },
+      body: blob,
+    });
+    const { storageId } = await uploadRes.json();
+    return storageId;
+  };
+
   const saveToConvex = async (
     data: PostFormData,
     posterResult: PosterResult,
+    giftPosterResult: PosterResult | null,
     startTime: number
   ) => {
     try {
+      const format = data.format;
+      const formatConfig = FORMAT_CONFIGS[format];
+      const hasGift = giftPosterResult?.status === "complete" && giftPosterResult.imageBase64;
+
       const generationId = await createGeneration({
         brandKitId: defaultBrandKit?._id,
         category: data.category,
@@ -397,35 +428,12 @@ function CreatePageContent() {
           productImages: undefined,
           serviceImage: undefined,
         }),
-        formats: data.formats,
+        formats: hasGift ? [format, "gift"] : [format],
         creditsCharged: 1,
       });
 
-      const format = data.formats[0];
-      const formatConfig = FORMAT_CONFIGS[format];
-
-      const base64Data = posterResult.imageBase64!.includes(",")
-        ? posterResult.imageBase64!.split(",")[1]
-        : posterResult.imageBase64!;
-      const mimeType = posterResult.imageBase64!.includes(",")
-        ? posterResult.imageBase64!.split(",")[0].split(":")[1].split(";")[0]
-        : "image/png";
-
-      const binaryStr = atob(base64Data);
-      const bytes = new Uint8Array(binaryStr.length);
-      for (let i = 0; i < binaryStr.length; i++) {
-        bytes[i] = binaryStr.charCodeAt(i);
-      }
-      const blob = new Blob([bytes], { type: mimeType });
-
-      const uploadUrl = await generateUploadUrl();
-      const uploadRes = await fetch(uploadUrl, {
-        method: "POST",
-        headers: { "Content-Type": blob.type || "image/png" },
-        body: blob,
-      });
-      const { storageId } = await uploadRes.json();
-
+      // Upload main poster
+      const storageId = await uploadImageToStorage(posterResult.imageBase64!);
       await updateOutput({
         generationId,
         format,
@@ -433,6 +441,18 @@ function CreatePageContent() {
         width: formatConfig.width,
         height: formatConfig.height,
       });
+
+      // Upload gift image if available
+      if (hasGift) {
+        const giftStorageId = await uploadImageToStorage(giftPosterResult.imageBase64!);
+        await updateOutput({
+          generationId,
+          format: "gift",
+          storageId: giftStorageId,
+          width: formatConfig.width,
+          height: formatConfig.height,
+        });
+      }
 
       await updateStatus({
         generationId,

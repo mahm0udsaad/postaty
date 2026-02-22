@@ -11,6 +11,7 @@ import {
 import { formatRecipeForPrompt } from "./design-recipes";
 import { selectRecipes } from "./design-recipes";
 import { getInspirationImages } from "./inspiration-images";
+import { FORMAT_CONFIGS } from "./constants";
 import type { PostFormData } from "./types";
 import type { BrandKitPromptData } from "./prompts";
 
@@ -40,11 +41,17 @@ const FREE_MODEL_ID = "gemini-2.5-flash-image";
 
 // ── Google provider options for image responses ────────────────────
 
-const IMAGE_PROVIDER_OPTIONS = {
-  google: {
-    responseModalities: ["TEXT", "IMAGE"],
-  },
-};
+function buildImageProviderOptions(aspectRatio: string, imageSize?: "1K" | "2K" | "4K") {
+  return {
+    google: {
+      responseModalities: ["TEXT", "IMAGE"],
+      imageConfig: {
+        aspectRatio,
+        ...(imageSize ? { imageSize } : {}),
+      },
+    },
+  };
+}
 
 // ── Helpers ──────────────────────────────────────────────────────
 
@@ -120,10 +127,14 @@ export async function generatePoster(
   const inspirationImages = await getInspirationImages(data.category, undefined, data.campaignType);
   const formImages = extractFormImages(data);
 
+  const formatConfig = FORMAT_CONFIGS[data.format];
+
   console.info("[generatePoster] start", {
     model: PAID_MODEL_ID,
     recipe: recipe?.id ?? "none",
     inspirationCount: inspirationImages.length,
+    format: data.format,
+    aspectRatio: formatConfig.aspectRatio,
   });
 
   // Build multimodal content parts
@@ -185,7 +196,7 @@ export async function generatePoster(
   try {
     result = await generateText({
       model: paidImageModel,
-      providerOptions: IMAGE_PROVIDER_OPTIONS,
+      providerOptions: buildImageProviderOptions(formatConfig.aspectRatio, "2K"),
       system: systemPrompt,
       messages: [
         {
@@ -236,8 +247,15 @@ export async function generatePoster(
     throw Object.assign(new Error("Image model did not return an image"), { usage });
   }
 
-  const base64 = Buffer.from(imageFile.uint8Array).toString("base64");
-  const base64DataUrl = `data:${imageFile.mediaType};base64,${base64}`;
+  // Resize to exact target dimensions for the selected format
+  const sharp = (await import("sharp")).default;
+  const resizedBuffer = await sharp(Buffer.from(imageFile.uint8Array))
+    .resize(formatConfig.width, formatConfig.height, { fit: "fill" })
+    .png()
+    .toBuffer();
+
+  const base64 = resizedBuffer.toString("base64");
+  const base64DataUrl = `data:image/png;base64,${base64}`;
 
   const usage: GenerationUsage = {
     route: "poster",
@@ -274,8 +292,9 @@ export async function generateGiftImage(
   const userMessage = getGiftImageUserMessage(data);
 
   const formImages = extractFormImages(data);
+  const formatConfig = FORMAT_CONFIGS[data.format];
 
-  console.info("[generateGiftImage] start", { model: FREE_MODEL_ID });
+  console.info("[generateGiftImage] start", { model: FREE_MODEL_ID, format: data.format });
 
   // Build multimodal content — only product + logo, no inspiration images
   const contentParts: Array<
@@ -308,7 +327,7 @@ export async function generateGiftImage(
   try {
     result = await generateText({
       model: freeImageModel,
-      providerOptions: IMAGE_PROVIDER_OPTIONS,
+      providerOptions: buildImageProviderOptions(formatConfig.aspectRatio),
       system: systemPrompt,
       messages: [
         {
@@ -358,8 +377,15 @@ export async function generateGiftImage(
     throw Object.assign(new Error("Gift image model did not return an image"), { usage });
   }
 
-  const base64 = Buffer.from(imageFile.uint8Array).toString("base64");
-  const base64DataUrl = `data:${imageFile.mediaType};base64,${base64}`;
+  // Resize to exact target dimensions for the selected format
+  const sharpGift = (await import("sharp")).default;
+  const resizedGiftBuffer = await sharpGift(Buffer.from(imageFile.uint8Array))
+    .resize(formatConfig.width, formatConfig.height, { fit: "fill" })
+    .png()
+    .toBuffer();
+
+  const base64 = resizedGiftBuffer.toString("base64");
+  const base64DataUrl = `data:image/png;base64,${base64}`;
 
   const usage: GenerationUsage = {
     route: "gift",

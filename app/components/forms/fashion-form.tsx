@@ -35,7 +35,7 @@ export function FashionForm({ onSubmit, isLoading, defaultValues }: FashionFormP
   const { locale, t } = useLocale();
   const [logoOverride, setLogoOverride] = useState<string | null | undefined>(undefined);
   const [productImage, setProductImage] = useState<string | null>(null);
-  const [formats, setFormats] = useState<OutputFormat[]>(["instagram-square"]);
+  const [format, setFormat] = useState<OutputFormat>("instagram-square");
   const [campaignType, setCampaignType] = useState<CampaignType>("standard");
   const logo = logoOverride === undefined ? (defaultValues?.logo ?? null) : logoOverride;
   const postTypeOptions = locale === "ar" ? POST_TYPE_AR : POST_TYPE_EN;
@@ -69,7 +69,7 @@ export function FashionForm({ onSubmit, isLoading, defaultValues }: FashionFormP
       offerDuration: (fd.get("offerDuration") as string) || undefined,
       whatsapp: fd.get("whatsapp") as string,
       cta: fd.get("cta") as string,
-      formats,
+      format,
     });
   };
 
@@ -187,7 +187,7 @@ export function FashionForm({ onSubmit, isLoading, defaultValues }: FashionFormP
           </div>
 
           <div className="pt-4 border-t border-card-border">
-             <FormatSelector selected={formats} onChange={setFormats} />
+             <FormatSelector selected={format} onChange={setFormat} />
           </div>
         </div>
       </div>

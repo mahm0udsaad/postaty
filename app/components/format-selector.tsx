@@ -6,8 +6,8 @@ import { POSTER_GENERATION_FORMATS } from "@/lib/constants";
 import { useLocale } from "@/hooks/use-locale";
 
 interface FormatSelectorProps {
-  selected: OutputFormat[];
-  onChange: (formats: OutputFormat[]) => void;
+  selected: OutputFormat;
+  onChange: (format: OutputFormat) => void;
 }
 
 const formatIcons: Record<OutputFormat, typeof Square> = {
@@ -31,14 +31,8 @@ const FORMAT_COPY: Record<OutputFormat, { ar: string; en: string; ratio: string 
 export function FormatSelector({ selected, onChange }: FormatSelectorProps) {
   const { locale, t } = useLocale();
 
-  const toggle = (format: OutputFormat) => {
-    if (selected.includes(format)) {
-      if (selected.length > 1) {
-        onChange(selected.filter((f) => f !== format));
-      }
-    } else {
-      onChange([...selected, format]);
-    }
+  const select = (format: OutputFormat) => {
+    onChange(format);
   };
 
   return (
@@ -49,14 +43,14 @@ export function FormatSelector({ selected, onChange }: FormatSelectorProps) {
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {POSTER_GENERATION_FORMATS.map((format) => {
           const Icon = formatIcons[format];
-          const isSelected = selected.includes(format);
+          const isSelected = selected === format;
           const copy = FORMAT_COPY[format];
 
           return (
             <button
               key={format}
               type="button"
-              onClick={() => toggle(format)}
+              onClick={() => select(format)}
               className={`relative flex flex-col items-center gap-3 p-4 rounded-2xl border transition-all duration-200
                 ${isSelected
                   ? "border-primary bg-primary/5 text-primary ring-2 ring-primary ring-offset-2"

@@ -4,10 +4,12 @@ import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import {
   Users, Loader2, Search, Shield, Crown, Ban, ShieldX, CheckCircle,
-  Coins, Bell, MoreHorizontal, UserCog, X,
+  Coins, Bell, MoreHorizontal, UserCog, X, ChevronLeft, ChevronRight,
 } from "lucide-react";
-import { useState, useMemo, useRef } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import type { Id } from "@/convex/_generated/dataModel";
+
+const PAGE_SIZE = 10;
 
 const PLAN_LABELS: Record<string, string> = {
   none: "مجاني",
@@ -577,6 +579,13 @@ export default function AdminUsersPage() {
   const [search, setSearch] = useState("");
   const [countryFilter, setCountryFilter] = useState<"all" | string>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "suspended" | "banned">("all");
+  const [planFilter, setPlanFilter] = useState<"all" | "none" | "starter" | "growth" | "dominant">("all");
+  const [currentPage, setCurrentPage] = useState(0);
+
+  // Reset to first page when any filter changes
+  useEffect(() => {
+    setCurrentPage(0);
+  }, [search, countryFilter, statusFilter, planFilter]);
 
   const countryOptions = useMemo(() => {
     if (!users) return [];
@@ -608,9 +617,16 @@ export default function AdminUsersPage() {
       const matchesStatus =
         statusFilter === "all" || u.effectiveStatus === statusFilter;
 
-      return matchesSearch && matchesCountry && matchesStatus;
+      const userPlan = u.billing?.planKey ?? "none";
+      const matchesPlan = planFilter === "all" || userPlan === planFilter;
+
+      return matchesSearch && matchesCountry && matchesStatus && matchesPlan;
     });
-  }, [users, search, countryFilter, statusFilter]);
+  }, [users, search, countryFilter, statusFilter, planFilter]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
+  const safePage = Math.min(currentPage, totalPages - 1);
+  const paginatedUsers = filteredUsers.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
 
   if (users === undefined) {
     return (
@@ -631,7 +647,7 @@ export default function AdminUsersPage() {
       </div>
 
       {/* Filters */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-3 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-5 gap-3 mb-6">
         <div className="relative md:col-span-2">
           <Search size={18} className="absolute right-4 top-1/2 -translate-y-1/2 text-muted" />
           <input
@@ -642,6 +658,17 @@ export default function AdminUsersPage() {
             className="w-full pr-12 pl-4 py-3 bg-surface-1 border border-card-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
           />
         </div>
+        <select
+          value={planFilter}
+          onChange={(e) => setPlanFilter(e.target.value as typeof planFilter)}
+          className="w-full px-3 py-3 bg-surface-1 border border-card-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
+        >
+          <option value="all">كل الخطط</option>
+          <option value="none">مجاني</option>
+          <option value="starter">مبتدي</option>
+          <option value="growth">نمو</option>
+          <option value="dominant">هيمنة</option>
+        </select>
         <select
           value={countryFilter}
           onChange={(e) => setCountryFilter(e.target.value)}
@@ -686,7 +713,7 @@ export default function AdminUsersPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredUsers.map((user) => (
+                {paginatedUsers.map((user) => (
                   <tr key={user._id} className="border-b border-card-border/50 hover:bg-surface-2/20 transition-colors">
                     <td className="py-3 px-4 relative overflow-visible">
                       <div>
@@ -773,15 +800,43 @@ export default function AdminUsersPage() {
               </tbody>
             </table>
           </div>
+
+          {/* Pagination */}
+          {filteredUsers.length > PAGE_SIZE && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-card-border">
+              <span className="text-xs text-muted">
+                عرض {safePage * PAGE_SIZE + 1}–{Math.min((safePage + 1) * PAGE_SIZE, filteredUsers.length)} من {filteredUsers.length}
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setCurrentPage((p) => Math.max(0, p - 1))}
+                  disabled={safePage === 0}
+                  className="p-1.5 rounded-lg hover:bg-surface-2 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <ChevronRight size={18} />
+                </button>
+                <span className="text-sm font-medium min-w-[4rem] text-center">
+                  {safePage + 1} / {totalPages}
+                </span>
+                <button
+                  onClick={() => setCurrentPage((p) => Math.min(totalPages - 1, p + 1))}
+                  disabled={safePage >= totalPages - 1}
+                  className="p-1.5 rounded-lg hover:bg-surface-2 transition-colors disabled:opacity-30 disabled:cursor-not-allowed"
+                >
+                  <ChevronLeft size={18} />
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       ) : (
         <div className="bg-surface-1 border border-card-border rounded-2xl p-12 text-center">
           <Users size={48} className="text-muted mx-auto mb-4" />
           <h3 className="text-lg font-bold mb-2">
-            {search || statusFilter !== "all" ? "لا توجد نتائج" : "لا يوجد مستخدمون"}
+            {search || statusFilter !== "all" || planFilter !== "all" ? "لا توجد نتائج" : "لا يوجد مستخدمون"}
           </h3>
           <p className="text-muted">
-            {search || statusFilter !== "all" ? "حاول تغيير معايير البحث." : "سيظهر المستخدمون هنا عند التسجيل."}
+            {search || statusFilter !== "all" || planFilter !== "all" ? "حاول تغيير معايير البحث." : "سيظهر المستخدمون هنا عند التسجيل."}
           </p>
         </div>
       )}

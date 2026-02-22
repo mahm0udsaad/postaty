@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { usePaginatedQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { Download, Calendar, Tag, Loader2, Image as ImageIcon } from "lucide-react";
+import { Download, Calendar, Tag, Loader2, Image as ImageIcon, Gift } from "lucide-react";
 import { CATEGORY_LABELS, FORMAT_CONFIGS } from "@/lib/constants";
 import type { Category, OutputFormat } from "@/lib/types";
 import { useLocale } from "@/hooks/use-locale";
@@ -22,6 +22,7 @@ interface PosterImageData {
 
 interface PosterGalleryProps {
   category?: Category;
+  imageType?: "all" | "pro" | "gift";
 }
 
 const CATEGORY_LABELS_EN: Record<Category, string> = {
@@ -33,7 +34,7 @@ const CATEGORY_LABELS_EN: Record<Category, string> = {
   beauty: "Beauty & Care",
 };
 
-export function PosterGallery({ category }: PosterGalleryProps) {
+export function PosterGallery({ category, imageType = "all" }: PosterGalleryProps) {
   const { locale, t } = useLocale();
   const { results, status, loadMore } = usePaginatedQuery(
     api.generations.listByOrgPaginated,
@@ -49,19 +50,21 @@ export function PosterGallery({ category }: PosterGalleryProps) {
     for (const generation of results) {
       if (generation.status === "complete" || generation.status === "partial") {
         for (const output of generation.outputs) {
-          if (output.url) {
-            allImages.push({
-              generationId: generation._id,
-              url: output.url,
-              format: output.format,
-              width: output.width,
-              height: output.height,
-              businessName: generation.businessName,
-              productName: generation.productName,
-              category: generation.category,
-              createdAt: generation.createdAt,
-            });
-          }
+          if (!output.url) continue;
+          const isGift = output.format === "gift";
+          if (imageType === "pro" && isGift) continue;
+          if (imageType === "gift" && !isGift) continue;
+          allImages.push({
+            generationId: generation._id,
+            url: output.url,
+            format: output.format,
+            width: output.width,
+            height: output.height,
+            businessName: generation.businessName,
+            productName: generation.productName,
+            category: generation.category,
+            createdAt: generation.createdAt,
+          });
         }
       }
     }
@@ -153,9 +156,16 @@ export function PosterGallery({ category }: PosterGalleryProps) {
                           <Tag size={10} />
                           {categoryLabel}
                         </span>
-                        <span className="text-xs text-muted font-medium">
-                          {formatConfig?.label ?? image.format}
-                        </span>
+                        {image.format === "gift" ? (
+                          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-amber-50 text-amber-600 rounded-md text-xs font-medium border border-amber-200">
+                            <Gift size={10} />
+                            {locale === "ar" ? "هدية" : "Gift"}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted font-medium">
+                            {formatConfig?.label ?? image.format}
+                          </span>
+                        )}
                       </div>
 
                       <DownloadBtn

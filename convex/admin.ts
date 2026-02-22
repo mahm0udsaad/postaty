@@ -234,9 +234,10 @@ export const listSubscriptions = query({
     await requireAdmin(ctx);
 
     const allBilling = await ctx.db.query("billing").collect();
+    const paidBilling = allBilling.filter((b) => b.planKey !== "none");
 
     const withUsers = await Promise.all(
-      allBilling.map(async (billing) => {
+      paidBilling.map(async (billing) => {
         const user = await ctx.db
           .query("users")
           .withIndex("by_clerkId", (q) => q.eq("clerkId", billing.clerkUserId))
@@ -253,11 +254,11 @@ export const listSubscriptions = query({
     return {
       subscriptions: withUsers,
       summary: {
-        total: allBilling.length,
-        active: allBilling.filter((b) => b.status === "active").length,
-        trialing: allBilling.filter((b) => b.status === "trialing").length,
-        pastDue: allBilling.filter((b) => b.status === "past_due").length,
-        canceled: allBilling.filter((b) => b.status === "canceled").length,
+        total: paidBilling.length,
+        active: paidBilling.filter((b) => b.status === "active").length,
+        trialing: paidBilling.filter((b) => b.status === "trialing").length,
+        pastDue: paidBilling.filter((b) => b.status === "past_due").length,
+        canceled: paidBilling.filter((b) => b.status === "canceled").length,
       },
     };
   },
@@ -1082,5 +1083,139 @@ export const cleanupForLaunch = internalMutation({
     }
 
     return results;
+  },
+});
+
+// ── Deduplicate users (internal, CLI-only) ──────────────────────
+
+export const listAllUsersInternal = internalMutation({
+  args: {},
+  handler: async (ctx) => {
+    const users = await ctx.db.query("users").collect();
+    return users.map((u) => ({
+      id: u._id,
+      email: u.email,
+      name: u.name,
+      role: u.role,
+      clerkId: u.clerkId,
+    }));
+  },
+});
+
+export const adminSetSubscription = internalMutation({
+  args: {
+    email: v.string(),
+    planKey: v.union(v.literal("starter"), v.literal("growth"), v.literal("dominant")),
+  },
+  handler: async (ctx, args) => {
+    const user = await ctx.db
+      .query("users")
+      .filter((q) => q.eq(q.field("email"), args.email))
+      .first();
+    if (!user) throw new Error(`User not found: ${args.email}`);
+
+    const billing = await ctx.db
+      .query("billing")
+      .withIndex("by_clerkUserId", (q) => q.eq("clerkUserId", user.clerkId))
+      .first();
+
+    const CREDITS: Record<string, number> = { starter: 15, growth: 30, dominant: 50 };
+    const now = Date.now();
+    const periodEnd = now + 30 * 24 * 60 * 60 * 1000; // 30 days
+
+    if (billing) {
+      await ctx.db.patch(billing._id, {
+        planKey: args.planKey,
+        status: "active",
+        monthlyCreditLimit: CREDITS[args.planKey],
+        monthlyCreditsUsed: 0,
+        currentPeriodStart: now,
+        currentPeriodEnd: periodEnd,
+        updatedAt: now,
+      });
+      return { updated: billing._id, clerkId: user.clerkId };
+    } else {
+      const id = await ctx.db.insert("billing", {
+        clerkUserId: user.clerkId,
+        stripeCustomerId: "",
+        stripeSubscriptionId: undefined,
+        planKey: args.planKey,
+        status: "active",
+        monthlyCreditLimit: CREDITS[args.planKey],
+        monthlyCreditsUsed: 0,
+        addonCreditsBalance: 0,
+        currentPeriodStart: now,
+        currentPeriodEnd: periodEnd,
+        createdAt: now,
+        updatedAt: now,
+      });
+      return { created: id, clerkId: user.clerkId };
+    }
+  },
+});
+
+export const deduplicateUsers = internalMutation({
+  args: {
+    dryRun: v.optional(v.boolean()),
+  },
+  handler: async (ctx, args) => {
+    const allUsers = await ctx.db.query("users").collect();
+
+    // Group by email (catches duplicates from multiple Clerk sign-ups)
+    const byEmail = new Map<string, typeof allUsers>();
+    for (const u of allUsers) {
+      const list = byEmail.get(u.email) ?? [];
+      list.push(u);
+      byEmail.set(u.email, list);
+    }
+
+    const deleted: Array<{ id: string; email: string; name: string; reason: string }> = [];
+    const deletedIds = new Set<string>();
+
+    for (const [email, users] of byEmail) {
+      if (users.length <= 1) continue;
+
+      // Keep the one with the highest role, or the oldest one
+      const roleOrder = { owner: 0, admin: 1, member: 2 };
+      users.sort((a, b) => {
+        const ra = roleOrder[a.role as keyof typeof roleOrder] ?? 9;
+        const rb = roleOrder[b.role as keyof typeof roleOrder] ?? 9;
+        if (ra !== rb) return ra - rb;
+        return a.createdAt - b.createdAt; // keep oldest
+      });
+
+      // Delete all but the first (best) one
+      for (let i = 1; i < users.length; i++) {
+        if (!args.dryRun) {
+          await ctx.db.delete(users[i]._id);
+        }
+        deleted.push({
+          id: users[i]._id,
+          email: users[i].email,
+          name: users[i].name,
+          reason: `duplicate of ${users[0]._id} (same email)`,
+        });
+        deletedIds.add(users[i]._id);
+      }
+    }
+
+    // Also remove test users
+    const testEmails = ["dev@example.com"];
+    for (const u of allUsers) {
+      if (testEmails.includes(u.email) && !deletedIds.has(u._id)) {
+        if (!args.dryRun) {
+          await ctx.db.delete(u._id);
+        }
+        deleted.push({
+          id: u._id,
+          email: u.email,
+          name: u.name,
+          reason: "test user",
+        });
+        deletedIds.add(u._id);
+      }
+    }
+
+    return { dryRun: args.dryRun ?? false, deleted, remaining: allUsers.length - deleted.length };
   },
 });
