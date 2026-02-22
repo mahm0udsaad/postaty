@@ -286,7 +286,7 @@ export const initializeBillingForCurrentUser = mutation({
       clerkUserId,
       billingId,
       amount: FREE_TIER_CREDITS,
-      reason: "free_tier",
+      reason: "manual_adjustment",
       source: "addon",
       idempotencyKey: `free_tier_${clerkUserId}`,
       monthlyCreditsUsedAfter: 0,
