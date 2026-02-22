@@ -264,7 +264,10 @@ export const initializeBillingForCurrentUser = mutation({
       .first();
     if (existing) return existing._id;
 
-    return await ctx.db.insert("billing", {
+    const FREE_TIER_CREDITS = 10;
+    const now = Date.now();
+
+    const billingId = await ctx.db.insert("billing", {
       clerkUserId,
       stripeCustomerId: undefined,
       stripeSubscriptionId: undefined,
@@ -274,10 +277,24 @@ export const initializeBillingForCurrentUser = mutation({
       currentPeriodEnd: undefined,
       monthlyCreditLimit: 0,
       monthlyCreditsUsed: 0,
-      addonCreditsBalance: 0,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
+      addonCreditsBalance: FREE_TIER_CREDITS,
+      createdAt: now,
+      updatedAt: now,
     });
+
+    await ctx.db.insert("creditLedger", {
+      clerkUserId,
+      billingId,
+      amount: FREE_TIER_CREDITS,
+      reason: "free_tier",
+      source: "addon",
+      idempotencyKey: `free_tier_${clerkUserId}`,
+      monthlyCreditsUsedAfter: 0,
+      addonCreditsBalanceAfter: FREE_TIER_CREDITS,
+      createdAt: now,
+    });
+
+    return billingId;
   },
 });
 

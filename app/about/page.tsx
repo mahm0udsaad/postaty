@@ -102,7 +102,7 @@ export default async function AboutPage() {
           </h1>
           <p className="text-muted text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
             {t(
-              "Postaty منصة ذكاء اصطناعي امراتيه تمكّن أصحاب المطاعم والمتاجر والمشاريع الصغيرة من تصميم إعلانات احترافية بدون الحاجة لمصمم أو خبرة تقنية.",
+              "Postaty منصة ذكاء اصطناعي تمكّن أصحاب المطاعم والمتاجر والمشاريع الصغيرة من تصميم إعلانات احترافية بدون الحاجة لمصمم أو خبرة تقنية.",
               "Postaty is an AI platform that helps restaurant owners, stores, and small businesses create professional ads without hiring a designer."
             )}
           </p>

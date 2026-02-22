@@ -255,6 +255,9 @@ function CreatePageContent() {
       return;
     }
 
+    // Don't redirect while generating or viewing results
+    if (isGenerating || results.length > 0) return;
+
     if ("totalRemaining" in creditState && creditState.totalRemaining < 1) {
       router.replace("/pricing");
       return;
@@ -266,6 +269,8 @@ function CreatePageContent() {
     isAuthenticated,
     isIdentityLoading,
     creditState,
+    isGenerating,
+    results.length,
     router,
   ]);
 
