@@ -1,28 +1,28 @@
 "use client";
 
-import { useQuery } from "convex/react";
-import { useAuth, useClerk } from "@clerk/nextjs";
-import { api } from "@/convex/_generated/api";
+import useSWR from "swr";
+import { useAuth } from "@/hooks/use-auth";
 import { ShieldX, Ban, LogOut } from "lucide-react";
 import { useLocale } from "@/hooks/use-locale";
 
-const AUTH_ENABLED = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
+const fetcher = (url: string) => fetch(url).then(r => {
+  if (!r.ok) throw new Error('API error');
+  return r.json();
+});
 
 export function AccountStatusGate({ children }: { children: React.ReactNode }) {
-  if (!AUTH_ENABLED) return <>{children}</>;
   return <AccountStatusGateInner>{children}</AccountStatusGateInner>;
 }
 
 function AccountStatusGateInner({ children }: { children: React.ReactNode }) {
   const { t } = useLocale();
-  const { userId } = useAuth();
-  const { signOut } = useClerk();
-  const currentUser = useQuery(
-    api.users.getCurrentUser,
-    userId ? {} : "skip"
+  const { userId, isSignedIn, signOut } = useAuth();
+  const { data: currentUser } = useSWR(
+    isSignedIn ? '/api/users/me' : null,
+    fetcher
   );
 
-  // Not signed in, loading, or no user record yet → render normally
+  // Not signed in, loading, or no user record yet -> render normally
   if (!userId || currentUser === undefined || currentUser === null) {
     return <>{children}</>;
   }

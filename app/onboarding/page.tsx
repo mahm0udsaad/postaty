@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation, useConvexAuth } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { useAuth } from "@/hooks/use-auth";
 import {
   Sparkles,
   ArrowRight,
@@ -25,9 +24,8 @@ const TOTAL_STEPS = 5;
 
 export default function OnboardingPage() {
   const router = useRouter();
-  useConvexAuth();
+  useAuth();
   const { t } = useLocale();
-  const completeOnboarding = useMutation(api.users.completeOnboarding);
 
   const CATEGORIES: { id: Category; label: string; icon: typeof UtensilsCrossed; color: string; bg: string }[] = [
     { id: "restaurant", label: t("مطاعم وكافيهات", "Restaurants & Cafes"), icon: UtensilsCrossed, color: "text-orange-400", bg: "bg-orange-500/10" },
@@ -87,10 +85,14 @@ export default function OnboardingPage() {
   const handleFinish = async () => {
     setIsSaving(true);
     try {
-      await completeOnboarding({
-        businessName: businessName.trim(),
-        businessCategory: selectedCategory!,
-        brandColors: extractedColors,
+      await fetch('/api/users/onboarding', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          businessName: businessName.trim(),
+          businessCategory: selectedCategory!,
+          brandColors: extractedColors,
+        }),
       });
       router.push("/create");
     } catch (err) {

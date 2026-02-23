@@ -9,7 +9,8 @@ const AUTOPLAY_MS = 3800;
 const PAUSE_AFTER_INTERACTION_MS = 7000;
 
 type ShowcaseImage = {
-  _id: string;
+  id: string;
+  _id?: string;
   url?: string | null;
   title?: string | null;
   category?: string | null;
@@ -41,7 +42,13 @@ export function ShowcaseCarousel({ showcaseImages }: ShowcaseCarouselProps) {
     if (!section) return false;
 
     const rect = section.getBoundingClientRect();
-    return rect.top < window.innerHeight && rect.bottom > 0;
+    // Gate autoplay to when this section is truly in focus, not merely touching the viewport.
+    const viewportHeight = window.innerHeight;
+    const sectionMidpoint = rect.top + rect.height / 2;
+    const visibleHeight = Math.min(rect.bottom, viewportHeight) - Math.max(rect.top, 0);
+    const visibleRatio = Math.max(0, visibleHeight) / Math.max(rect.height, 1);
+
+    return sectionMidpoint > 0 && sectionMidpoint < viewportHeight && visibleRatio >= 0.45;
   }, []);
 
   const scrollToIndex = useCallback(
@@ -223,7 +230,7 @@ export function ShowcaseCarousel({ showcaseImages }: ShowcaseCarouselProps) {
           >
             {images.map((img, idx) => (
               <article
-                key={img._id}
+                key={img.id ?? img._id}
                 ref={(node) => {
                   cardRefs.current[idx] = node;
                 }}
@@ -262,7 +269,7 @@ export function ShowcaseCarousel({ showcaseImages }: ShowcaseCarouselProps) {
           <div className="mt-2 flex items-center justify-center gap-1.5">
             {images.map((img, idx) => (
               <button
-                key={`dot-${img._id}`}
+                key={`dot-${img.id ?? img._id}`}
                 onClick={() => scrollToIndex(idx)}
                 aria-label={`${t("انتقل إلى العنصر", "Go to item")} ${idx + 1}`}
                 className={`h-2.5 rounded-full transition-all ${idx === currentIndex ? "w-6 bg-primary" : "w-2.5 bg-card-border hover:bg-muted"}`}

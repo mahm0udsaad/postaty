@@ -14,12 +14,10 @@ import {
   WandSparkles,
 } from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
-import { useMutation, useConvexAuth } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { useAuth } from "@/hooks/use-auth";
 import { removeOverlayBackground } from "@/app/actions-v2";
 import { renderEditedGiftToBlob } from "@/lib/gift-editor/export-edited-gift";
 import type { GiftEditorState, PosterResult } from "@/lib/types";
-import type { Id } from "@/convex/_generated/dataModel";
 import { useLocale } from "@/hooks/use-locale";
 
 const GiftEditorCanvas = dynamic(
@@ -39,8 +37,8 @@ interface PosterModalProps {
   onSaveAsTemplate?: (designIndex: number) => void;
   category?: string;
   model?: string;
-  generationId?: Id<"generations">;
-  imageStorageId?: Id<"_storage">;
+  generationId?: string;
+  imageStorageId?: string;
 }
 
 type ModalTab = "preview" | "edit";
@@ -120,8 +118,7 @@ export function PosterModal({
   const [removeBgLoading, setRemoveBgLoading] = useState(false);
   const [removeBgMessage, setRemoveBgMessage] = useState<string>();
 
-  const { isAuthenticated } = useConvexAuth();
-  const submitFeedback = useMutation(api.admin.submitFeedback);
+  const { isSignedIn } = useAuth();
 
   const isGift = Boolean(result?.isGift);
   const defaultGiftLabel = useMemo(
@@ -225,20 +222,24 @@ export function PosterModal({
     if (feedbackState !== "like" && feedbackState !== "dislike") return;
     setIsSendingFeedback(true);
     try {
-      await submitFeedback({
-        rating: feedbackState,
-        comment: feedbackComment.trim() || undefined,
-        model: model || undefined,
-        category: category as
-          | "restaurant"
-          | "supermarket"
-          | "ecommerce"
-          | "services"
-          | "fashion"
-          | "beauty"
-          | undefined,
-        generationId: generationId || undefined,
-        imageStorageId: imageStorageId || undefined,
+      await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          rating: feedbackState,
+          comment: feedbackComment.trim() || undefined,
+          model: model || undefined,
+          category: category as
+            | "restaurant"
+            | "supermarket"
+            | "ecommerce"
+            | "services"
+            | "fashion"
+            | "beauty"
+            | undefined,
+          generationId: generationId || undefined,
+          imageStorageId: imageStorageId || undefined,
+        }),
       });
       setFeedbackState("submitted");
       setShowCommentBox(false);
@@ -386,7 +387,7 @@ export function PosterModal({
                       <div className="font-bold text-foreground uppercase">{result.format}</div>
                     </div>
 
-                    {isAuthenticated && (
+                    {isSignedIn && (
                       <div className="p-4 bg-surface-2 rounded-2xl border border-card-border space-y-3">
                         <div className="text-sm font-medium text-muted">{t("قيّم التصميم", "Rate this design")}</div>
                         {feedbackState === "submitted" ? (

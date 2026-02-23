@@ -2,9 +2,7 @@
 
 import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useAction } from "convex/react";
 import { useEffect, useState } from "react";
-import { api } from "@/convex/_generated/api";
 import { useLocale } from "@/hooks/use-locale";
 import { XCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
@@ -28,7 +26,6 @@ function CheckoutReturnContent() {
   const searchParams = useSearchParams();
   const { t } = useLocale();
   const sessionId = searchParams.get("session_id");
-  const getStatus = useAction(api.billing.getCheckoutSessionStatus);
 
   const [status, setStatus] = useState<string | null>(null);
   const [loading, setLoading] = useState(Boolean(sessionId));
@@ -38,11 +35,12 @@ function CheckoutReturnContent() {
       return;
     }
 
-    getStatus({ sessionId })
+    fetch(`/api/billing/checkout-status?sessionId=${encodeURIComponent(sessionId)}`)
+      .then((r) => r.json())
       .then((result) => setStatus(result.status ?? null))
       .catch(() => setStatus("error"))
       .finally(() => setLoading(false));
-  }, [sessionId, getStatus]);
+  }, [sessionId]);
 
   useEffect(() => {
     if (status === "complete") {

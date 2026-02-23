@@ -1,20 +1,23 @@
 "use client";
 
-import { useAuth, useUser, useClerk } from "@clerk/nextjs";
-import { useConvexAuth, useQuery, useAction } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { useAuth } from "@/hooks/use-auth";
+import useSWR from "swr";
 import { Loader2, Zap, Calendar, LogOut, ExternalLink } from "lucide-react";
+import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
 import { useLocale } from "@/hooks/use-locale";
 
-const AUTH_ENABLED = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
+const fetcher = (url: string) => fetch(url).then(r => {
+  if (!r.ok) throw new Error('API error');
+  return r.json();
+});
 
 const PLAN_NAMES: Record<string, { ar: string; en: string }> = {
   none: { ar: "غير مشترك", en: "No plan" },
-  starter: { ar: "مبتدي", en: "Starter" },
-  growth: { ar: "نمو", en: "Growth" },
-  dominant: { ar: "هيمنة", en: "Dominant" },
+  starter: { ar: "أساسي", en: "Basic" },
+  growth: { ar: "احترافي", en: "Pro" },
+  dominant: { ar: "بريميوم", en: "Premium" },
 };
 
 const PLAN_COLORS: Record<string, string> = {
@@ -31,28 +34,26 @@ const PLAN_BG: Record<string, string> = {
   dominant: "bg-accent/10",
 };
 
-function SettingsPageWithClerk() {
-  const { isLoaded: isClerkLoaded } = useAuth();
-  const { user: clerkUser } = useUser();
-  const { signOut } = useClerk();
+function SettingsPageContent() {
+  const { user, isSignedIn, isLoaded, signOut } = useAuth();
   const { locale, t } = useLocale();
-  const { isAuthenticated: isConvexAuthenticated, isLoading: isConvexLoading } =
-    useConvexAuth();
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
 
-  const creditState = useQuery(
-    api.billing.getCreditState,
-    isConvexAuthenticated ? {} : "skip"
+  const { data: creditState, isLoading: isCreditLoading } = useSWR(
+    isSignedIn ? '/api/billing' : null,
+    fetcher
   );
-
-  const createPortalSession = useAction(api.billing.createPortalSession);
 
   const handleManageSubscription = async () => {
     setLoadingAction("portal");
     try {
-      const { url } = await createPortalSession({
-        returnUrl: window.location.href,
+      const res = await fetch('/api/billing/portal', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ returnUrl: window.location.href }),
       });
+      if (!res.ok) throw new Error('Failed to create portal session');
+      const { url } = await res.json();
       window.location.href = url;
     } catch (error) {
       console.error("Failed to open portal:", error);
@@ -62,10 +63,11 @@ function SettingsPageWithClerk() {
 
   const handleSignOut = async () => {
     setLoadingAction("signout");
-    await signOut({ redirectUrl: "/" });
+    await signOut();
+    window.location.href = "/";
   };
 
-  if (!isClerkLoaded || !clerkUser || !isConvexAuthenticated) {
+  if (!isLoaded || !isSignedIn || !user) {
     return (
       <main className="min-h-screen relative pt-8 pb-32 px-4 md:pt-16 md:pb-24">
         <div className="max-w-2xl mx-auto">
@@ -80,9 +82,12 @@ function SettingsPageWithClerk() {
     );
   }
 
-  const initials = clerkUser.fullName
+  const fullName = user.user_metadata?.full_name || user.user_metadata?.name || "";
+  const avatarUrl = user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
+  const email = user.email || "";
+  const initials = fullName
     ?.split(" ")
-    .map((n) => n[0])
+    .map((n: string) => n[0])
     .slice(0, 2)
     .join("") ?? "";
 
@@ -96,11 +101,13 @@ function SettingsPageWithClerk() {
         <div className="bg-surface-1 border border-card-border rounded-2xl p-8 text-center">
           {/* Avatar */}
           <div className="relative w-24 h-24 mx-auto mb-4 rounded-full overflow-hidden border-4 border-card-border">
-            {clerkUser.imageUrl ? (
-              <img
-                src={clerkUser.imageUrl}
-                alt={clerkUser.fullName ?? t("الملف الشخصي", "Profile")}
-                className="w-full h-full object-cover"
+            {avatarUrl ? (
+              <Image
+                src={avatarUrl}
+                alt={fullName || "Profile"}
+                fill
+                className="object-cover"
+                sizes="96px"
               />
             ) : (
               <div className="w-full h-full bg-primary/10 flex items-center justify-center text-primary text-2xl font-bold">
@@ -111,7 +118,7 @@ function SettingsPageWithClerk() {
 
           {/* Name + Plan Badge */}
           <div className="flex items-center justify-center gap-3 mb-1">
-            <h1 className="text-2xl font-black">{clerkUser.fullName || t("بدون اسم", "No name")}</h1>
+            <h1 className="text-2xl font-black">{fullName || t("بدون اسم", "No name")}</h1>
             <span className={`px-3 py-0.5 rounded-full text-xs font-bold ${PLAN_COLORS[planKey]} ${PLAN_BG[planKey]}`}>
               {PLAN_NAMES[planKey]?.[locale] || t("غير معروف", "Unknown")}
             </span>
@@ -119,21 +126,12 @@ function SettingsPageWithClerk() {
 
           {/* Email */}
           <p className="text-muted text-sm">
-            {clerkUser.emailAddresses[0]?.emailAddress || t("بدون بريد", "No email")}
+            {email || t("بدون بريد", "No email")}
           </p>
-
-          {/* Manage Account Link */}
-          <button
-            onClick={() => clerkUser.update({})}
-            className="inline-flex items-center gap-1.5 mt-4 text-sm text-primary hover:underline font-medium"
-          >
-            <ExternalLink size={14} />
-            <span>{t("إدارة الحساب", "Manage account")}</span>
-          </button>
         </div>
 
         {/* Credits & Subscription */}
-        {isConvexLoading || creditState === undefined ? (
+        {isCreditLoading || creditState === undefined ? (
           <div className="bg-surface-1 border border-card-border rounded-2xl p-8 flex items-center justify-center h-48">
             <div className="text-center">
               <Loader2 size={32} className="animate-spin text-muted mx-auto mb-4" />
@@ -272,8 +270,24 @@ function SettingsPageWithClerk() {
 
 export default function SettingsPage() {
   const { t } = useLocale();
+  const { isSignedIn, isLoaded } = useAuth();
 
-  if (!AUTH_ENABLED) {
+  if (!isLoaded) {
+    return (
+      <main className="min-h-screen relative pt-8 pb-32 px-4 md:pt-16 md:pb-24">
+        <div className="max-w-2xl mx-auto">
+          <div className="flex items-center justify-center h-96">
+            <div className="text-center">
+              <Loader2 size={32} className="animate-spin text-muted mx-auto mb-4" />
+              <p className="text-muted">{t("جاري التحميل...", "Loading...")}</p>
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
+
+  if (!isSignedIn) {
     return (
       <main className="min-h-screen relative pt-8 pb-32 px-4 md:pt-16 md:pb-24">
         <div className="max-w-2xl mx-auto">
@@ -283,18 +297,15 @@ export default function SettingsPage() {
           </div>
 
           <div className="bg-surface-1 border border-card-border rounded-2xl p-8 text-center">
-            <p className="text-lg font-bold mb-2">{t("صفحة الإعدادات تتطلب تفعيل تسجيل الدخول", "Settings page requires authentication to be enabled")}</p>
+            <p className="text-lg font-bold mb-2">{t("يجب تسجيل الدخول لعرض الإعدادات", "You need to sign in to view settings")}</p>
             <p className="text-muted mb-6">
-              {t(
-                "أضف `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` لتفعيل الحسابات والاشتراكات.",
-                "Add `NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY` to enable accounts and subscriptions."
-              )}
+              {t("سجل دخولك لإدارة حسابك والاشتراك.", "Sign in to manage your account and subscription.")}
             </p>
             <Link
-              href="/"
+              href="/sign-in?redirect_url=/settings"
               className="inline-flex items-center justify-center px-5 py-3 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-xl font-bold"
             >
-              {t("الرجوع للرئيسية", "Back to home")}
+              {t("تسجيل الدخول", "Sign in")}
             </Link>
           </div>
         </div>
@@ -302,5 +313,5 @@ export default function SettingsPage() {
     );
   }
 
-  return <SettingsPageWithClerk />;
+  return <SettingsPageContent />;
 }

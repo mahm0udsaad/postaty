@@ -1,0 +1,1 @@
+"{\"_creationTime\": normalfloat64, \"_id\": \"kn76bbegnt3x8rd6wfac5spaqh81ca7h\" | \"kn79n35a6px0r2jb1ph62vmdn581c9bk\", \"createdAt\": normalfloat64, \"effectiveFrom\": normalfloat64, \"imageGenerationCost\": normalfloat64, \"inputTokenCostPer1k\": normalfloat64, \"model\": field_name, \"notes\": string, \"outputTokenCostPer1k\": normalfloat64}"

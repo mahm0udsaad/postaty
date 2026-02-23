@@ -1,7 +1,6 @@
 "use client";
 
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import useSWR from "swr";
 import {
   DollarSign,
   TrendingUp,
@@ -14,6 +13,11 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+const fetcher = (url: string) => fetch(url).then(r => {
+  if (!r.ok) throw new Error('API error');
+  return r.json();
+});
+
 const PERIOD_OPTIONS = [
   { label: "7 أيام", value: 7 },
   { label: "30 يوم", value: 30 },
@@ -22,9 +26,10 @@ const PERIOD_OPTIONS = [
 
 export default function AdminFinancePage() {
   const [periodDays, setPeriodDays] = useState(30);
-  const overview = useQuery(api.admin.getFinancialOverview, { periodDays });
+  const { data: overviewData } = useSWR(`/api/admin/overview?periodDays=${periodDays}`, fetcher);
+  const overview = overviewData?.financial;
 
-  if (overview === undefined) {
+  if (!overview) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 size={32} className="animate-spin text-muted" />
@@ -154,9 +159,9 @@ export default function AdminFinancePage() {
             <h3 className="font-bold">توزيع الاشتراكات</h3>
           </div>
           <div className="space-y-3">
-            <DistRow label="مبتدي (Starter)" count={overview.subscriptionsByPlan.starter} total={overview.activeSubscriptions} color="bg-success" />
-            <DistRow label="نمو (Growth)" count={overview.subscriptionsByPlan.growth} total={overview.activeSubscriptions} color="bg-primary" />
-            <DistRow label="هيمنة (Dominant)" count={overview.subscriptionsByPlan.dominant} total={overview.activeSubscriptions} color="bg-accent" />
+            <DistRow label="أساسي (Basic)" count={overview.subscriptionsByPlan.starter} total={overview.activeSubscriptions} color="bg-success" />
+            <DistRow label="احترافي (Pro)" count={overview.subscriptionsByPlan.growth} total={overview.activeSubscriptions} color="bg-primary" />
+            <DistRow label="بريميوم (Premium)" count={overview.subscriptionsByPlan.dominant} total={overview.activeSubscriptions} color="bg-accent" />
           </div>
           <div className="mt-4 pt-3 border-t border-card-border flex justify-between">
             <span className="text-sm text-muted">إجمالي الاشتراكات النشطة</span>

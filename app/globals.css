@@ -417,6 +417,15 @@ input::placeholder, textarea::placeholder {
   }
 }
 
+/* Mobile/Safari-friendly paint budget guard */
+@media (max-width: 1024px) {
+  .glass,
+  .glass-card {
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+  }
+}
+
 .cl-internal-1dauvpw .cl-internal-1k7jtru{
   display: none !important;
 }

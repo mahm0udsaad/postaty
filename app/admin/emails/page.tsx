@@ -1,8 +1,6 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { useAction } from "convex/react";
-import { api } from "@/convex/_generated/api";
 import {
   BellRing,
   Loader2,
@@ -27,10 +25,6 @@ const AUDIENCE_OPTIONS: Array<{ value: Audience; label: string; hint: string }> 
 ];
 
 export default function AdminEmailsPage() {
-  const generateMarketingTemplate = useAction(api.emailing.generateMarketingTemplate);
-  const sendMarketingCampaign = useAction(api.emailing.sendMarketingCampaign);
-  const sendBalanceReminderCampaign = useAction(api.emailing.sendBalanceReminderCampaign);
-
   const [campaignGoal, setCampaignGoal] = useState("عرض خاص على خطط Postaty لفترة محدودة");
   const [offerDetails, setOfferDetails] = useState("احصل على خصم 20% عند الاشتراك الشهري");
   const [ctaUrl, setCtaUrl] = useState("https://www.postaty.com/pricing");
@@ -70,12 +64,18 @@ export default function AdminEmailsPage() {
     }
 
     try {
-      const result = await generateMarketingTemplate({
-        campaignGoal: campaignGoal.trim(),
-        offerDetails: offerDetails.trim() || undefined,
-        ctaUrl: ctaUrl.trim() || undefined,
-        useAi,
+      const res = await fetch('/api/admin/emails/generate-template', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          campaignGoal: campaignGoal.trim(),
+          offerDetails: offerDetails.trim() || undefined,
+          ctaUrl: ctaUrl.trim() || undefined,
+          useAi,
+        }),
       });
+      if (!res.ok) throw new Error('فشل توليد القالب');
+      const result = await res.json();
 
       setSubject(result.subject);
       setHtml(result.html);
@@ -103,14 +103,20 @@ export default function AdminEmailsPage() {
     setIsSendingCampaign(true);
 
     try {
-      const result = await sendMarketingCampaign({
-        audience,
-        subject: subject.trim(),
-        html: html.trim(),
-        plainText: plainText.trim() || undefined,
-        lowBalanceThreshold: audience === "low_balance" ? lowBalanceThreshold : undefined,
-        notifyInApp,
+      const res = await fetch('/api/admin/emails/send-campaign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          audience,
+          subject: subject.trim(),
+          html: html.trim(),
+          plainText: plainText.trim() || undefined,
+          lowBalanceThreshold: audience === "low_balance" ? lowBalanceThreshold : undefined,
+          notifyInApp,
+        }),
       });
+      if (!res.ok) throw new Error('فشل إرسال الحملة');
+      const result = await res.json();
       setSummary(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : "فشل إرسال الحملة");
@@ -125,9 +131,15 @@ export default function AdminEmailsPage() {
     setIsSendingBalanceReminder(true);
 
     try {
-      const result = await sendBalanceReminderCampaign({
-        threshold: lowBalanceThreshold,
+      const res = await fetch('/api/admin/emails/balance-reminder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          threshold: lowBalanceThreshold,
+        }),
       });
+      if (!res.ok) throw new Error('فشل إرسال تنبيهات الرصيد');
+      const result = await res.json();
       setSummary(result);
     } catch (err) {
       setError(err instanceof Error ? err.message : "فشل إرسال تنبيهات الرصيد");

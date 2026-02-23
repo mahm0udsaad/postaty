@@ -1,7 +1,6 @@
 "use client";
 
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import useSWR from "swr";
 import {
   Brain,
   DollarSign,
@@ -14,13 +13,22 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 
-export default function AdminDashboard() {
-  const aiOverview = useQuery(api.admin.getAiOverview, { periodDays: 30 });
-  const financialOverview = useQuery(api.admin.getFinancialOverview, { periodDays: 30 });
-  const feedbackSummary = useQuery(api.admin.getFeedbackSummary, {});
-  const users = useQuery(api.admin.listUsers, { limit: 5 });
+const fetcher = (url: string) => fetch(url).then(r => {
+  if (!r.ok) throw new Error('API error');
+  return r.json();
+});
 
-  const isLoading = aiOverview === undefined || financialOverview === undefined;
+export default function AdminDashboard() {
+  const { data: overview } = useSWR('/api/admin/overview?periodDays=30', fetcher);
+  const { data: feedbackData } = useSWR('/api/admin/feedback', fetcher);
+  const { data: usersData } = useSWR('/api/admin/users?limit=5', fetcher);
+  const users = usersData?.users;
+
+  const aiOverview = overview?.ai;
+  const financialOverview = overview?.financial;
+  const feedbackSummary = feedbackData?.summary;
+
+  const isLoading = !overview;
 
   return (
     <div>
@@ -175,21 +183,21 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {users.slice(0, 5).map((user) => (
-                      <tr key={user._id} className="border-b border-card-border/50">
+                    {users.slice(0, 5).map((user: any) => (
+                      <tr key={user.id} className="border-b border-card-border/50">
                         <td className="py-3 px-2 font-medium">{user.name}</td>
                         <td className="py-3 px-2 text-muted">{user.email}</td>
                         <td className="py-3 px-2">
                           <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${
-                            user.billing?.planKey === "dominant" ? "bg-accent/20 text-accent" :
-                            user.billing?.planKey === "growth" ? "bg-primary/20 text-primary" :
-                            user.billing?.planKey === "starter" ? "bg-success/20 text-success" :
+                            user.billing?.plan_key === "dominant" ? "bg-accent/20 text-accent" :
+                            user.billing?.plan_key === "growth" ? "bg-primary/20 text-primary" :
+                            user.billing?.plan_key === "starter" ? "bg-success/20 text-success" :
                             "bg-muted/20 text-muted"
                           }`}>
-                            {user.billing?.planKey ?? "مجاني"}
+                            {user.billing?.plan_key ?? "مجاني"}
                           </span>
                         </td>
-                        <td className="py-3 px-2">{user.totalGenerations}</td>
+                        <td className="py-3 px-2">{user.totalGenerations ?? "—"}</td>
                       </tr>
                     ))}
                   </tbody>

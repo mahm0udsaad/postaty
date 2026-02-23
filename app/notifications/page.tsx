@@ -1,11 +1,14 @@
 "use client";
 
-import { useQuery, useMutation } from "convex/react";
-import { useAuth } from "@clerk/nextjs";
-import { api } from "@/convex/_generated/api";
+import useSWR from "swr";
+import { useAuth } from "@/hooks/use-auth";
 import { Bell, CheckCheck, Info, AlertTriangle, CircleCheck, Coins, Cog, Check, Loader2 } from "lucide-react";
-import type { Id } from "@/convex/_generated/dataModel";
 import { useLocale } from "@/hooks/use-locale";
+
+const fetcher = (url: string) => fetch(url).then(r => {
+  if (!r.ok) throw new Error('API error');
+  return r.json();
+});
 
 const TYPE_ICONS: Record<string, typeof Info> = {
   info: Info,
@@ -34,15 +37,27 @@ function formatDate(timestamp: number, locale: "ar" | "en") {
 }
 
 export default function NotificationsPage() {
-  const { userId } = useAuth();
+  const { isSignedIn } = useAuth();
   const { locale, t } = useLocale();
-  const notifications = useQuery(
-    api.notifications.listMyNotifications,
-    userId ? { limit: 100 } : "skip"
+
+  const { data: notifications, mutate: mutateNotifications } = useSWR(
+    isSignedIn ? '/api/notifications?limit=100' : null,
+    fetcher
   );
-  const unreadCount = useQuery(api.notifications.getUnreadCount, userId ? {} : "skip");
-  const markAsRead = useMutation(api.notifications.markAsRead);
-  const markAllAsRead = useMutation(api.notifications.markAllAsRead);
+
+  const unreadCount = notifications
+    ? notifications.filter((n: any) => !n.is_read).length
+    : 0;
+
+  const handleMarkAsRead = async (notificationId: string) => {
+    await fetch(`/api/notifications/${notificationId}/read`, { method: 'POST' });
+    mutateNotifications();
+  };
+
+  const handleMarkAllAsRead = async () => {
+    await fetch('/api/notifications/read-all', { method: 'POST' });
+    mutateNotifications();
+  };
 
   if (notifications === undefined) {
     return (
@@ -58,16 +73,16 @@ export default function NotificationsPage() {
         <div>
           <h1 className="text-3xl font-black mb-1">{t("الإشعارات", "Notifications")}</h1>
           <p className="text-muted text-sm">
-            {(unreadCount ?? 0) > 0
+            {unreadCount > 0
               ? locale === "ar"
                 ? `${unreadCount} إشعار غير مقروء`
                 : `${unreadCount} unread notifications`
               : t("لا توجد إشعارات جديدة", "No new notifications")}
           </p>
         </div>
-        {(unreadCount ?? 0) > 0 && (
+        {unreadCount > 0 && (
           <button
-            onClick={() => markAllAsRead()}
+            onClick={handleMarkAllAsRead}
             className="flex items-center gap-2 px-4 py-2 rounded-xl bg-surface-1 border border-card-border text-sm font-bold hover:bg-surface-2 transition-colors"
           >
             <CheckCheck size={16} />
@@ -78,15 +93,15 @@ export default function NotificationsPage() {
 
       {notifications.length > 0 ? (
         <div className="space-y-3">
-          {notifications.map((n) => {
+          {notifications.map((n: any) => {
             const Icon = TYPE_ICONS[n.type] ?? Info;
             const colorClasses = TYPE_COLORS[n.type] ?? "text-muted bg-muted/10";
             const [textColor, bgColor] = colorClasses.split(" ");
             return (
               <div
-                key={n._id}
+                key={n.id}
                 className={`bg-surface-1 border rounded-2xl p-4 flex gap-4 transition-colors ${
-                  !n.isRead
+                  !n.is_read
                     ? "border-primary/30 bg-primary/5"
                     : "border-card-border"
                 }`}
@@ -99,18 +114,18 @@ export default function NotificationsPage() {
                     <div>
                       <h3 className="font-bold text-sm flex items-center gap-2">
                         {n.title}
-                        {!n.isRead && (
+                        {!n.is_read && (
                           <span className="w-2 h-2 rounded-full bg-primary shrink-0" />
                         )}
                       </h3>
                       <p className="text-muted text-sm mt-1">{n.body}</p>
                       <span className="text-xs text-muted mt-2 block">
-                        {formatDate(n.createdAt, locale)}
+                        {formatDate(n.created_at, locale)}
                       </span>
                     </div>
-                    {!n.isRead && (
+                    {!n.is_read && (
                       <button
-                        onClick={() => markAsRead({ notificationId: n._id as Id<"notifications"> })}
+                        onClick={() => handleMarkAsRead(n.id)}
                         className="shrink-0 p-2 rounded-lg hover:bg-surface-2 transition-colors text-muted hover:text-foreground"
                         title={t("تعيين كمقروء", "Mark as read")}
                       >

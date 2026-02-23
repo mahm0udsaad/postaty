@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
+import { createClient } from "@/lib/supabase/server";
 import { generatePoster, generateGiftImage } from "@/lib/generate-designs";
 import { removeBackgroundWithFallback } from "@/lib/gift-editor/remove-background";
 import { postFormDataSchema } from "@/lib/validation";
@@ -52,7 +52,9 @@ export async function generatePosters(
   brandKit?: BrandKitPromptData
 ): Promise<GeneratePostersResult & { usages: GenerationUsage[] }> {
   // Server-side auth gate — block unauthenticated requests
-  const { userId } = await auth();
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  const userId = user?.id;
   if (!userId) {
     throw new Error("يجب تسجيل الدخول لإنشاء تصاميم");
   }

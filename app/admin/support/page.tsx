@@ -1,8 +1,6 @@
 "use client";
 
-import { useQuery, useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
+import useSWR from "swr";
 import {
   LifeBuoy,
   Loader2,
@@ -17,6 +15,11 @@ import {
   Shield,
 } from "lucide-react";
 import { useState, useRef, useEffect } from "react";
+
+const fetcher = (url: string) => fetch(url).then(r => {
+  if (!r.ok) throw new Error('API error');
+  return r.json();
+});
 
 type TicketStatus = "open" | "in_progress" | "waiting_on_customer" | "resolved" | "closed";
 
@@ -46,12 +49,12 @@ const STATUS_FILTERS: { label: string; value: TicketStatus | "all" }[] = [
 
 export default function AdminSupportPage() {
   const [statusFilter, setStatusFilter] = useState<TicketStatus | "all">("all");
-  const [selectedTicketId, setSelectedTicketId] = useState<Id<"supportTickets"> | null>(null);
+  const [selectedTicketId, setSelectedTicketId] = useState<string | null>(null);
 
-  const tickets = useQuery(api.admin.listSupportTickets, {
-    status: statusFilter === "all" ? undefined : statusFilter,
-    limit: 100,
-  });
+  const { data: tickets } = useSWR(
+    `/api/admin/support?limit=100${statusFilter !== "all" ? `&status=${statusFilter}` : ''}`,
+    fetcher
+  );
 
   return (
     <div>
@@ -78,7 +81,7 @@ export default function AdminSupportPage() {
         ))}
       </div>
 
-      {tickets === undefined ? (
+      {!tickets ? (
         <div className="flex items-center justify-center h-64">
           <Loader2 size={32} className="animate-spin text-muted" />
         </div>
@@ -87,15 +90,19 @@ export default function AdminSupportPage() {
           {/* Ticket List */}
           <div className={`${selectedTicketId ? "hidden lg:block" : ""} lg:w-96 space-y-2 shrink-0`}>
             {tickets.length > 0 ? (
-              tickets.map((ticket) => {
+              tickets.map((ticket: any) => {
+                const ticketId = ticket.id ?? ticket._id;
                 const statusCfg = STATUS_CONFIG[ticket.status as TicketStatus] ?? STATUS_CONFIG.open;
                 const priorityCfg = PRIORITY_CONFIG[ticket.priority] ?? PRIORITY_CONFIG.medium;
+                const userName = ticket.user_name ?? ticket.userName;
+                const messageCount = ticket.message_count ?? ticket.messageCount;
+                const createdAt = ticket.created_at ?? ticket.createdAt;
                 return (
                   <button
-                    key={ticket._id}
-                    onClick={() => setSelectedTicketId(ticket._id)}
+                    key={ticketId}
+                    onClick={() => setSelectedTicketId(ticketId)}
                     className={`w-full text-right bg-surface-1 border rounded-xl p-4 transition-all hover:bg-surface-2/30 ${
-                      selectedTicketId === ticket._id
+                      selectedTicketId === ticketId
                         ? "border-primary ring-1 ring-primary/30"
                         : "border-card-border"
                     }`}
@@ -107,15 +114,15 @@ export default function AdminSupportPage() {
                       </span>
                     </div>
                     <div className="flex items-center gap-3 text-xs text-muted">
-                      <span>{ticket.userName}</span>
+                      <span>{userName}</span>
                       <span className={`font-medium ${priorityCfg.color}`}>{priorityCfg.label}</span>
                       <span className="flex items-center gap-1">
                         <MessageSquare size={10} />
-                        {ticket.messageCount}
+                        {messageCount}
                       </span>
                     </div>
                     <div className="text-[10px] text-muted mt-2">
-                      {new Date(ticket.createdAt).toLocaleDateString("ar-SA")}
+                      {new Date(createdAt).toLocaleDateString("ar-SA")}
                     </div>
                   </button>
                 );
@@ -154,21 +161,22 @@ function TicketThread({
   ticketId,
   onBack,
 }: {
-  ticketId: Id<"supportTickets">;
+  ticketId: string;
   onBack: () => void;
 }) {
-  const thread = useQuery(api.admin.getSupportTicketThread, { ticketId });
-  const replyMutation = useMutation(api.admin.replySupportTicket);
-  const updateStatusMutation = useMutation(api.admin.updateTicketStatus);
+  const { data: thread, mutate: mutateThread } = useSWR(
+    `/api/admin/support/thread?ticketId=${ticketId}`,
+    fetcher
+  );
   const [replyBody, setReplyBody] = useState("");
   const [isSending, setIsSending] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [thread?.messages.length]);
+  }, [thread?.messages?.length]);
 
-  if (thread === undefined) {
+  if (!thread) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 size={32} className="animate-spin text-muted" />
@@ -177,6 +185,8 @@ function TicketThread({
   }
 
   const { ticket, messages } = thread;
+  const userName = ticket.user_name ?? ticket.userName;
+  const userEmail = ticket.user_email ?? ticket.userEmail;
   const statusCfg = STATUS_CONFIG[ticket.status as TicketStatus] ?? STATUS_CONFIG.open;
   const priorityCfg = PRIORITY_CONFIG[ticket.priority] ?? PRIORITY_CONFIG.medium;
 
@@ -184,8 +194,13 @@ function TicketThread({
     if (!replyBody.trim() || isSending) return;
     setIsSending(true);
     try {
-      await replyMutation({ ticketId, body: replyBody.trim() });
+      await fetch('/api/admin/support', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reply', ticketId, body: replyBody.trim() }),
+      });
       setReplyBody("");
+      mutateThread();
     } catch (error) {
       console.error("Reply failed:", error);
     } finally {
@@ -195,7 +210,12 @@ function TicketThread({
 
   const handleStatusChange = async (newStatus: TicketStatus) => {
     try {
-      await updateStatusMutation({ ticketId, status: newStatus });
+      await fetch('/api/admin/support', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update_status', ticketId, status: newStatus }),
+      });
+      mutateThread();
     } catch (error) {
       console.error("Status update failed:", error);
     }
@@ -215,7 +235,7 @@ function TicketThread({
           <h3 className="font-bold text-lg flex-1 line-clamp-1">{ticket.subject}</h3>
         </div>
         <div className="flex flex-wrap items-center gap-3 text-xs">
-          <span className="text-muted">{ticket.userName} ({ticket.userEmail})</span>
+          <span className="text-muted">{userName} ({userEmail})</span>
           <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-bold ${statusCfg.bg} ${statusCfg.color}`}>
             {statusCfg.label}
           </span>
@@ -246,33 +266,38 @@ function TicketThread({
 
       {/* Messages */}
       <div className="flex-1 overflow-y-auto p-4 space-y-3">
-        {messages.map((msg) => (
-          <div
-            key={msg._id}
-            className={`flex ${msg.isAdmin ? "justify-start" : "justify-end"}`}
-          >
-            <div className={`max-w-[80%] p-3 rounded-2xl ${
-              msg.isAdmin
-                ? "bg-primary/10 border border-primary/20"
-                : "bg-surface-2/50 border border-card-border"
-            }`}>
-              <div className="flex items-center gap-2 mb-1">
-                {msg.isAdmin ? (
-                  <Shield size={12} className="text-primary" />
-                ) : (
-                  <User size={12} className="text-muted" />
-                )}
-                <span className="text-[10px] font-bold text-muted">
-                  {msg.isAdmin ? "الدعم الفني" : ticket.userName}
-                </span>
-                <span className="text-[10px] text-muted">
-                  {new Date(msg.createdAt).toLocaleString("ar-SA")}
-                </span>
+        {messages.map((msg: any) => {
+          const msgId = msg.id ?? msg._id;
+          const isAdmin = msg.is_admin ?? msg.isAdmin;
+          const createdAt = msg.created_at ?? msg.createdAt;
+          return (
+            <div
+              key={msgId}
+              className={`flex ${isAdmin ? "justify-start" : "justify-end"}`}
+            >
+              <div className={`max-w-[80%] p-3 rounded-2xl ${
+                isAdmin
+                  ? "bg-primary/10 border border-primary/20"
+                  : "bg-surface-2/50 border border-card-border"
+              }`}>
+                <div className="flex items-center gap-2 mb-1">
+                  {isAdmin ? (
+                    <Shield size={12} className="text-primary" />
+                  ) : (
+                    <User size={12} className="text-muted" />
+                  )}
+                  <span className="text-[10px] font-bold text-muted">
+                    {isAdmin ? "الدعم الفني" : userName}
+                  </span>
+                  <span className="text-[10px] text-muted">
+                    {new Date(createdAt).toLocaleString("ar-SA")}
+                  </span>
+                </div>
+                <p className="text-sm whitespace-pre-wrap">{msg.body}</p>
               </div>
-              <p className="text-sm whitespace-pre-wrap">{msg.body}</p>
             </div>
-          </div>
-        ))}
+          );
+        })}
         <div ref={messagesEndRef} />
       </div>
 

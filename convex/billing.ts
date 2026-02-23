@@ -136,7 +136,7 @@ function extractStripeCustomerId(
 
 function estimateStripeFeeCents(amountCents: number): number {
   if (amountCents <= 0) return 0;
-  return Math.round(amountCents * 0.029 + 30);
+  return Math.round(amountCents * 0.06);
 }
 
 function getCheckoutBrandingSettings(

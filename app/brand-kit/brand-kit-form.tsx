@@ -3,13 +3,10 @@
 import { useState, useCallback } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
+import { mutate } from "swr";
 import type { BrandPalette, StyleAdjective } from "@/lib/types";
 import { STYLE_ADJECTIVE_OPTIONS } from "@/lib/constants";
 import { extractColorsFromImage } from "@/lib/brand-extraction";
-import { uploadBase64ToConvex } from "@/lib/convex-upload";
 import { useLocale } from "@/hooks/use-locale";
 import {
   X,
@@ -48,9 +45,8 @@ const DEFAULT_PALETTE: BrandPalette = {
 interface BrandKitFormProps {
   redirectTo?: string;
   existingKit?: {
-    _id: Id<"brand_kits">;
+    id: string;
     name: string;
-    logoStorageId?: Id<"_storage">;
     logoUrl?: string | null;
     palette: BrandPalette;
     extractedColors: string[];
@@ -94,10 +90,6 @@ export function BrandKitForm({ existingKit, redirectTo }: BrandKitFormProps) {
     type: "success" | "error";
     text: string;
   } | null>(null);
-
-  const saveBrandKit = useMutation(api.brandKits.save);
-  const updateBrandKit = useMutation(api.brandKits.update);
-  const generateUploadUrl = useMutation(api.generations.generateUploadUrl);
 
   const handleLogoUpload = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -194,47 +186,50 @@ export function BrandKitForm({ existingKit, redirectTo }: BrandKitFormProps) {
 
     try {
       // Upload logo if new
-      let logoStorageId: Id<"_storage"> | undefined =
-        existingKit?.logoStorageId;
+      let logoUrl: string | undefined = existingKit?.logoUrl ?? undefined;
 
       if (logoBase64) {
-        const storageId = await uploadBase64ToConvex(
-          logoBase64,
-          generateUploadUrl
-        );
-        logoStorageId = storageId as unknown as Id<"_storage">;
+        const uploadRes = await fetch('/api/storage/upload', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            base64: logoBase64,
+            bucket: 'brand-kits',
+            prefix: 'logo',
+          }),
+        });
+        if (!uploadRes.ok) throw new Error('Failed to upload logo');
+        const { publicUrl } = await uploadRes.json();
+        logoUrl = publicUrl;
       }
 
       // Filter empty rules
       const cleanDoRules = doRules.filter((r) => r.trim());
       const cleanDontRules = dontRules.filter((r) => r.trim());
 
-      if (existingKit) {
-        await updateBrandKit({
-          brandKitId: existingKit._id,
-          name: name.trim(),
-          logoStorageId,
-          palette,
-          extractedColors,
-          fontFamily,
-          styleAdjectives: selectedAdjectives,
-          doRules: cleanDoRules,
-          dontRules: cleanDontRules,
-          isDefault: true,
-        });
-      } else {
-        await saveBrandKit({
-          name: name.trim(),
-          logoStorageId,
-          palette,
-          extractedColors,
-          fontFamily,
-          styleAdjectives: selectedAdjectives,
-          doRules: cleanDoRules,
-          dontRules: cleanDontRules,
-          isDefault: true,
-        });
-      }
+      const payload = {
+        id: existingKit?.id,
+        name: name.trim(),
+        logoUrl,
+        palette,
+        extractedColors,
+        fontFamily,
+        styleAdjectives: selectedAdjectives,
+        doRules: cleanDoRules,
+        dontRules: cleanDontRules,
+        isDefault: true,
+      };
+
+      const res = await fetch('/api/brand-kits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) throw new Error('Failed to save brand kit');
+
+      // Revalidate SWR cache
+      mutate('/api/brand-kits');
 
       setSaveMessage({ type: "success", text: t("تم حفظ هوية العلامة التجارية بنجاح", "Brand identity saved successfully") });
       if (redirectTo) {

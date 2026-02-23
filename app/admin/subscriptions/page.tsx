@@ -1,8 +1,6 @@
 "use client";
 
-import { useQuery, useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import type { Id } from "@/convex/_generated/dataModel";
+import useSWR from "swr";
 import { useState } from "react";
 import {
   CreditCard,
@@ -15,11 +13,16 @@ import {
   Trash2,
 } from "lucide-react";
 
+const fetcher = (url: string) => fetch(url).then(r => {
+  if (!r.ok) throw new Error('API error');
+  return r.json();
+});
+
 const PLAN_LABELS: Record<string, string> = {
   none: "مجاني",
-  starter: "مبتدي",
-  growth: "نمو",
-  dominant: "هيمنة",
+  starter: "أساسي",
+  growth: "احترافي",
+  dominant: "بريميوم",
 };
 
 const STATUS_CONFIG: Record<string, { label: string; icon: typeof CheckCircle2; color: string; bg: string }> = {
@@ -31,11 +34,10 @@ const STATUS_CONFIG: Record<string, { label: string; icon: typeof CheckCircle2; 
 };
 
 export default function AdminSubscriptionsPage() {
-  const data = useQuery(api.admin.listSubscriptions, {});
-  const deleteBilling = useMutation(api.admin.deleteBillingRecord);
+  const { data, mutate } = useSWR('/api/admin/subscriptions', fetcher);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  if (data === undefined) {
+  if (!data) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 size={32} className="animate-spin text-muted" />
@@ -45,11 +47,18 @@ export default function AdminSubscriptionsPage() {
 
   const { subscriptions, summary } = data;
 
-  const handleDelete = async (billingId: Id<"billing">) => {
+  const handleDelete = async (billingId: string) => {
     if (!confirm("هل أنت متأكد من حذف هذا السجل؟")) return;
     setDeletingId(billingId);
     try {
-      await deleteBilling({ billingId });
+      const res = await fetch(`/api/admin/subscriptions?billingId=${billingId}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'فشل الحذف');
+      }
+      mutate();
     } catch (err: any) {
       alert(err.message ?? "فشل الحذف");
     } finally {
@@ -91,23 +100,33 @@ export default function AdminSubscriptionsPage() {
                 </tr>
               </thead>
               <tbody>
-                {subscriptions.map((sub) => {
-                  const statusCfg = STATUS_CONFIG[sub.status] ?? STATUS_CONFIG.none;
+                {subscriptions.map((sub: any) => {
+                  const planKey = sub.plan_key ?? sub.planKey;
+                  const status = sub.status ?? "none";
+                  const statusCfg = STATUS_CONFIG[status] ?? STATUS_CONFIG.none;
                   const StatusIcon = statusCfg.icon;
+                  const monthlyCreditsUsed = sub.monthly_credits_used ?? sub.monthlyCreditsUsed ?? 0;
+                  const monthlyCreditLimit = sub.monthly_credit_limit ?? sub.monthlyCreditLimit ?? 0;
+                  const addonCreditsBalance = sub.addon_credits_balance ?? sub.addonCreditsBalance ?? 0;
+                  const currentPeriodStart = sub.current_period_start ?? sub.currentPeriodStart;
+                  const currentPeriodEnd = sub.current_period_end ?? sub.currentPeriodEnd;
+                  const userName = sub.user_name ?? sub.userName ?? "";
+                  const userEmail = sub.user_email ?? sub.userEmail ?? "";
+                  const subId = sub.id ?? sub._id;
                   return (
-                    <tr key={sub._id} className="border-b border-card-border/50 hover:bg-surface-2/20 transition-colors">
+                    <tr key={subId} className="border-b border-card-border/50 hover:bg-surface-2/20 transition-colors">
                       <td className="py-3 px-4">
-                        <div className="font-medium">{sub.userName}</div>
-                        <div className="text-xs text-muted">{sub.userEmail}</div>
+                        <div className="font-medium">{userName}</div>
+                        <div className="text-xs text-muted">{userEmail}</div>
                       </td>
                       <td className="py-3 px-4">
                         <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${
-                          sub.planKey === "dominant" ? "bg-accent/20 text-accent" :
-                          sub.planKey === "growth" ? "bg-primary/20 text-primary" :
-                          sub.planKey === "starter" ? "bg-success/20 text-success" :
+                          planKey === "dominant" ? "bg-accent/20 text-accent" :
+                          planKey === "growth" ? "bg-primary/20 text-primary" :
+                          planKey === "starter" ? "bg-success/20 text-success" :
                           "bg-muted/20 text-muted"
                         }`}>
-                          {PLAN_LABELS[sub.planKey] ?? sub.planKey}
+                          {PLAN_LABELS[planKey] ?? planKey}
                         </span>
                       </td>
                       <td className="py-3 px-4">
@@ -117,26 +136,26 @@ export default function AdminSubscriptionsPage() {
                         </div>
                       </td>
                       <td className="py-3 px-4 text-xs">
-                        <span className="font-bold">{sub.monthlyCreditsUsed}</span> / {sub.monthlyCreditLimit}
+                        <span className="font-bold">{monthlyCreditsUsed}</span> / {monthlyCreditLimit}
                       </td>
-                      <td className="py-3 px-4 font-bold text-xs">{sub.addonCreditsBalance}</td>
+                      <td className="py-3 px-4 font-bold text-xs">{addonCreditsBalance}</td>
                       <td className="py-3 px-4 text-xs text-muted">
-                        {sub.currentPeriodStart && sub.currentPeriodEnd ? (
+                        {currentPeriodStart && currentPeriodEnd ? (
                           <>
-                            {new Date(sub.currentPeriodStart).toLocaleDateString("ar-SA")}
+                            {new Date(currentPeriodStart).toLocaleDateString("ar-SA")}
                             {" — "}
-                            {new Date(sub.currentPeriodEnd).toLocaleDateString("ar-SA")}
+                            {new Date(currentPeriodEnd).toLocaleDateString("ar-SA")}
                           </>
                         ) : "—"}
                       </td>
                       <td className="py-3 px-4">
                         <button
-                          onClick={() => handleDelete(sub._id as Id<"billing">)}
-                          disabled={deletingId === sub._id}
+                          onClick={() => handleDelete(subId)}
+                          disabled={deletingId === subId}
                           className="p-1.5 text-destructive hover:bg-destructive/10 rounded-lg transition-colors disabled:opacity-50"
                           title="حذف"
                         >
-                          {deletingId === sub._id ? (
+                          {deletingId === subId ? (
                             <Loader2 size={14} className="animate-spin" />
                           ) : (
                             <Trash2 size={14} />

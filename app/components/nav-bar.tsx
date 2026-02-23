@@ -5,15 +5,17 @@ import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import type { MouseEvent } from "react";
 import { Palette, Clock, Plus, Loader2, Settings, Coins, Languages } from "lucide-react";
-import { SignInButton, useAuth, useUser } from "@clerk/nextjs";
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { useAuth } from "@/hooks/use-auth";
+import useSWR from "swr";
 import { ThemeToggle } from "./theme-toggle";
 import { NotificationBell } from "./notification-bell";
 import type { AppLocale } from "@/lib/i18n";
 import { LOCALE_COOKIE } from "@/lib/i18n";
 
-const AUTH_ENABLED = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
+const fetcher = (url: string) => fetch(url).then(r => {
+  if (!r.ok) throw new Error('API error');
+  return r.json();
+});
 
 const COPY = {
   ar: {
@@ -54,25 +56,20 @@ export function NavBar({ locale }: NavBarProps) {
 
   if (isAuthPage) return null;
 
-  if (!AUTH_ENABLED) {
-    return <NavBarNoAuth locale={locale} />;
-  }
-  return <NavBarWithAuth locale={locale} />;
+  return <NavBarContent locale={locale} />;
 }
 
-function NavBarWithAuth({ locale }: NavBarProps) {
+function NavBarContent({ locale }: NavBarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const { isLoaded: isClerkLoaded, userId } = useAuth();
+  const { isLoaded, isSignedIn, user } = useAuth();
   const copy = COPY[locale];
   const nextLocale = locale === "ar" ? "en" : "ar";
 
-  const isClerkSignedIn = Boolean(userId);
-
   const handleGenerateClick = () => {
-    if (!isClerkLoaded) return;
+    if (!isLoaded) return;
 
-    if (!isClerkSignedIn) {
+    if (!isSignedIn) {
       router.push("/sign-in");
     } else {
       router.push("/create");
@@ -93,7 +90,7 @@ function NavBarWithAuth({ locale }: NavBarProps) {
   return (
     <nav className="sticky top-0 z-50 px-4 py-3">
       <div className="max-w-7xl mx-auto">
-        <div className="bg-surface-1/80 backdrop-blur-xl border border-card-border shadow-sm rounded-2xl px-4 h-16 flex items-center justify-between transition-all duration-300 hover:bg-surface-1/90">
+        <div className="bg-surface-1/90 md:bg-surface-1/80 md:backdrop-blur-xl border border-card-border shadow-sm rounded-2xl px-4 h-16 flex items-center justify-between transition-all duration-300 hover:bg-surface-1/90">
           <Link href="/" onClick={handleLogoClick} className="flex items-center gap-2 group">
             <div className=" relative size-24 transition-transform duration-300 group-hover:rotate-12">
               <Image
@@ -149,20 +146,18 @@ function NavBarWithAuth({ locale }: NavBarProps) {
               <span>{copy.newPost}</span>
             </button>
 
-            {!isClerkLoaded ? (
+            {!isLoaded ? (
               <Loader2 size={20} className="animate-spin text-muted" />
-            ) : isClerkSignedIn ? (
+            ) : isSignedIn ? (
               <>
                 <NotificationBell />
-                <CreditsBadge locale={locale} />
+                <CreditsBadge locale={locale} user={user} />
               </>
             ) : (
               <div className="hidden sm:block">
-                <SignInButton>
-                  <button className="text-sm font-bold text-muted hover:text-primary transition-colors px-3 py-1.5">
-                    {copy.signIn}
-                  </button>
-                </SignInButton>
+                <Link href="/sign-in" className="text-sm font-bold text-muted hover:text-primary transition-colors px-3 py-1.5">
+                  {copy.signIn}
+                </Link>
               </div>
             )}
           </div>
@@ -172,9 +167,8 @@ function NavBarWithAuth({ locale }: NavBarProps) {
   );
 }
 
-function CreditsBadge({ locale }: NavBarProps) {
-  const { user: clerkUser } = useUser();
-  const creditState = useQuery(api.billing.getCreditState);
+function CreditsBadge({ locale, user }: NavBarProps & { user: any }) {
+  const { data: creditState } = useSWR('/api/billing', fetcher);
   const requiresSubscription =
     !!creditState &&
     "planKey" in creditState &&
@@ -182,9 +176,11 @@ function CreditsBadge({ locale }: NavBarProps) {
   const href = requiresSubscription ? "/pricing" : "/top-up";
   const copy = COPY[locale];
 
-  const initials = clerkUser?.fullName
+  const fullName = user?.user_metadata?.full_name || user?.user_metadata?.name || "";
+  const avatarUrl = user?.user_metadata?.avatar_url || user?.user_metadata?.picture || null;
+  const initials = fullName
     ?.split(" ")
-    .map((n) => n[0])
+    .map((n: string) => n[0])
     .slice(0, 2)
     .join("") ?? "";
 
@@ -212,14 +208,13 @@ function CreditsBadge({ locale }: NavBarProps) {
         href="/settings"
         className="relative w-9 h-9 rounded-full overflow-hidden border-2 border-card-border hover:border-primary/50 transition-colors shrink-0"
       >
-        {clerkUser?.imageUrl ? (
+        {avatarUrl ? (
           <Image
-            src={clerkUser.imageUrl}
-            alt={clerkUser.fullName ?? copy.profileAlt}
+            src={avatarUrl}
+            alt={copy.profileAlt}
             fill
-            sizes="36px"
             className="object-cover"
-            unoptimized
+            sizes="36px"
           />
         ) : (
           <div className="w-full h-full bg-primary/10 flex items-center justify-center text-primary text-xs font-bold">
@@ -228,86 +223,5 @@ function CreditsBadge({ locale }: NavBarProps) {
         )}
       </Link>
     </div>
-  );
-}
-
-function NavBarNoAuth({ locale }: NavBarProps) {
-  const pathname = usePathname();
-  const router = useRouter();
-  const copy = COPY[locale];
-  const nextLocale = locale === "ar" ? "en" : "ar";
-
-  const handleLogoClick = (e: MouseEvent<HTMLAnchorElement>) => {
-    if (pathname !== "/") return;
-    e.preventDefault();
-    document.getElementById("hero")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
-
-  const handleLocaleSwitch = () => {
-    document.cookie = `${LOCALE_COOKIE}=${nextLocale}; path=/; max-age=31536000; samesite=lax`;
-    router.refresh();
-  };
-
-  return (
-    <nav className="sticky top-0 z-50 px-4 py-3">
-      <div className="max-w-7xl mx-auto">
-        <div className="bg-surface-1/80 backdrop-blur-xl border border-card-border shadow-sm rounded-2xl px-4 h-16 flex items-center justify-between transition-all duration-300 hover:bg-surface-1/90">
-          <Link href="/" onClick={handleLogoClick} className="flex items-center gap-2 group">
-            <div className="relative w-9 h-9 transition-transform duration-300 group-hover:rotate-12">
-              <Image
-                src="/icon_logo_svg.svg"
-                alt="Postaty Symbol"
-                fill
-                className="object-contain"
-                priority
-              />
-            </div>
-            <span className="text-xl font-black tracking-tighter text-foreground">
-              Postaty
-            </span>
-          </Link>
-
-          <div className="hidden md:flex items-center gap-1 bg-surface-2/50 p-1 rounded-xl border border-card-border">
-            {copy.navItems.map((item) => {
-              const Icon = item.icon;
-              const isActive = pathname.startsWith(item.href);
-              return (
-                <Link
-                  key={item.href}
-                  href={item.href}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 ${
-                    isActive
-                      ? "bg-surface-1 text-primary shadow-sm ring-1 ring-card-border"
-                      : "text-muted hover:text-foreground hover:bg-surface-1/50"
-                  }`}
-                >
-                  <Icon size={16} />
-                  <span>{item.label}</span>
-                </Link>
-              );
-            })}
-          </div>
-
-          <div className="flex items-center gap-3">
-            <ThemeToggle className="hidden sm:flex" />
-            <button
-              type="button"
-              onClick={handleLocaleSwitch}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-card-border text-sm font-bold text-muted hover:text-foreground hover:bg-surface-2 transition-colors"
-            >
-              <Languages size={14} />
-              <span>{copy.langToggle}</span>
-            </button>
-            <Link
-              href="/create"
-              className="hidden md:flex items-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-primary to-primary-hover text-primary-foreground text-sm font-bold shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 hover:scale-105 transition-all duration-300"
-            >
-              <Plus size={18} />
-              <span>{copy.newPost}</span>
-            </Link>
-          </div>
-        </div>
-      </div>
-    </nav>
   );
 }

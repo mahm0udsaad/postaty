@@ -2,12 +2,10 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth, SignInButton } from "@clerk/nextjs";
+import { useAuth } from "@/hooks/use-auth";
 import { ArrowLeft, Coins, Zap, Check } from "lucide-react";
 import Link from "next/link";
 import { useLocale } from "@/hooks/use-locale";
-
-const AUTH_ENABLED = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
 
 type Bundle = {
   key: "addon_5" | "addon_10";
@@ -96,17 +94,7 @@ export default function TopUpPage() {
         </div>
 
         <div className="bg-surface-1 border border-card-border rounded-2xl p-6 md:p-8">
-
-          {AUTH_ENABLED ? (
-            <TopUpCTA checkoutUrl={checkoutUrl} locale={locale} />
-          ) : (
-            <Link
-              href="/sign-in"
-              className="block w-full py-3.5 rounded-xl font-bold text-center bg-gradient-to-r from-primary to-primary-hover text-primary-foreground hover:shadow-lg hover:shadow-primary/25 transition-all"
-            >
-              {t("سجل دخول للشراء", "Sign in to purchase")}
-            </Link>
-          )}
+          <TopUpCTA checkoutUrl={checkoutUrl} locale={locale} />
 
           <p className="text-xs text-muted text-center mt-4">
             {t("دفعة واحدة — بدون اشتراك", "One-time payment — no subscription")}
@@ -139,10 +127,11 @@ function TopUpCTA({
   }
 
   return (
-    <SignInButton forceRedirectUrl={checkoutUrl}>
-      <button className="w-full py-3.5 rounded-xl font-bold bg-gradient-to-r from-primary to-primary-hover text-primary-foreground hover:shadow-lg hover:shadow-primary/25 transition-all">
-        {locale === "ar" ? "سجل دخول للشراء" : "Sign in to purchase"}
-      </button>
-    </SignInButton>
+    <Link
+      href={`/sign-in?redirect_url=${encodeURIComponent(checkoutUrl)}`}
+      className="block w-full py-3.5 rounded-xl font-bold text-center bg-gradient-to-r from-primary to-primary-hover text-primary-foreground hover:shadow-lg hover:shadow-primary/25 transition-all"
+    >
+      {locale === "ar" ? "سجل دخول للشراء" : "Sign in to purchase"}
+    </Link>
   );
 }

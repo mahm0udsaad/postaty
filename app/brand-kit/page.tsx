@@ -1,17 +1,18 @@
 "use client";
 
 import { Suspense } from "react";
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { useDevIdentity } from "@/hooks/use-dev-identity";
+import useSWR from "swr";
+import { useAuth } from "@/hooks/use-auth";
 import { BrandKitForm } from "./brand-kit-form";
 import { Palette, Loader2 } from "lucide-react";
-import { SignInButton } from "@clerk/nextjs";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useLocale } from "@/hooks/use-locale";
 
-const AUTH_ENABLED = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
+const fetcher = (url: string) => fetch(url).then(r => {
+  if (!r.ok) throw new Error('API error');
+  return r.json();
+});
 
 export default function BrandKitPage() {
   return (
@@ -24,16 +25,18 @@ export default function BrandKitPage() {
 function BrandKitContent() {
   const searchParams = useSearchParams();
   const { t } = useLocale();
-  const { isLoading: isIdentityLoading, isAuthenticated } = useDevIdentity();
-  const existingKit = useQuery(
-    api.brandKits.getDefault,
-    isAuthenticated ? {} : "skip"
+  const { isSignedIn, isLoaded } = useAuth();
+  const { data: brandKitsData, isLoading: isBrandKitLoading } = useSWR(
+    isSignedIn ? '/api/brand-kits' : null,
+    fetcher
   );
+  const brandKits = brandKitsData?.brandKits as any[] | undefined;
+  const existingKit = brandKits?.[0];
   const nextParam = searchParams.get("next");
   const redirectTo = nextParam?.startsWith("/") ? nextParam : undefined;
 
-  // Show loading while query initializes (undefined = loading, null = no kit)
-  const isLoading = isIdentityLoading || (isAuthenticated && existingKit === undefined);
+  // Show loading while query initializes
+  const isLoading = !isLoaded || (isSignedIn && isBrandKitLoading);
 
   return (
     <main className="min-h-screen py-12 px-4 relative overflow-hidden bg-grid-pattern">
@@ -61,20 +64,12 @@ function BrandKitContent() {
           <div className="flex justify-center py-20">
             <Loader2 size={32} className="animate-spin text-primary" />
           </div>
-        ) : !isAuthenticated ? (
+        ) : !isSignedIn ? (
           <div className="text-center py-16">
             <p className="text-muted mb-6">{t("سجل الدخول لإدارة هوية علامتك التجارية", "Sign in to manage your brand identity")}</p>
-            {AUTH_ENABLED ? (
-              <SignInButton forceRedirectUrl="/brand-kit">
-                <button className="px-6 py-3 bg-primary text-white rounded-xl font-bold">
-                  {t("تسجيل الدخول", "Sign in")}
-                </button>
-              </SignInButton>
-            ) : (
-              <Link href="/create" className="px-6 py-3 bg-primary text-white rounded-xl font-bold inline-block">
-                {t("ابدأ الآن", "Start now")}
-              </Link>
-            )}
+            <Link href="/sign-in?redirect_url=/brand-kit" className="px-6 py-3 bg-primary text-white rounded-xl font-bold inline-block">
+              {t("تسجيل الدخول", "Sign in")}
+            </Link>
           </div>
         ) : (
           <div className="space-y-4">

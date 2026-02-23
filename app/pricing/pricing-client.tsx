@@ -1,17 +1,13 @@
 "use client";
 
-import { useQuery } from "convex/react";
-import { useAuth, SignInButton } from "@clerk/nextjs";
+import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
-import { api } from "@/convex/_generated/api";
 import type { PricingSet } from "@/lib/country-pricing";
 import { PricingCard } from "@/app/components/pricing-card";
 import { ArrowLeft, Zap } from "lucide-react";
 import Link from "next/link";
 import { useLocale } from "@/hooks/use-locale";
 import type { AppLocale } from "@/lib/i18n";
-
-const AUTH_ENABLED = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
 
 type PlanKey = "starter" | "growth" | "dominant";
 
@@ -22,10 +18,10 @@ type PricingClientProps = {
 
 export default function PricingClient({ countryCode, fallbackPricing }: PricingClientProps) {
   const router = useRouter();
-  const convexPricing = useQuery(api.stripeAdmin.getCountryPricing, { countryCode });
   const { locale, t } = useLocale();
 
-  const prices = buildPrices(convexPricing, fallbackPricing);
+  const prices = fallbackPricing;
+  void countryCode;
 
   return (
     <main className="min-h-screen relative pt-8 pb-16 px-4 md:pt-16 md:pb-24">
@@ -56,11 +52,7 @@ export default function PricingClient({ countryCode, fallbackPricing }: PricingC
               isPopular={planKey === "growth"}
               locale={locale}
               ctaButton={
-                AUTH_ENABLED ? (
-                  <PlanCTAWithAuth planKey={planKey} isPopular={planKey === "growth"} router={router} locale={locale} />
-                ) : (
-                  <PlanCTANoAuth isPopular={planKey === "growth"} locale={locale} />
-                )
+                <PlanCTA planKey={planKey} isPopular={planKey === "growth"} router={router} locale={locale} />
               }
             />
           ))}
@@ -90,47 +82,7 @@ export default function PricingClient({ countryCode, fallbackPricing }: PricingC
   );
 }
 
-function buildPrices(
-  convexPricing: Array<{
-    planKey: string;
-    monthlyAmountCents: number;
-    firstMonthAmountCents: number;
-    currencySymbol: string;
-  }> | undefined,
-  fallback: PricingSet
-): {
-  starter: { monthly: number; firstMonth: number };
-  growth: { monthly: number; firstMonth: number };
-  dominant: { monthly: number; firstMonth: number };
-} {
-  if (!convexPricing || convexPricing.length === 0) {
-    return {
-      starter: fallback.starter,
-      growth: fallback.growth,
-      dominant: fallback.dominant,
-    };
-  }
-
-  const result = {
-    starter: fallback.starter,
-    growth: fallback.growth,
-    dominant: fallback.dominant,
-  };
-
-  for (const row of convexPricing) {
-    const key = row.planKey as PlanKey;
-    if (key in result) {
-      result[key] = {
-        monthly: row.monthlyAmountCents / 100,
-        firstMonth: row.firstMonthAmountCents / 100,
-      };
-    }
-  }
-
-  return result;
-}
-
-function PlanCTAWithAuth({
+function PlanCTA({
   planKey,
   isPopular,
   router,
@@ -160,30 +112,8 @@ function PlanCTAWithAuth({
   }
 
   return (
-    <SignInButton forceRedirectUrl={checkoutUrl}>
-      <button
-        className={`w-full py-3 rounded-xl font-bold transition-all ${
-          isPopular
-            ? "bg-gradient-to-r from-primary to-primary-hover text-primary-foreground hover:shadow-lg hover:shadow-primary/25"
-            : "border border-card-border text-foreground hover:bg-surface-2"
-        }`}
-      >
-        {locale === "ar" ? "سجل دخول للاشتراك" : "Sign in to subscribe"}
-      </button>
-    </SignInButton>
-  );
-}
-
-function PlanCTANoAuth({
-  isPopular,
-  locale,
-}: {
-  isPopular: boolean;
-  locale: AppLocale;
-}) {
-  return (
     <Link
-      href="/sign-in"
+      href={`/sign-in?redirect_url=${encodeURIComponent(checkoutUrl)}`}
       className={`block w-full py-3 rounded-xl font-bold text-center transition-all ${
         isPopular
           ? "bg-gradient-to-r from-primary to-primary-hover text-primary-foreground hover:shadow-lg hover:shadow-primary/25"
@@ -196,40 +126,6 @@ function PlanCTANoAuth({
 }
 
 function AddonCard({
-  title,
-  price,
-  addonKey,
-  router,
-  locale,
-}: {
-  title: string;
-  price: string;
-  addonKey: "addon_5" | "addon_10";
-  router: ReturnType<typeof useRouter>;
-  locale: AppLocale;
-}) {
-  if (AUTH_ENABLED) {
-    return (
-      <AddonCardWithAuth
-        title={title}
-        price={price}
-        addonKey={addonKey}
-        router={router}
-        locale={locale}
-      />
-    );
-  }
-
-  return (
-    <AddonCardNoAuth
-      title={title}
-      price={price}
-      locale={locale}
-    />
-  );
-}
-
-function AddonCardWithAuth({
   title,
   price,
   addonKey,
@@ -263,41 +159,13 @@ function AddonCardWithAuth({
           {locale === "ar" ? "شراء" : "Buy"}
         </button>
       ) : (
-        <SignInButton forceRedirectUrl={checkoutUrl}>
-          <button className="px-5 py-2.5 bg-accent/10 text-accent border border-accent/20 rounded-xl font-bold text-sm hover:bg-accent/20 transition-colors">
-            {locale === "ar" ? "شراء" : "Buy"}
-          </button>
-        </SignInButton>
+        <Link
+          href={`/sign-in?redirect_url=${encodeURIComponent(checkoutUrl)}`}
+          className="px-5 py-2.5 bg-accent/10 text-accent border border-accent/20 rounded-xl font-bold text-sm hover:bg-accent/20 transition-colors"
+        >
+          {locale === "ar" ? "شراء" : "Buy"}
+        </Link>
       )}
-    </div>
-  );
-}
-
-function AddonCardNoAuth({
-  title,
-  price,
-  locale,
-}: {
-  title: string;
-  price: string;
-  locale: AppLocale;
-}) {
-  return (
-    <div className="bg-surface-1 border border-card-border rounded-2xl p-6 flex items-center justify-between">
-      <div>
-        <div className="flex items-center gap-2 mb-1">
-          <Zap size={16} className="text-accent" />
-          <span className="font-bold">{title}</span>
-        </div>
-        <span className="text-2xl font-black" dir="ltr">{price}</span>
-        <span className={`text-sm text-muted ${locale === "ar" ? "mr-1" : "ml-1"}`}>{locale === "ar" ? "دفعة واحدة" : "One-time"}</span>
-      </div>
-      <Link
-        href="/sign-in"
-        className="px-5 py-2.5 bg-accent/10 text-accent border border-accent/20 rounded-xl font-bold text-sm hover:bg-accent/20 transition-colors"
-      >
-        {locale === "ar" ? "شراء" : "Buy"}
-      </Link>
     </div>
   );
 }

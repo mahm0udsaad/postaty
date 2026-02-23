@@ -1,173 +1,197 @@
 "use client";
 
-import { motion } from "framer-motion";
-import {
-  Sparkles,
-  Zap,
-  Palette,
-  Smartphone,
-  TrendingUp,
-  WandSparkles,
-  BadgePercent,
-  Megaphone,
-  ShoppingBag,
-  UtensilsCrossed,
-  Store,
-} from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import Image from "next/image";
+import { useEffect, useState } from "react";
 import { useLocale } from "@/hooks/use-locale";
+import { Scan, Sparkles, Wand2, Maximize2, Palette, Type } from "lucide-react";
+
+const themes = [
+  {
+    id: "burger",
+    image: "/showcase/burger-stack.jpeg",
+    type: "Food & Beverage",
+    stats: { color: "98%", layout: "100%", copy: "AI Gen" },
+    accent: "text-orange-500",
+    bg: "bg-orange-500/20"
+  },
+  {
+    id: "beauty",
+    image: "/showcase/skincare-promo.jpeg",
+    type: "Beauty & Care",
+    stats: { color: "95%", layout: "Smart", copy: "Auto" },
+    accent: "text-emerald-500",
+    bg: "bg-emerald-500/20"
+  },
+  {
+    id: "ramadan",
+    image: "/showcase/ramadan-card.jpeg",
+    type: "Seasonal Event",
+    stats: { color: "Gold", layout: "Classic", copy: "Arabic" },
+    accent: "text-purple-500",
+    bg: "bg-purple-500/20"
+  }
+];
 
 export function HeroVisual() {
   const { t } = useLocale();
+  const [index, setIndex] = useState(0);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+    const interval = setInterval(() => {
+      setIndex((prev) => (prev + 1) % themes.length);
+    }, 6000); // Slower cycle to appreciate the scan
+    return () => clearInterval(interval);
+  }, []);
+
+  const theme = themes[index];
+
+  if (!mounted) return null;
+
   return (
-    <div className="relative w-full max-w-sm aspect-[3/4] mx-auto lg:mx-0">
-      <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary/25 via-accent/20 to-transparent blur-[70px]" />
-      <div className="absolute inset-8 rounded-full border border-primary/20 motion-safe:animate-hero-orbit" />
-      <div className="absolute inset-14 rounded-full border border-accent/20 motion-safe:animate-hero-orbit-reverse" />
-      <div className="absolute top-12 left-10 h-28 w-px bg-gradient-to-b from-transparent via-primary/30 to-transparent motion-safe:animate-hero-beam" />
-      <div className="absolute bottom-20 right-10 h-24 w-px bg-gradient-to-b from-transparent via-accent/30 to-transparent motion-safe:animate-hero-beam-reverse" />
-
-      <motion.div
-        className="absolute inset-x-5 top-4 bottom-5 rounded-[2.4rem] border border-card-border bg-surface-1/90 shadow-2xl overflow-hidden backdrop-blur-sm motion-safe:animate-hero-float"
-        initial={{ opacity: 0, y: 20, scale: 0.96 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ duration: 0.7, delay: 0.2, ease: [0.16, 1, 0.3, 1] }}
-      >
-        <div className="flex justify-center pt-3 pb-2">
-          <div className="h-5 w-20 rounded-full bg-background/90" />
+    <div className="relative w-full max-w-[500px] aspect-[4/5] mx-auto lg:mx-0 flex items-center justify-center perspective-1000">
+      
+      {/* Container Frame */}
+      <div className="relative w-full h-full rounded-[2rem] bg-[#0A0A0E] border border-white/10 shadow-2xl overflow-hidden group">
+        
+        {/* Top HUD */}
+        <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-black/80 to-transparent z-30 flex items-center justify-between px-6">
+           <div className="flex items-center gap-2">
+             <div className={`p-1.5 rounded-lg ${theme.bg} ${theme.accent} animate-pulse`}>
+               <Scan size={16} />
+             </div>
+             <div className="flex flex-col">
+               <span className="text-[10px] text-white/50 font-mono tracking-widest uppercase">SCANNING MODE</span>
+               <span className="text-xs font-bold text-white">{theme.type}</span>
+             </div>
+           </div>
+           <div className="flex gap-1">
+             {[1, 2, 3].map((i) => (
+               <div key={i} className={`w-1 h-1 rounded-full ${i === 1 ? "bg-green-500" : "bg-white/20"}`} />
+             ))}
+           </div>
         </div>
 
-        <div className="px-4 pb-4 space-y-3">
-          <div className="relative aspect-square overflow-hidden rounded-2xl border border-card-border bg-gradient-to-br from-primary/15 via-accent/10 to-primary/5">
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.24),transparent_38%),radial-gradient(circle_at_80%_72%,rgba(34,211,238,0.26),transparent_35%)] motion-safe:animate-hero-pan" />
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/15 to-transparent -translate-x-full motion-safe:animate-[shimmer_3.4s_linear_infinite]" />
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={theme.id}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5 }}
+            className="relative w-full h-full"
+          >
+            {/* LAYER 1: The Blueprint (Wireframe simulation) */}
+            <div className="absolute inset-0 bg-[#0F0F15]">
+               {/* Use the image but heavily processed to look like a blueprint */}
+               <Image
+                 src={theme.image}
+                 alt="Blueprint"
+                 fill
+                 className="object-cover opacity-30 grayscale contrast-150 blur-[2px]"
+               />
+               {/* Wireframe Grid Overlay */}
+               <div className="absolute inset-0 bg-[url('/tmp-test-grid.png')] bg-repeat opacity-20 mix-blend-overlay" />
+               <div className="absolute inset-0 border-[0.5px] border-white/10 m-8 rounded-xl border-dashed" />
+               
+               {/* Floating Blueprint Markers */}
+               <div className="absolute top-1/3 left-1/4 border border-blue-500/50 w-24 h-12 rounded flex items-center justify-center text-[10px] text-blue-400 font-mono bg-blue-500/10">
+                 PLACEHOLDER
+               </div>
+               <div className="absolute bottom-1/4 right-1/4 border border-blue-500/50 w-32 h-32 rounded-full flex items-center justify-center text-[10px] text-blue-400 font-mono bg-blue-500/10">
+                 HERO_IMG_01
+               </div>
+            </div>
 
-            <div className="absolute inset-5">
-              <div className="absolute inset-0 rounded-2xl border border-white/10 bg-surface-1/80 backdrop-blur-sm p-3 motion-safe:animate-hero-poster-a">
-                <div className="mb-3 flex items-center justify-between">
-                  <div className="h-2 w-16 rounded-full bg-foreground/15" />
-                  <Sparkles size={14} className="text-primary" />
-                </div>
-                <div className="mb-2 h-24 rounded-xl bg-gradient-to-br from-primary/50 via-accent/30 to-primary/20" />
-                <div className="h-2 w-20 rounded-full bg-foreground/20" />
-                <div className="mt-2 h-2 w-14 rounded-full bg-foreground/10" />
-              </div>
+            {/* LAYER 2: The Reality (Final Image) - Revealed by Scanner */}
+            <motion.div 
+              className="absolute inset-0 overflow-hidden"
+              initial={{ clipPath: "inset(0 100% 0 0)" }}
+              animate={{ clipPath: "inset(0 0% 0 0)" }}
+              transition={{ duration: 3, ease: "easeInOut", delay: 0.5 }}
+            >
+              <Image
+                src={theme.image}
+                alt="Final Design"
+                fill
+                className="object-cover"
+                priority
+              />
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent opacity-60" />
+            </motion.div>
 
-              <div className="absolute inset-0 rounded-2xl border border-white/10 bg-surface-1/80 backdrop-blur-sm p-3 motion-safe:animate-hero-poster-b">
-                <div className="mb-3 flex items-center justify-between">
-                  <div className="h-2 w-14 rounded-full bg-foreground/15" />
-                  <Palette size={14} className="text-accent" />
-                </div>
-                <div className="mb-2 h-24 rounded-xl bg-gradient-to-br from-success/40 via-primary/25 to-accent/25" />
-                <div className="h-2 w-20 rounded-full bg-foreground/20" />
-                <div className="mt-2 h-2 w-12 rounded-full bg-foreground/10" />
-              </div>
+            {/* LAYER 3: The Scanner Bar */}
+            <motion.div
+               className="absolute top-0 bottom-0 w-1 bg-white z-20 shadow-[0_0_50px_rgba(255,255,255,0.8)]"
+               initial={{ left: "0%" }}
+               animate={{ left: "100%" }}
+               transition={{ duration: 3, ease: "easeInOut", delay: 0.5 }}
+            >
+               <div className="absolute top-1/2 -translate-y-1/2 -left-[14px] w-8 h-8 bg-white rounded-full flex items-center justify-center shadow-lg">
+                 <Wand2 size={16} className="text-black" />
+               </div>
+               <div className="absolute inset-y-0 -left-12 w-12 bg-gradient-to-r from-transparent to-white/30" />
+            </motion.div>
+            
+            {/* LAYER 4: Pop-up Stats (Triggered by scan) */}
+            <motion.div
+              className="absolute bottom-24 left-6 bg-black/60 backdrop-blur-md border border-white/10 p-3 rounded-xl z-30"
+              initial={{ y: 20, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              transition={{ delay: 2 }}
+            >
+               <div className="flex items-center gap-3">
+                 <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-accent flex items-center justify-center">
+                   <Palette size={14} className="text-white" />
+                 </div>
+                 <div>
+                   <div className="text-[10px] text-white/60 font-medium uppercase">Color Grading</div>
+                   <div className="text-sm font-bold text-white">{theme.stats.color} Match</div>
+                 </div>
+               </div>
+            </motion.div>
 
-              <div className="absolute inset-0 rounded-2xl border border-white/10 bg-surface-1/80 backdrop-blur-sm p-3 motion-safe:animate-hero-poster-c">
-                <div className="mb-3 flex items-center justify-between">
-                  <div className="h-2 w-[4.5rem] rounded-full bg-foreground/15" />
-                  <WandSparkles size={14} className="text-warning" />
-                </div>
-                <div className="mb-2 h-24 rounded-xl bg-gradient-to-br from-warning/50 via-primary/25 to-accent/25" />
-                <div className="h-2 w-20 rounded-full bg-foreground/20" />
-                <div className="mt-2 h-2 w-16 rounded-full bg-foreground/10" />
-              </div>
-            </div>
-          </div>
+            <motion.div
+              className="absolute top-32 right-6 bg-black/60 backdrop-blur-md border border-white/10 p-3 rounded-xl z-30"
+              initial={{ x: 20, opacity: 0 }}
+              animate={{ x: 0, opacity: 1 }}
+              transition={{ delay: 1.5 }}
+            >
+               <div className="flex items-center gap-3">
+                 <div className="w-8 h-8 rounded-lg bg-surface-2 flex items-center justify-center text-white border border-white/10">
+                   <Type size={14} />
+                 </div>
+                 <div>
+                   <div className="text-[10px] text-white/60 font-medium uppercase">Smart Copy</div>
+                   <div className="text-sm font-bold text-white">{theme.stats.copy}</div>
+                 </div>
+               </div>
+            </motion.div>
 
-          <div className="flex gap-2">
-            <div className="h-10 flex-1 rounded-xl bg-gradient-to-r from-primary to-primary-hover flex items-center justify-center shadow-lg shadow-primary/25">
-              <div className="h-2 w-20 rounded-full bg-white/45" />
-            </div>
-            <div className="h-10 w-10 rounded-xl border border-card-border bg-surface-2 flex items-center justify-center">
-              <Sparkles size={14} className="text-foreground/50" />
-            </div>
-          </div>
+          </motion.div>
+        </AnimatePresence>
 
-          <div className="grid grid-cols-4 gap-2 pt-1">
-            <div className="h-8 rounded-lg border border-card-border bg-surface-2/80 flex items-center justify-center motion-safe:animate-hero-symbol-float">
-              <UtensilsCrossed size={12} className="text-warning" />
-            </div>
-            <div className="h-8 rounded-lg border border-card-border bg-surface-2/80 flex items-center justify-center motion-safe:animate-hero-symbol-float-delayed">
-              <Store size={12} className="text-success" />
-            </div>
-            <div className="h-8 rounded-lg border border-card-border bg-surface-2/80 flex items-center justify-center motion-safe:animate-hero-symbol-float">
-              <ShoppingBag size={12} className="text-accent" />
-            </div>
-            <div className="h-8 rounded-lg border border-card-border bg-surface-2/80 flex items-center justify-center motion-safe:animate-hero-symbol-float-delayed">
-              <BadgePercent size={12} className="text-primary" />
-            </div>
-          </div>
+        {/* Bottom Status Bar */}
+        <div className="absolute bottom-0 left-0 right-0 h-14 bg-[#0A0A0E]/90 backdrop-blur border-t border-white/10 z-30 flex items-center justify-between px-6">
+           <div className="flex items-center gap-4">
+             <div className="flex items-center gap-2">
+               <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+               <span className="text-[10px] font-bold text-white/80 uppercase tracking-wider">AI Processor Online</span>
+             </div>
+           </div>
+           <div className="flex items-center gap-2 text-white/40">
+              <Maximize2 size={14} />
+              <span className="text-[10px] font-mono">1080x1350</span>
+           </div>
         </div>
-      </motion.div>
 
-      <motion.div
-        className="absolute -right-2 top-14 rounded-xl border border-card-border bg-surface-1/90 p-2.5 shadow-lg backdrop-blur-sm motion-safe:animate-hero-chip"
-        initial={{ opacity: 0, x: 16 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.5, delay: 0.6, ease: [0.16, 1, 0.3, 1] }}
-      >
-        <div className="flex items-center gap-2">
-          <div className="rounded-lg bg-primary/15 p-1.5">
-            <Zap size={14} className="text-primary" />
-          </div>
-          <span className="text-xs font-bold text-foreground">{t("30 ثانية", "30 sec")}</span>
-        </div>
-      </motion.div>
+      </div>
 
-      <motion.div
-        className="absolute -left-4 top-36 rounded-xl border border-card-border bg-surface-1/90 p-2.5 shadow-lg backdrop-blur-sm motion-safe:animate-hero-chip-reverse"
-        initial={{ opacity: 0, x: -16 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.5, delay: 0.8, ease: [0.16, 1, 0.3, 1] }}
-      >
-        <div className="flex items-center gap-2">
-          <div className="rounded-lg bg-accent/15 p-1.5">
-            <TrendingUp size={14} className="text-accent" />
-          </div>
-          <span className="text-xs font-bold text-foreground">{t("+320% تفاعل", "+320% engagement")}</span>
-        </div>
-      </motion.div>
+      {/* Decorative Glow */}
+      <div className={`absolute -inset-4 bg-gradient-to-br from-primary/30 to-accent/30 rounded-[2.5rem] blur-2xl -z-10 opacity-40`} />
 
-      <motion.div
-        className="absolute -right-3 bottom-24 rounded-xl border border-card-border bg-surface-1/90 p-2.5 shadow-lg backdrop-blur-sm motion-safe:animate-hero-chip"
-        initial={{ opacity: 0, x: 16 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.5, delay: 1, ease: [0.16, 1, 0.3, 1] }}
-      >
-        <div className="flex items-center gap-2">
-          <div className="rounded-lg bg-success/15 p-1.5">
-            <Smartphone size={14} className="text-success" />
-          </div>
-          <span className="text-xs font-bold text-foreground">{t("6 أحجام", "6 sizes")}</span>
-        </div>
-      </motion.div>
-
-      <motion.div
-        className="absolute left-1 top-16 h-10 w-10 rounded-xl border border-card-border bg-surface-1/85 shadow-lg backdrop-blur-sm flex items-center justify-center motion-safe:animate-hero-symbol-float"
-        initial={{ opacity: 0, scale: 0.7 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.45, delay: 0.7, ease: [0.16, 1, 0.3, 1] }}
-      >
-        <Megaphone size={14} className="text-primary" />
-      </motion.div>
-
-      <motion.div
-        className="absolute right-1 top-44 h-9 w-9 rounded-lg border border-card-border bg-surface-1/85 shadow-lg backdrop-blur-sm flex items-center justify-center motion-safe:animate-hero-symbol-float-delayed"
-        initial={{ opacity: 0, scale: 0.7 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.45, delay: 0.9, ease: [0.16, 1, 0.3, 1] }}
-      >
-        <BadgePercent size={13} className="text-warning" />
-      </motion.div>
-
-      <motion.div
-        className="absolute left-4 bottom-20 h-9 w-9 rounded-lg border border-card-border bg-surface-1/85 shadow-lg backdrop-blur-sm flex items-center justify-center motion-safe:animate-hero-symbol-float"
-        initial={{ opacity: 0, scale: 0.7 }}
-        animate={{ opacity: 1, scale: 1 }}
-        transition={{ duration: 0.45, delay: 1.1, ease: [0.16, 1, 0.3, 1] }}
-      >
-        <ShoppingBag size={13} className="text-accent" />
-      </motion.div>
     </div>
   );
 }

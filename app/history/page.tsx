@@ -1,19 +1,20 @@
 "use client";
 
 import { useState } from "react";
-import { useDevIdentity } from "@/hooks/use-dev-identity";
+import useSWR from "swr";
+import { useAuth } from "@/hooks/use-auth";
 import { PosterGallery } from "./poster-gallery";
 import { GenerationCard } from "./generation-card";
 import { Clock, Grid3x3, List, Sparkles, Gift } from "lucide-react";
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
 import type { Category } from "@/lib/types";
 import { CATEGORY_LABELS } from "@/lib/constants";
-import { SignInButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { useLocale } from "@/hooks/use-locale";
 
-const AUTH_ENABLED = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
+const fetcher = (url: string) => fetch(url).then(r => {
+  if (!r.ok) throw new Error('API error');
+  return r.json();
+});
 
 const CATEGORY_LABELS_EN: Record<Category, string> = {
   restaurant: "Restaurants & Cafes",
@@ -27,7 +28,7 @@ const CATEGORY_LABELS_EN: Record<Category, string> = {
 export type ImageTypeFilter = "all" | "pro" | "gift";
 
 export default function HistoryPage() {
-  const { isLoading: isIdentityLoading, isAuthenticated } = useDevIdentity();
+  const { isSignedIn, isLoaded } = useAuth();
   const { locale, t } = useLocale();
   const [viewMode, setViewMode] = useState<"gallery" | "list">("gallery");
   const [selectedCategory, setSelectedCategory] = useState<"all" | Category>("all");
@@ -44,12 +45,15 @@ export default function HistoryPage() {
     { value: "beauty", label: locale === "ar" ? CATEGORY_LABELS.beauty : CATEGORY_LABELS_EN.beauty },
   ];
 
-  const generations = useQuery(
-    api.generations.listByUser,
-    isAuthenticated && viewMode === "list"
-      ? { limit: 50, category: categoryFilter }
-      : "skip"
+  const listParams = new URLSearchParams({ limit: '50' });
+  if (categoryFilter) listParams.set('category', categoryFilter);
+  const { data: listData, isLoading: isListLoading } = useSWR(
+    isSignedIn && viewMode === "list"
+      ? `/api/generations?${listParams.toString()}`
+      : null,
+    fetcher
   );
+  const generations = listData?.generations as any[] | undefined;
 
   return (
     <main className="min-h-screen py-12 px-4 relative overflow-hidden bg-grid-pattern">
@@ -154,26 +158,18 @@ export default function HistoryPage() {
           </div>
         </div>
 
-        {!isAuthenticated && !isIdentityLoading ? (
+        {!isSignedIn && isLoaded ? (
           <div className="text-center py-16">
             <p className="text-muted mb-6">{t("سجّل الدخول لعرض السجل", "Sign in to view your history")}</p>
-            {AUTH_ENABLED ? (
-              <SignInButton forceRedirectUrl="/history">
-                <button className="px-6 py-3 bg-primary text-white rounded-xl font-bold">
-                  {t("تسجيل الدخول", "Sign in")}
-                </button>
-              </SignInButton>
-            ) : (
-              <Link href="/create" className="px-6 py-3 bg-primary text-white rounded-xl font-bold inline-block">
-                {t("ابدأ الآن", "Start now")}
-              </Link>
-            )}
+            <Link href="/sign-in?redirect_url=/history" className="px-6 py-3 bg-primary text-white rounded-xl font-bold inline-block">
+              {t("تسجيل الدخول", "Sign in")}
+            </Link>
           </div>
         ) : viewMode === "gallery" ? (
           <PosterGallery category={categoryFilter} imageType={imageType} />
         ) : (
           <div className="max-w-5xl mx-auto space-y-4">
-            {isIdentityLoading || generations === undefined ? (
+            {!isLoaded || isListLoading || generations === undefined ? (
               <div className="flex justify-center py-20">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
               </div>
@@ -183,14 +179,14 @@ export default function HistoryPage() {
               </div>
             ) : (
               generations
-                .filter((gen) => {
+                .filter((gen: any) => {
                   if (imageType === "all") return true;
                   return gen.outputs.some((o: { format: string }) =>
                     imageType === "gift" ? o.format === "gift" : o.format !== "gift"
                   );
                 })
-                .map((gen) => (
-                  <GenerationCard key={gen._id} generation={gen} imageType={imageType} />
+                .map((gen: any) => (
+                  <GenerationCard key={gen.id} generation={gen} imageType={imageType} />
                 ))
             )}
           </div>

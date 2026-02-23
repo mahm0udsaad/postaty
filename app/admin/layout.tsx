@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useConvexAuth, useQuery, useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { useAuth } from "@/hooks/use-auth";
+import useSWR from "swr";
 import {
   LayoutDashboard,
   Brain,
@@ -24,6 +24,11 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+const fetcher = (url: string) => fetch(url).then(r => {
+  if (!r.ok) throw new Error('API error');
+  return r.json();
+});
+
 const ADMIN_NAV = [
   { href: "/admin", label: "لوحة التحكم", icon: LayoutDashboard, exact: true },
   { href: "/admin/ai", label: "تحليلات AI", icon: Brain },
@@ -39,16 +44,16 @@ const ADMIN_NAV = [
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { isAuthenticated, isLoading: isConvexLoading } = useConvexAuth();
+  const { isSignedIn, isLoaded } = useAuth();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  const currentUser = useQuery(
-    api.users.getCurrentUser,
-    isAuthenticated ? {} : "skip"
+  const { data: currentUser, isLoading: isUserLoading } = useSWR(
+    isSignedIn ? '/api/users/me' : null,
+    fetcher
   );
 
   // Loading state
-  if (isConvexLoading || (isAuthenticated && currentUser === undefined)) {
+  if (!isLoaded || (isSignedIn && isUserLoading)) {
     return (
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
@@ -60,7 +65,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   // Not authenticated
-  if (!isAuthenticated) {
+  if (!isSignedIn) {
     return (
       <div className="min-h-screen flex items-center justify-center px-4">
         <div className="bg-surface-1 border border-card-border rounded-2xl p-8 max-w-md w-full text-center">
@@ -80,7 +85,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   }
 
   // Not admin (or no user record at all)
-  const isAdmin = currentUser?.role === "admin" || currentUser?.role === "owner";
+  const isAdmin = currentUser?.user?.role === "admin" || currentUser?.user?.role === "owner";
   if (!isAdmin) {
     return <AdminAccessDenied />;
   }
@@ -165,7 +170,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 const ALLOW_BOOTSTRAP = process.env.NEXT_PUBLIC_ALLOW_ADMIN_BOOTSTRAP === "true";
 
 function AdminAccessDenied() {
-  const bootstrapAdmin = useMutation(api.admin.bootstrapAdmin);
   const [bootstrapping, setBootstrapping] = useState(false);
   const [bootstrapError, setBootstrapError] = useState<string | null>(null);
   const [bootstrapDone, setBootstrapDone] = useState(false);
@@ -176,7 +180,15 @@ function AdminAccessDenied() {
     setBootstrapping(true);
     setBootstrapError(null);
     try {
-      await bootstrapAdmin({ secret: secret || undefined });
+      const res = await fetch('/api/admin/bootstrap', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ secret: secret || undefined }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'فشل تعيين المسؤول');
+      }
       setBootstrapDone(true);
       window.location.reload();
     } catch (err) {

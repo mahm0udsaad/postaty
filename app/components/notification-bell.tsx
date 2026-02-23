@@ -2,13 +2,16 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Bell, CheckCheck, Info, AlertTriangle, CircleCheck, Coins, Cog } from "lucide-react";
-import { useAuth } from "@clerk/nextjs";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { useAuth } from "@/hooks/use-auth";
+import useSWR from "swr";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import type { Id } from "@/convex/_generated/dataModel";
 import { useLocale } from "@/hooks/use-locale";
+
+const fetcher = (url: string) => fetch(url).then(r => {
+  if (!r.ok) throw new Error('API error');
+  return r.json();
+});
 
 const TYPE_ICONS: Record<string, typeof Info> = {
   info: Info,
@@ -26,8 +29,9 @@ const TYPE_COLORS: Record<string, string> = {
   system: "text-muted",
 };
 
-function formatRelativeTime(timestamp: number, locale: "ar" | "en") {
-  const diff = Date.now() - timestamp;
+function formatRelativeTime(timestamp: number | string, locale: "ar" | "en") {
+  const ts = typeof timestamp === "string" ? new Date(timestamp).getTime() : timestamp;
+  const diff = Date.now() - ts;
   const minutes = Math.floor(diff / 60_000);
   if (minutes < 1) return locale === "ar" ? "الآن" : "Now";
   if (minutes < 60) return locale === "ar" ? `منذ ${minutes} د` : `${minutes}m ago`;
@@ -35,22 +39,24 @@ function formatRelativeTime(timestamp: number, locale: "ar" | "en") {
   if (hours < 24) return locale === "ar" ? `منذ ${hours} س` : `${hours}h ago`;
   const days = Math.floor(hours / 24);
   if (days < 30) return locale === "ar" ? `منذ ${days} ي` : `${days}d ago`;
-  return new Date(timestamp).toLocaleDateString(locale === "ar" ? "ar-SA" : "en-US");
+  return new Date(ts).toLocaleDateString(locale === "ar" ? "ar-SA" : "en-US");
 }
 
 export function NotificationBell() {
-  const { userId } = useAuth();
+  const { userId, isSignedIn } = useAuth();
   const { locale, t } = useLocale();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  const unreadCount = useQuery(api.notifications.getUnreadCount, userId ? {} : "skip");
-  const notifications = useQuery(
-    api.notifications.listMyNotifications,
-    userId ? { limit: 10 } : "skip"
+  const { data: unreadData } = useSWR(
+    isSignedIn ? '/api/notifications?count=true' : null,
+    fetcher,
+    { refreshInterval: 30000 }
   );
-  const markAsRead = useMutation(api.notifications.markAsRead);
-  const markAllAsRead = useMutation(api.notifications.markAllAsRead);
+  const { data: notifications, mutate: mutateNotifications } = useSWR(
+    isSignedIn && open ? '/api/notifications?limit=10' : null,
+    fetcher
+  );
 
   useEffect(() => {
     function handleClick(e: MouseEvent) {
@@ -62,9 +68,35 @@ export function NotificationBell() {
     return () => document.removeEventListener("mousedown", handleClick);
   }, [open]);
 
-  if (!userId) return null;
+  if (!isSignedIn) return null;
 
-  const count = unreadCount ?? 0;
+  const count = unreadData?.count ?? 0;
+
+  const markAsRead = async (notificationId: string) => {
+    try {
+      await fetch('/api/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'markAsRead', notificationId }),
+      });
+      mutateNotifications();
+    } catch (err) {
+      console.error("Failed to mark as read:", err);
+    }
+  };
+
+  const markAllAsRead = async () => {
+    try {
+      await fetch('/api/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'markAllAsRead' }),
+      });
+      mutateNotifications();
+    } catch (err) {
+      console.error("Failed to mark all as read:", err);
+    }
+  };
 
   return (
     <div ref={ref} className="relative">
@@ -105,14 +137,14 @@ export function NotificationBell() {
 
             <div className="overflow-y-auto max-h-[320px]">
               {notifications && notifications.length > 0 ? (
-                notifications.map((n) => {
+                notifications.map((n: any) => {
                   const Icon = TYPE_ICONS[n.type] ?? Info;
                   const color = TYPE_COLORS[n.type] ?? "text-muted";
                   return (
                     <button
-                      key={n._id}
+                      key={n.id}
                       onClick={() => {
-                        if (!n.isRead) markAsRead({ notificationId: n._id as Id<"notifications"> });
+                        if (!n.isRead) markAsRead(n.id);
                       }}
                       className={`w-full text-right px-4 py-3 flex gap-3 hover:bg-surface-2/40 transition-colors border-b border-card-border/50 last:border-b-0 ${
                         !n.isRead ? "bg-primary/5" : ""

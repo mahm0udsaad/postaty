@@ -1,7 +1,6 @@
 "use client";
 
-import { useAction, useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import useSWR from "swr";
 import {
   Loader2,
   Plus,
@@ -18,6 +17,11 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
+
+const fetcher = (url: string) => fetch(url).then(r => {
+  if (!r.ok) throw new Error('API error');
+  return r.json();
+});
 
 type Tab = "products" | "priceMappings" | "coupons" | "countryPricing";
 
@@ -87,13 +91,6 @@ type StripeProduct = {
 };
 
 function ProductsTab() {
-  const listProducts = useAction(api.stripeAdmin.listProducts);
-  const createProduct = useAction(api.stripeAdmin.createProduct);
-  const updateProduct = useAction(api.stripeAdmin.updateProduct);
-  const archiveProduct = useAction(api.stripeAdmin.archiveProduct);
-  const createPrice = useAction(api.stripeAdmin.createPrice);
-  const deactivatePrice = useAction(api.stripeAdmin.deactivatePrice);
-
   const [products, setProducts] = useState<StripeProduct[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCreateProduct, setShowCreateProduct] = useState(false);
@@ -105,12 +102,14 @@ function ProductsTab() {
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await listProducts({});
+      const res = await fetch('/api/admin/stripe/products');
+      if (!res.ok) throw new Error('API error');
+      const result = await res.json();
       setProducts(result.products);
     } finally {
       setLoading(false);
     }
-  }, [listProducts]);
+  }, []);
 
   useEffect(() => {
     refresh();
@@ -119,7 +118,11 @@ function ProductsTab() {
   const handleArchive = async (productId: string) => {
     setActionLoading(productId);
     try {
-      await archiveProduct({ productId });
+      await fetch('/api/admin/stripe/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'archive', productId }),
+      });
       await refresh();
     } finally {
       setActionLoading(null);
@@ -151,7 +154,6 @@ function ProductsTab() {
         <CreateProductForm
           onClose={() => setShowCreateProduct(false)}
           onCreated={refresh}
-          createProduct={createProduct}
         />
       )}
 
@@ -171,7 +173,6 @@ function ProductsTab() {
                       product={product}
                       onClose={() => setEditingProduct(null)}
                       onSaved={refresh}
-                      updateProduct={updateProduct}
                     />
                   ) : (
                     <>
@@ -240,7 +241,6 @@ function ProductsTab() {
                     productId={product.id}
                     onClose={() => setShowCreatePrice(null)}
                     onCreated={refresh}
-                    createPrice={createPrice}
                   />
                 )}
 
@@ -283,7 +283,11 @@ function ProductsTab() {
                             onClick={async () => {
                               setDeactivatingPrice(price.id);
                               try {
-                                await deactivatePrice({ priceId: price.id, productId: product.id });
+                                await fetch('/api/admin/stripe/products', {
+                                  method: 'POST',
+                                  headers: { 'Content-Type': 'application/json' },
+                                  body: JSON.stringify({ action: 'deactivate_price', priceId: price.id, productId: product.id }),
+                                });
                                 await refresh();
                               } finally {
                                 setDeactivatingPrice(null);
@@ -327,20 +331,9 @@ function ProductsTab() {
 function CreateProductForm({
   onClose,
   onCreated,
-  createProduct,
 }: {
   onClose: () => void;
   onCreated: () => Promise<void>;
-  createProduct: (args: {
-    name: string;
-    description?: string;
-    metadata?: any;
-    priceAmountCents: number;
-    currency: string;
-    billingType: "recurring" | "one_time";
-    interval?: "month" | "year";
-    lookupKey: string;
-  }) => Promise<{ productId: string; priceId: string }>;
 }) {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -356,14 +349,19 @@ function CreateProductForm({
     if (!name || !amount || !lookupKey) return;
     setSaving(true);
     try {
-      await createProduct({
-        name,
-        description: description || undefined,
-        priceAmountCents: Math.round(parseFloat(amount) * 100),
-        currency,
-        billingType,
-        interval: billingType === "recurring" ? interval : undefined,
-        lookupKey,
+      await fetch('/api/admin/stripe/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create_product',
+          name,
+          description: description || undefined,
+          priceAmountCents: Math.round(parseFloat(amount) * 100),
+          currency,
+          billingType,
+          interval: billingType === "recurring" ? interval : undefined,
+          lookupKey,
+        }),
       });
       await onCreated();
       onClose();
@@ -487,16 +485,10 @@ function EditProductForm({
   product,
   onClose,
   onSaved,
-  updateProduct,
 }: {
   product: StripeProduct;
   onClose: () => void;
   onSaved: () => Promise<void>;
-  updateProduct: (args: {
-    productId: string;
-    name?: string;
-    description?: string;
-  }) => Promise<{ success: boolean }>;
 }) {
   const [name, setName] = useState(product.name);
   const [description, setDescription] = useState(product.description ?? "");
@@ -507,10 +499,15 @@ function EditProductForm({
     if (!name) return;
     setSaving(true);
     try {
-      await updateProduct({
-        productId: product.id,
-        name,
-        description: description || undefined,
+      await fetch('/api/admin/stripe/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update_product',
+          productId: product.id,
+          name,
+          description: description || undefined,
+        }),
       });
       await onSaved();
       onClose();
@@ -557,19 +554,10 @@ function CreatePriceForm({
   productId,
   onClose,
   onCreated,
-  createPrice,
 }: {
   productId: string;
   onClose: () => void;
   onCreated: () => Promise<void>;
-  createPrice: (args: {
-    productId: string;
-    amountCents: number;
-    currency: string;
-    billingType: "recurring" | "one_time";
-    interval?: "month" | "year";
-    lookupKey: string;
-  }) => Promise<{ priceId: string }>;
 }) {
   const [amount, setAmount] = useState("");
   const [currency, setCurrency] = useState("usd");
@@ -583,13 +571,18 @@ function CreatePriceForm({
     if (!amount || !lookupKey) return;
     setSaving(true);
     try {
-      await createPrice({
-        productId,
-        amountCents: Math.round(parseFloat(amount) * 100),
-        currency,
-        billingType,
-        interval: billingType === "recurring" ? interval : undefined,
-        lookupKey,
+      await fetch('/api/admin/stripe/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create_price',
+          productId,
+          amountCents: Math.round(parseFloat(amount) * 100),
+          currency,
+          billingType,
+          interval: billingType === "recurring" ? interval : undefined,
+          lookupKey,
+        }),
       });
       await onCreated();
       onClose();
@@ -658,10 +651,8 @@ function CreatePriceForm({
 // ── Price Mappings Tab ─────────────────────────────────────────────
 
 function PriceMappingsTab() {
-  const mappings = useQuery(api.billing.listActivePrices, {});
-  const syncPricesAction = useAction(api.stripeAdmin.syncPrices);
-  const updateMappingAction = useAction(api.stripeAdmin.updatePriceMapping);
-  const deleteMappingAction = useAction(api.stripeAdmin.deletePriceMapping);
+  const { data: mappingsData, mutate: mutateMappings } = useSWR('/api/admin/stripe/price-mappings', fetcher);
+  const mappings = mappingsData?.priceMappings;
 
   const [syncing, setSyncing] = useState(false);
   const [deletingKey, setDeletingKey] = useState<string | null>(null);
@@ -674,8 +665,14 @@ function PriceMappingsTab() {
   const handleSync = async () => {
     setSyncing(true);
     try {
-      const result = await syncPricesAction({});
+      const res = await fetch('/api/admin/stripe/price-mappings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'sync' }),
+      });
+      const result = await res.json();
       alert(`تم مزامنة ${result.synced} سعر من Stripe`);
+      mutateMappings();
     } finally {
       setSyncing(false);
     }
@@ -684,7 +681,12 @@ function PriceMappingsTab() {
   const handleDelete = async (key: string) => {
     setDeletingKey(key);
     try {
-      await deleteMappingAction({ key });
+      await fetch('/api/admin/stripe/price-mappings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', key }),
+      });
+      mutateMappings();
     } finally {
       setDeletingKey(null);
     }
@@ -699,13 +701,19 @@ function PriceMappingsTab() {
     if (!editValues.priceId || !editValues.productId) return;
     setSaving(true);
     try {
-      await updateMappingAction({
-        key,
-        priceId: editValues.priceId,
-        productId: editValues.productId,
-        label: editValues.label || undefined,
+      await fetch('/api/admin/stripe/price-mappings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update',
+          key,
+          priceId: editValues.priceId,
+          productId: editValues.productId,
+          label: editValues.label || undefined,
+        }),
       });
       setEditingKey(null);
+      mutateMappings();
     } finally {
       setSaving(false);
     }
@@ -716,20 +724,26 @@ function PriceMappingsTab() {
     if (!addValues.key || !addValues.priceId || !addValues.productId) return;
     setSaving(true);
     try {
-      await updateMappingAction({
-        key: addValues.key,
-        priceId: addValues.priceId,
-        productId: addValues.productId,
-        label: addValues.label || undefined,
+      await fetch('/api/admin/stripe/price-mappings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'update',
+          key: addValues.key,
+          priceId: addValues.priceId,
+          productId: addValues.productId,
+          label: addValues.label || undefined,
+        }),
       });
       setShowAdd(false);
       setAddValues({ key: "", priceId: "", productId: "", label: "" });
+      mutateMappings();
     } finally {
       setSaving(false);
     }
   };
 
-  if (mappings === undefined) {
+  if (!mappings) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 size={32} className="animate-spin text-muted" />
@@ -846,8 +860,8 @@ function PriceMappingsTab() {
                 </tr>
               </thead>
               <tbody>
-                {mappings.map((row) => (
-                  <tr key={row._id} className="border-b border-card-border/50 hover:bg-surface-2/20 transition-colors">
+                {mappings.map((row: any) => (
+                  <tr key={row.id ?? row._id ?? row.key} className="border-b border-card-border/50 hover:bg-surface-2/20 transition-colors">
                     <td className="py-3 px-4">
                       <span className="font-mono font-bold text-primary" dir="ltr">{row.key}</span>
                     </td>
@@ -961,10 +975,6 @@ type StripeCoupon = {
 };
 
 function CouponsTab() {
-  const listCoupons = useAction(api.stripeAdmin.listCoupons);
-  const createCouponAction = useAction(api.stripeAdmin.createCoupon);
-  const deleteCouponAction = useAction(api.stripeAdmin.deleteCoupon);
-
   const [coupons, setCoupons] = useState<StripeCoupon[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
@@ -973,12 +983,14 @@ function CouponsTab() {
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await listCoupons({});
+      const res = await fetch('/api/admin/stripe/coupons');
+      if (!res.ok) throw new Error('API error');
+      const result = await res.json();
       setCoupons(result.coupons);
     } finally {
       setLoading(false);
     }
-  }, [listCoupons]);
+  }, []);
 
   useEffect(() => {
     refresh();
@@ -987,7 +999,11 @@ function CouponsTab() {
   const handleDelete = async (couponId: string) => {
     setDeletingId(couponId);
     try {
-      await deleteCouponAction({ couponId });
+      await fetch('/api/admin/stripe/coupons', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'delete', couponId }),
+      });
       await refresh();
     } finally {
       setDeletingId(null);
@@ -1025,7 +1041,6 @@ function CouponsTab() {
         <CreateCouponForm
           onClose={() => setShowCreate(false)}
           onCreated={refresh}
-          createCoupon={createCouponAction}
         />
       )}
 
@@ -1112,19 +1127,9 @@ function CouponsTab() {
 function CreateCouponForm({
   onClose,
   onCreated,
-  createCoupon,
 }: {
   onClose: () => void;
   onCreated: () => Promise<void>;
-  createCoupon: (args: {
-    name: string;
-    duration: "once" | "repeating" | "forever";
-    amountOffCents?: number;
-    percentOff?: number;
-    currency?: string;
-    durationInMonths?: number;
-    maxRedemptions?: number;
-  }) => Promise<{ couponId: string }>;
 }) {
   const [name, setName] = useState("");
   const [duration, setDuration] = useState<"once" | "repeating" | "forever">("once");
@@ -1140,14 +1145,19 @@ function CreateCouponForm({
     if (!name || !amount) return;
     setSaving(true);
     try {
-      await createCoupon({
-        name,
-        duration,
-        amountOffCents: discountType === "amount" ? Math.round(parseFloat(amount) * 100) : undefined,
-        percentOff: discountType === "percent" ? parseFloat(amount) : undefined,
-        currency: discountType === "amount" ? currency : undefined,
-        durationInMonths: duration === "repeating" && durationInMonths ? parseInt(durationInMonths) : undefined,
-        maxRedemptions: maxRedemptions ? parseInt(maxRedemptions) : undefined,
+      await fetch('/api/admin/stripe/coupons', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'create',
+          name,
+          duration,
+          amountOffCents: discountType === "amount" ? Math.round(parseFloat(amount) * 100) : undefined,
+          percentOff: discountType === "percent" ? parseFloat(amount) : undefined,
+          currency: discountType === "amount" ? currency : undefined,
+          durationInMonths: duration === "repeating" && durationInMonths ? parseInt(durationInMonths) : undefined,
+          maxRedemptions: maxRedemptions ? parseInt(maxRedemptions) : undefined,
+        }),
       });
       await onCreated();
       onClose();
@@ -1258,8 +1268,8 @@ function CreateCouponForm({
 // ── Country Pricing Tab ────────────────────────────────────────────
 
 function CountryPricingTab() {
-  const countryPricing = useQuery(api.stripeAdmin.listCountryPricing, {});
-  const updateCountryPricingAction = useAction(api.stripeAdmin.updateCountryPricing);
+  const { data: countryPricingData, mutate: mutateCountryPricing } = useSWR('/api/admin/stripe/country-pricing', fetcher);
+  const countryPricing = countryPricingData?.countryPricing;
   const [editingRow, setEditingRow] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<{
     monthlyAmountCents: string;
@@ -1267,7 +1277,7 @@ function CountryPricingTab() {
   }>({ monthlyAmountCents: "", firstMonthAmountCents: "" });
   const [saving, setSaving] = useState(false);
 
-  if (countryPricing === undefined) {
+  if (!countryPricing) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 size={32} className="animate-spin text-muted" />
@@ -1278,16 +1288,17 @@ function CountryPricingTab() {
   // Group by country
   const byCountry = new Map<string, typeof countryPricing>();
   for (const row of countryPricing) {
-    if (!byCountry.has(row.countryCode)) byCountry.set(row.countryCode, []);
-    byCountry.get(row.countryCode)!.push(row);
+    const cc = row.country_code ?? row.countryCode;
+    if (!byCountry.has(cc)) byCountry.set(cc, []);
+    byCountry.get(cc)!.push(row);
   }
 
   const countries = Array.from(byCountry.keys()).sort();
 
   const PLAN_LABELS: Record<string, string> = {
-    starter: "مبتدي",
-    growth: "نمو",
-    dominant: "هيمنة",
+    starter: "أساسي",
+    growth: "احترافي",
+    dominant: "بريميوم",
   };
 
   const PLAN_COLORS: Record<string, string> = {
@@ -1296,27 +1307,38 @@ function CountryPricingTab() {
     dominant: "text-accent",
   };
 
-  const startEdit = (row: (typeof countryPricing)[0]) => {
-    setEditingRow(row._id);
+  const startEdit = (row: any) => {
+    const id = row.id ?? row._id;
+    const monthly = row.monthly_amount_cents ?? row.monthlyAmountCents;
+    const firstMonth = row.first_month_amount_cents ?? row.firstMonthAmountCents;
+    setEditingRow(id);
     setEditValues({
-      monthlyAmountCents: (row.monthlyAmountCents / 100).toFixed(2),
-      firstMonthAmountCents: (row.firstMonthAmountCents / 100).toFixed(2),
+      monthlyAmountCents: (monthly / 100).toFixed(2),
+      firstMonthAmountCents: (firstMonth / 100).toFixed(2),
     });
   };
 
-  const handleSave = async (row: (typeof countryPricing)[0]) => {
+  const handleSave = async (row: any) => {
     setSaving(true);
+    const countryCode = row.country_code ?? row.countryCode;
+    const planKey = row.plan_key ?? row.planKey;
+    const isActive = row.is_active ?? row.isActive;
     try {
-      await updateCountryPricingAction({
-        countryCode: row.countryCode,
-        planKey: row.planKey,
-        currency: "USD",
-        currencySymbol: "$",
-        monthlyAmountCents: Math.round(parseFloat(editValues.monthlyAmountCents) * 100),
-        firstMonthAmountCents: Math.round(parseFloat(editValues.firstMonthAmountCents) * 100),
-        isActive: row.isActive,
+      await fetch('/api/admin/stripe/country-pricing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          countryCode,
+          planKey,
+          currency: "USD",
+          currencySymbol: "$",
+          monthlyAmountCents: Math.round(parseFloat(editValues.monthlyAmountCents) * 100),
+          firstMonthAmountCents: Math.round(parseFloat(editValues.firstMonthAmountCents) * 100),
+          isActive,
+        }),
       });
       setEditingRow(null);
+      mutateCountryPricing();
     } finally {
       setSaving(false);
     }
@@ -1345,77 +1367,84 @@ function CountryPricingTab() {
               </thead>
               <tbody>
                 {countries.map((country) =>
-                  byCountry.get(country)!.map((row) => (
-                    <tr key={row._id} className="border-b border-card-border/50 hover:bg-surface-2/20 transition-colors">
-                      <td className="py-3 px-4 font-bold" dir="ltr">{row.countryCode}</td>
-                      <td className="py-3 px-4">
-                        <span className={`font-bold ${PLAN_COLORS[row.planKey] ?? "text-foreground"}`}>
-                          {PLAN_LABELS[row.planKey] ?? row.planKey}
-                        </span>
-                      </td>
-                      <td className="py-3 px-4 text-xs" dir="ltr">
-                        $ USD
-                      </td>
-                      <td className="py-3 px-4">
-                        {editingRow === row._id ? (
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={editValues.monthlyAmountCents}
-                            onChange={(e) =>
-                              setEditValues({ ...editValues, monthlyAmountCents: e.target.value })
-                            }
-                            className="w-24 px-2 py-1 bg-surface-1 border border-primary/30 rounded-lg text-sm focus:outline-none"
-                            dir="ltr"
-                          />
-                        ) : (
-                          <span dir="ltr">${(row.monthlyAmountCents / 100).toFixed(2)}</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4">
-                        {editingRow === row._id ? (
-                          <input
-                            type="number"
-                            step="0.01"
-                            value={editValues.firstMonthAmountCents}
-                            onChange={(e) =>
-                              setEditValues({ ...editValues, firstMonthAmountCents: e.target.value })
-                            }
-                            className="w-24 px-2 py-1 bg-surface-1 border border-primary/30 rounded-lg text-sm focus:outline-none"
-                            dir="ltr"
-                          />
-                        ) : (
-                          <span dir="ltr">${(row.firstMonthAmountCents / 100).toFixed(2)}</span>
-                        )}
-                      </td>
-                      <td className="py-3 px-4">
-                        {editingRow === row._id ? (
-                          <div className="flex gap-1">
+                  byCountry.get(country)!.map((row: any) => {
+                    const id = row.id ?? row._id;
+                    const cc = row.country_code ?? row.countryCode;
+                    const planKey = row.plan_key ?? row.planKey;
+                    const monthly = row.monthly_amount_cents ?? row.monthlyAmountCents;
+                    const firstMonth = row.first_month_amount_cents ?? row.firstMonthAmountCents;
+                    return (
+                      <tr key={id} className="border-b border-card-border/50 hover:bg-surface-2/20 transition-colors">
+                        <td className="py-3 px-4 font-bold" dir="ltr">{cc}</td>
+                        <td className="py-3 px-4">
+                          <span className={`font-bold ${PLAN_COLORS[planKey] ?? "text-foreground"}`}>
+                            {PLAN_LABELS[planKey] ?? planKey}
+                          </span>
+                        </td>
+                        <td className="py-3 px-4 text-xs" dir="ltr">
+                          $ USD
+                        </td>
+                        <td className="py-3 px-4">
+                          {editingRow === id ? (
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={editValues.monthlyAmountCents}
+                              onChange={(e) =>
+                                setEditValues({ ...editValues, monthlyAmountCents: e.target.value })
+                              }
+                              className="w-24 px-2 py-1 bg-surface-1 border border-primary/30 rounded-lg text-sm focus:outline-none"
+                              dir="ltr"
+                            />
+                          ) : (
+                            <span dir="ltr">${(monthly / 100).toFixed(2)}</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4">
+                          {editingRow === id ? (
+                            <input
+                              type="number"
+                              step="0.01"
+                              value={editValues.firstMonthAmountCents}
+                              onChange={(e) =>
+                                setEditValues({ ...editValues, firstMonthAmountCents: e.target.value })
+                              }
+                              className="w-24 px-2 py-1 bg-surface-1 border border-primary/30 rounded-lg text-sm focus:outline-none"
+                              dir="ltr"
+                            />
+                          ) : (
+                            <span dir="ltr">${(firstMonth / 100).toFixed(2)}</span>
+                          )}
+                        </td>
+                        <td className="py-3 px-4">
+                          {editingRow === id ? (
+                            <div className="flex gap-1">
+                              <button
+                                onClick={() => handleSave(row)}
+                                disabled={saving}
+                                className="p-1.5 bg-success/10 text-success rounded-lg hover:bg-success/20 disabled:opacity-50"
+                              >
+                                {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                              </button>
+                              <button
+                                onClick={() => setEditingRow(null)}
+                                className="p-1.5 text-muted hover:text-foreground rounded-lg"
+                              >
+                                <X size={14} />
+                              </button>
+                            </div>
+                          ) : (
                             <button
-                              onClick={() => handleSave(row)}
-                              disabled={saving}
-                              className="p-1.5 bg-success/10 text-success rounded-lg hover:bg-success/20 disabled:opacity-50"
+                              onClick={() => startEdit(row)}
+                              className="p-1.5 text-muted hover:text-foreground hover:bg-surface-2/50 rounded-lg transition-colors"
                             >
-                              {saving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />}
+                              <Pencil size={14} />
                             </button>
-                            <button
-                              onClick={() => setEditingRow(null)}
-                              className="p-1.5 text-muted hover:text-foreground rounded-lg"
-                            >
-                              <X size={14} />
-                            </button>
-                          </div>
-                        ) : (
-                          <button
-                            onClick={() => startEdit(row)}
-                            className="p-1.5 text-muted hover:text-foreground hover:bg-surface-2/50 rounded-lg transition-colors"
-                          >
-                            <Pencil size={14} />
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
             </table>

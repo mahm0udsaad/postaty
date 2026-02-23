@@ -23,13 +23,13 @@ interface GenerationOutput {
 }
 
 interface GenerationData {
-  _id: string;
+  id: string;
   category: string;
-  businessName: string;
-  productName: string;
+  business_name: string;
+  product_name: string;
   status: string;
   outputs: GenerationOutput[];
-  createdAt: number;
+  created_at: number;
   error?: string;
 }
 
@@ -79,7 +79,7 @@ export function GenerationCard({ generation, imageType = "all" }: GenerationCard
     ? CATEGORY_LABELS[generation.category as Category] ?? generation.category
     : CATEGORY_LABELS_EN[generation.category as Category] ?? generation.category;
 
-  const filteredOutputs = generation.outputs.filter((o) => {
+  const filteredOutputs = (generation.outputs ?? []).filter((o) => {
     const isGift = o.format === "gift";
     if (imageType === "pro" && isGift) return false;
     if (imageType === "gift" && !isGift) return false;
@@ -118,7 +118,7 @@ export function GenerationCard({ generation, imageType = "all" }: GenerationCard
       >
         <div className="flex items-center gap-1.5 text-xs text-muted shrink-0">
           <Calendar size={14} />
-          <span>{formatDate(generation.createdAt)}</span>
+          <span>{formatDate(generation.created_at)}</span>
         </div>
 
         <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-surface-1 text-foreground rounded-lg text-xs font-medium shrink-0 border border-card-border shadow-sm">
@@ -127,7 +127,7 @@ export function GenerationCard({ generation, imageType = "all" }: GenerationCard
         </span>
 
         <span className="text-sm font-bold text-foreground truncate">
-          {generation.businessName}
+          {generation.business_name}
         </span>
 
         <span className={`px-2.5 py-1 rounded-lg text-xs font-medium border shrink-0 ${statusInfo.classes}`}>

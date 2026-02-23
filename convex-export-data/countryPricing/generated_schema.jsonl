@@ -1,0 +1,1 @@
+"{\"_creationTime\": normalfloat64, \"_id\": id<10020>, \"countryCode\": field_name, \"createdAt\": normalfloat64, \"currency\": \"USD\", \"currencySymbol\": string, \"firstMonthAmountCents\": normalfloat64, \"isActive\": boolean, \"monthlyAmountCents\": normalfloat64, \"planKey\": \"dominant\" | \"growth\" | \"starter\", \"updatedAt\": normalfloat64}"

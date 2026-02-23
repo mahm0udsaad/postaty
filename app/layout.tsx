@@ -1,8 +1,7 @@
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import localFont from "next/font/local";
-import { ClerkProvider } from "@clerk/nextjs";
-import { ConvexClientProvider } from "./components/convex-provider";
+import { SupabaseProvider } from "./components/supabase-provider";
 import { NavBar } from "./components/nav-bar";
 import { BottomDock } from "./components/bottom-dock";
 import { ScrollToTop } from "./components/scroll-to-top";
@@ -107,21 +106,6 @@ export default async function RootLayout({
   const cookieStore = await cookies();
   const locale = normalizeLocale(cookieStore.get(LOCALE_COOKIE)?.value);
   const dir = isRtlLocale(locale) ? "rtl" : "ltr";
-  const clerkPublishableKey = process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
-  const appShell = (
-    <>
-      <ScrollToTop />
-      <ConvexClientProvider>
-        {clerkPublishableKey ? <AuthSync /> : null}
-        <AccountStatusGate>
-          <NavBar locale={locale} />
-          <main className="pb-20 md:pb-0 min-h-screen">{children}</main>
-          <Footer locale={locale} />
-          <BottomDock />
-        </AccountStatusGate>
-      </ConvexClientProvider>
-    </>
-  );
 
   return (
     <html lang={locale} dir={dir}>
@@ -135,17 +119,16 @@ export default async function RootLayout({
       </head>
       <body className={`${notoKufiArabic.variable} antialiased`}>
         <LocaleProvider locale={locale}>
-          {clerkPublishableKey ? (
-            <ClerkProvider
-              publishableKey={clerkPublishableKey}
-              signInFallbackRedirectUrl="/"
-              signUpFallbackRedirectUrl="/"
-            >
-              {appShell}
-            </ClerkProvider>
-          ) : (
-            appShell
-          )}
+          <SupabaseProvider>
+            <ScrollToTop />
+            <AuthSync />
+            <AccountStatusGate>
+              <NavBar locale={locale} />
+              <main className="pb-20 md:pb-0 min-h-screen">{children}</main>
+              <Footer locale={locale} />
+              <BottomDock />
+            </AccountStatusGate>
+          </SupabaseProvider>
         </LocaleProvider>
       </body>
     </html>

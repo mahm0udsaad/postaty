@@ -1,7 +1,6 @@
 "use client";
 
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import useSWR from "swr";
 import {
   Activity,
   CheckCircle2,
@@ -15,6 +14,11 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+const fetcher = (url: string) => fetch(url).then(r => {
+  if (!r.ok) throw new Error('API error');
+  return r.json();
+});
+
 const PERIOD_OPTIONS = [
   { label: "7 أيام", value: 7 },
   { label: "30 يوم", value: 30 },
@@ -23,10 +27,13 @@ const PERIOD_OPTIONS = [
 
 export default function AdminAiPage() {
   const [periodDays, setPeriodDays] = useState(30);
-  const overview = useQuery(api.admin.getAiOverview, { periodDays });
-  const dailyUsage = useQuery(api.admin.getDailyUsage, { periodDays });
+  const { data: overviewData } = useSWR(`/api/admin/overview?periodDays=${periodDays}`, fetcher);
+  const { data: dailyUsageData } = useSWR(`/api/admin/daily-usage?periodDays=${periodDays}`, fetcher);
+  const dailyUsage = dailyUsageData?.dailyUsage;
 
-  if (overview === undefined) {
+  const overview = overviewData?.ai;
+
+  if (!overview) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 size={32} className="animate-spin text-muted" />
@@ -35,7 +42,7 @@ export default function AdminAiPage() {
   }
 
   const maxDailyRequests = dailyUsage
-    ? Math.max(...dailyUsage.map((d) => d.requests), 1)
+    ? Math.max(...dailyUsage.map((d: any) => d.requests), 1)
     : 1;
 
   return (
@@ -151,7 +158,7 @@ export default function AdminAiPage() {
                 </tr>
               </thead>
               <tbody>
-                {Object.entries(overview.byModel).map(([model, stats]) => (
+                {Object.entries(overview.byModel).map(([model, stats]: [string, any]) => (
                   <tr key={model} className="border-b border-card-border/50">
                     <td className="py-3 px-3">
                       <code className="text-xs bg-surface-2 px-2 py-1 rounded-lg">{model}</code>
@@ -178,7 +185,7 @@ export default function AdminAiPage() {
         <div className="bg-surface-1 border border-card-border rounded-2xl p-6">
           <h3 className="font-bold text-lg mb-4">الاستخدام اليومي</h3>
           <div className="space-y-2">
-            {dailyUsage.map((day) => (
+            {dailyUsage.map((day: any) => (
               <div key={day.date} className="flex items-center gap-3">
                 <span className="text-xs text-muted w-20 shrink-0 font-mono">
                   {day.date.slice(5)}

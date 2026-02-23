@@ -2,11 +2,15 @@
 
 import { useMemo, useState } from "react";
 import Image from "next/image";
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import useSWR from "swr";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import { Loader2 } from "lucide-react";
 import { useLocale } from "@/hooks/use-locale";
+
+const fetcher = (url: string) => fetch(url).then(r => {
+  if (!r.ok) throw new Error('API error');
+  return r.json();
+});
 
 const ASPECTS = ["aspect-square", "aspect-[4/5]", "aspect-[3/4]", "aspect-[5/6]"] as const;
 
@@ -21,18 +25,19 @@ const CATEGORY_LABELS_EN: Record<string, string> = {
 
 export function ShowcaseGalleryClient() {
   const { locale, t } = useLocale();
-  const showcaseImages = useQuery(api.showcase.list);
+  const { data, isLoading } = useSWR('/api/showcase', fetcher);
+  const showcaseImages = data?.showcaseImages;
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
   const categories = useMemo(() => {
     if (!showcaseImages) return [];
-    return Array.from(new Set(showcaseImages.map((img) => img.category)));
+    return Array.from(new Set(showcaseImages.map((img: any) => img.category))) as string[];
   }, [showcaseImages]);
 
   const filteredImages = useMemo(() => {
     if (!showcaseImages) return [];
     if (selectedCategory === "all") return showcaseImages;
-    return showcaseImages.filter((img) => img.category === selectedCategory);
+    return showcaseImages.filter((img: any) => img.category === selectedCategory);
   }, [selectedCategory, showcaseImages]);
 
   const getCategoryLabel = (cat: string) => {
@@ -40,7 +45,7 @@ export function ShowcaseGalleryClient() {
     return (CATEGORY_LABELS as Record<string, string>)[cat] ?? cat;
   };
 
-  if (showcaseImages === undefined) {
+  if (isLoading) {
     return (
       <div className="max-w-6xl mx-auto py-16 flex items-center justify-center text-muted">
         <Loader2 size={24} className="animate-spin" />
@@ -62,7 +67,7 @@ export function ShowcaseGalleryClient() {
           >
             {t("الكل", "All")}
           </button>
-          {categories.map((cat) => (
+          {categories.map((cat: string) => (
             <button
               key={cat}
               onClick={() => setSelectedCategory(cat)}
@@ -83,9 +88,9 @@ export function ShowcaseGalleryClient() {
           </div>
         ) : (
           <div className="columns-1 sm:columns-2 lg:columns-3 gap-5">
-            {filteredImages.map((img, idx) => (
+            {filteredImages.map((img: any, idx: number) => (
               <article
-                key={img._id}
+                key={img.id}
                 className="mb-5 break-inside-avoid rounded-2xl overflow-hidden border border-card-border bg-surface-1 shadow-sm hover:shadow-xl transition-shadow"
               >
                 <div className={`relative w-full ${ASPECTS[idx % ASPECTS.length]}`}>

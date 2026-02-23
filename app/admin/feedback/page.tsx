@@ -1,7 +1,6 @@
 "use client";
 
-import { useQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import useSWR from "swr";
 import {
   ThumbsUp,
   ThumbsDown,
@@ -12,18 +11,25 @@ import {
 import { useState } from "react";
 import { CATEGORY_LABELS } from "@/lib/constants";
 
+const fetcher = (url: string) => fetch(url).then(r => {
+  if (!r.ok) throw new Error('API error');
+  return r.json();
+});
+
 type RatingFilter = "all" | "like" | "dislike";
 
 export default function AdminFeedbackPage() {
   const [ratingFilter, setRatingFilter] = useState<RatingFilter>("all");
 
-  const summary = useQuery(api.admin.getFeedbackSummary, {});
-  const feedback = useQuery(api.admin.listFeedback, {
-    rating: ratingFilter === "all" ? undefined : ratingFilter,
-    limit: 100,
-  });
+  const { data: feedbackData } = useSWR('/api/admin/feedback', fetcher);
+  const { data: feedback } = useSWR(
+    `/api/admin/feedback/list?limit=100${ratingFilter !== "all" ? `&rating=${ratingFilter}` : ''}`,
+    fetcher
+  );
 
-  if (summary === undefined) {
+  const summary = feedbackData?.summary;
+
+  if (!summary) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 size={32} className="animate-spin text-muted" />
@@ -93,7 +99,7 @@ export default function AdminFeedbackPage() {
       </div>
 
       {/* Feedback List */}
-      {feedback === undefined ? (
+      {!feedback ? (
         <div className="flex items-center justify-center h-32">
           <Loader2 size={24} className="animate-spin text-muted" />
         </div>
@@ -112,49 +118,55 @@ export default function AdminFeedbackPage() {
                 </tr>
               </thead>
               <tbody>
-                {feedback.map((item) => (
-                  <tr key={item._id} className="border-b border-card-border/50 hover:bg-surface-2/20 transition-colors">
-                    <td className="py-3 px-4">
-                      {item.rating === "like" ? (
-                        <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-success/10 text-success rounded-full text-xs font-bold">
-                          <ThumbsUp size={12} />
-                          إعجاب
-                        </div>
-                      ) : (
-                        <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-destructive/10 text-destructive rounded-full text-xs font-bold">
-                          <ThumbsDown size={12} />
-                          عدم إعجاب
-                        </div>
-                      )}
-                    </td>
-                    <td className="py-3 px-4">
-                      <div className="font-medium text-xs">{item.userName}</div>
-                      <div className="text-[10px] text-muted">{item.userEmail}</div>
-                    </td>
-                    <td className="py-3 px-4 text-xs">
-                      {item.category
-                        ? (CATEGORY_LABELS as Record<string, string>)[item.category] ?? item.category
-                        : "—"}
-                    </td>
-                    <td className="py-3 px-4">
-                      {item.model ? (
-                        <code className="text-[10px] bg-surface-2 px-1.5 py-0.5 rounded">{item.model}</code>
-                      ) : (
-                        <span className="text-xs text-muted">—</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-xs max-w-[200px]">
-                      {item.comment ? (
-                        <p className="line-clamp-2">{item.comment}</p>
-                      ) : (
-                        <span className="text-muted">—</span>
-                      )}
-                    </td>
-                    <td className="py-3 px-4 text-xs text-muted whitespace-nowrap">
-                      {new Date(item.createdAt).toLocaleDateString("ar-SA")}
-                    </td>
-                  </tr>
-                ))}
+                {feedback.map((item: any) => {
+                  const itemId = item.id ?? item._id;
+                  const userName = item.user_name ?? item.userName;
+                  const userEmail = item.user_email ?? item.userEmail;
+                  const createdAt = item.created_at ?? item.createdAt;
+                  return (
+                    <tr key={itemId} className="border-b border-card-border/50 hover:bg-surface-2/20 transition-colors">
+                      <td className="py-3 px-4">
+                        {item.rating === "like" ? (
+                          <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-success/10 text-success rounded-full text-xs font-bold">
+                            <ThumbsUp size={12} />
+                            إعجاب
+                          </div>
+                        ) : (
+                          <div className="inline-flex items-center gap-1 px-2 py-0.5 bg-destructive/10 text-destructive rounded-full text-xs font-bold">
+                            <ThumbsDown size={12} />
+                            عدم إعجاب
+                          </div>
+                        )}
+                      </td>
+                      <td className="py-3 px-4">
+                        <div className="font-medium text-xs">{userName}</div>
+                        <div className="text-[10px] text-muted">{userEmail}</div>
+                      </td>
+                      <td className="py-3 px-4 text-xs">
+                        {item.category
+                          ? (CATEGORY_LABELS as Record<string, string>)[item.category] ?? item.category
+                          : "—"}
+                      </td>
+                      <td className="py-3 px-4">
+                        {item.model ? (
+                          <code className="text-[10px] bg-surface-2 px-1.5 py-0.5 rounded">{item.model}</code>
+                        ) : (
+                          <span className="text-xs text-muted">—</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-xs max-w-[200px]">
+                        {item.comment ? (
+                          <p className="line-clamp-2">{item.comment}</p>
+                        ) : (
+                          <span className="text-muted">—</span>
+                        )}
+                      </td>
+                      <td className="py-3 px-4 text-xs text-muted whitespace-nowrap">
+                        {new Date(createdAt).toLocaleDateString("ar-SA")}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>

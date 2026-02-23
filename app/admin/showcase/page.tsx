@@ -1,11 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { useQuery, useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import useSWR from "swr";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import type { Category } from "@/lib/types";
-import type { Id } from "@/convex/_generated/dataModel";
 import {
   Loader2,
   Trash2,
@@ -18,39 +16,48 @@ import {
   Filter,
 } from "lucide-react";
 
+const fetcher = (url: string) => fetch(url).then(r => {
+  if (!r.ok) throw new Error('API error');
+  return r.json();
+});
+
 const ALL_CATEGORIES = Object.entries(CATEGORY_LABELS) as [Category, string][];
 
 export default function AdminShowcasePage() {
   // ── Showcase (selected) images ──
-  const showcaseImages = useQuery(api.showcase.list);
-  const addImage = useMutation(api.showcase.add);
-  const removeImage = useMutation(api.showcase.remove);
-  const reorderImage = useMutation(api.showcase.reorder);
+  const { data: showcaseData, mutate: mutateShowcase } = useSWR('/api/showcase', fetcher);
+  const showcaseImages = showcaseData?.showcaseImages;
 
   // ── Browse generations ──
   const [browseCategory, setBrowseCategory] = useState<string>("");
-  const generations = useQuery(api.showcase.listGenerations, {
-    category: browseCategory || undefined,
-    limit: 50,
-  });
+  const { data: generations } = useSWR(
+    `/api/showcase/generations?limit=50${browseCategory ? `&category=${browseCategory}` : ''}`,
+    fetcher
+  );
 
   const [addingStorageId, setAddingStorageId] = useState<string | null>(null);
-  const [deletingId, setDeletingId] = useState<Id<"showcase_images"> | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleAddToShowcase = async (
-    storageId: Id<"_storage">,
+    storageId: string,
     category: string,
     title: string
   ) => {
     setAddingStorageId(storageId);
     try {
       const nextOrder = showcaseImages ? showcaseImages.length : 0;
-      await addImage({
-        storageId,
-        title: title || undefined,
-        category,
-        order: nextOrder,
+      await fetch('/api/showcase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'add',
+          storageId,
+          title: title || undefined,
+          category,
+          order: nextOrder,
+        }),
       });
+      mutateShowcase();
     } catch (err) {
       console.error("Failed to add to showcase:", err);
     } finally {
@@ -58,10 +65,11 @@ export default function AdminShowcasePage() {
     }
   };
 
-  const handleDelete = async (id: Id<"showcase_images">) => {
+  const handleDelete = async (id: string) => {
     setDeletingId(id);
     try {
-      await removeImage({ id });
+      await fetch(`/api/showcase?id=${id}`, { method: 'DELETE' });
+      mutateShowcase();
     } catch (err) {
       console.error("Failed to delete showcase image:", err);
     } finally {
@@ -74,9 +82,18 @@ export default function AdminShowcasePage() {
     const current = showcaseImages[index];
     const prev = showcaseImages[index - 1];
     await Promise.all([
-      reorderImage({ id: current._id, order: prev.order }),
-      reorderImage({ id: prev._id, order: current.order }),
+      fetch('/api/showcase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reorder', id: current.id ?? current._id, order: prev.order }),
+      }),
+      fetch('/api/showcase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reorder', id: prev.id ?? prev._id, order: current.order }),
+      }),
     ]);
+    mutateShowcase();
   };
 
   const handleMoveDown = async (index: number) => {
@@ -84,12 +101,21 @@ export default function AdminShowcasePage() {
     const current = showcaseImages[index];
     const next = showcaseImages[index + 1];
     await Promise.all([
-      reorderImage({ id: current._id, order: next.order }),
-      reorderImage({ id: next._id, order: current.order }),
+      fetch('/api/showcase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reorder', id: current.id ?? current._id, order: next.order }),
+      }),
+      fetch('/api/showcase', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reorder', id: next.id ?? next._id, order: current.order }),
+      }),
     ]);
+    mutateShowcase();
   };
 
-  if (showcaseImages === undefined) {
+  if (!showcaseImages) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 size={32} className="animate-spin text-muted" />
@@ -105,9 +131,7 @@ export default function AdminShowcasePage() {
         <p className="text-muted">اختر من التصاميم المولّدة لعرضها في الصفحة الرئيسية</p>
       </div>
 
-      {/* ═══════════════════════════════════════════════════════
-          SECTION 1: CURRENT SHOWCASE
-      ═══════════════════════════════════════════════════════ */}
+      {/* SECTION 1: CURRENT SHOWCASE */}
       <div className="mb-10">
         <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
           <ImagePlus size={20} className="text-primary" />
@@ -119,80 +143,83 @@ export default function AdminShowcasePage() {
 
         {showcaseImages.length > 0 ? (
           <div className="space-y-3">
-            {showcaseImages.map((img, index) => (
-              <div
-                key={img._id}
-                className="bg-surface-1 border border-card-border rounded-2xl p-4 flex items-center gap-4 group hover:border-primary/20 transition-colors"
-              >
-                {/* Order */}
-                <div className="flex flex-col items-center gap-1 text-muted">
-                  <GripVertical size={16} />
-                  <span className="text-xs font-bold">{index + 1}</span>
-                </div>
+            {showcaseImages.map((img: any, index: number) => {
+              const imgId = img.id ?? img._id;
+              return (
+                <div
+                  key={imgId}
+                  className="bg-surface-1 border border-card-border rounded-2xl p-4 flex items-center gap-4 group hover:border-primary/20 transition-colors"
+                >
+                  {/* Order */}
+                  <div className="flex flex-col items-center gap-1 text-muted">
+                    <GripVertical size={16} />
+                    <span className="text-xs font-bold">{index + 1}</span>
+                  </div>
 
-                {/* Thumbnail */}
-                <div className="w-20 h-20 rounded-xl overflow-hidden border border-card-border flex-shrink-0 bg-surface-2">
-                  {img.url ? (
-                    <img
-                      src={img.url}
-                      alt={img.title || "Showcase"}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-muted">
-                      <Loader2 size={16} className="animate-spin" />
+                  {/* Thumbnail */}
+                  <div className="w-20 h-20 rounded-xl overflow-hidden border border-card-border flex-shrink-0 bg-surface-2">
+                    {img.url ? (
+                      <img
+                        src={img.url}
+                        alt={img.title || "Showcase"}
+                        className="w-full h-full object-cover"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-muted">
+                        <Loader2 size={16} className="animate-spin" />
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Info */}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm truncate">
+                      {img.title || "بدون عنوان"}
+                    </p>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="inline-block bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded-full">
+                        {(CATEGORY_LABELS as Record<string, string>)[img.category] ?? img.category}
+                      </span>
+                      <span className="text-xs text-muted">
+                        {new Date(img.createdAt ?? img.created_at).toLocaleDateString("ar-SA")}
+                      </span>
                     </div>
-                  )}
-                </div>
+                  </div>
 
-                {/* Info */}
-                <div className="flex-1 min-w-0">
-                  <p className="font-bold text-sm truncate">
-                    {img.title || "بدون عنوان"}
-                  </p>
-                  <div className="flex items-center gap-2 mt-1">
-                    <span className="inline-block bg-primary/10 text-primary text-xs font-bold px-2 py-0.5 rounded-full">
-                      {(CATEGORY_LABELS as Record<string, string>)[img.category] ?? img.category}
-                    </span>
-                    <span className="text-xs text-muted">
-                      {new Date(img.createdAt).toLocaleDateString("ar-SA")}
-                    </span>
+                  {/* Actions */}
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => handleMoveUp(index)}
+                      disabled={index === 0}
+                      className="p-2 rounded-lg text-muted hover:text-foreground hover:bg-surface-2 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                      title="تقديم"
+                    >
+                      <ArrowUp size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleMoveDown(index)}
+                      disabled={index === showcaseImages.length - 1}
+                      className="p-2 rounded-lg text-muted hover:text-foreground hover:bg-surface-2 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                      title="تأخير"
+                    >
+                      <ArrowDown size={16} />
+                    </button>
+                    <button
+                      onClick={() => handleDelete(imgId)}
+                      disabled={deletingId === imgId}
+                      className="p-2 rounded-lg text-muted hover:text-destructive hover:bg-destructive/10 disabled:opacity-50 transition-all"
+                      title="حذف"
+                    >
+                      {deletingId === imgId ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <Trash2 size={16} />
+                      )}
+                    </button>
                   </div>
                 </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => handleMoveUp(index)}
-                    disabled={index === 0}
-                    className="p-2 rounded-lg text-muted hover:text-foreground hover:bg-surface-2 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                    title="تقديم"
-                  >
-                    <ArrowUp size={16} />
-                  </button>
-                  <button
-                    onClick={() => handleMoveDown(index)}
-                    disabled={index === showcaseImages.length - 1}
-                    className="p-2 rounded-lg text-muted hover:text-foreground hover:bg-surface-2 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-                    title="تأخير"
-                  >
-                    <ArrowDown size={16} />
-                  </button>
-                  <button
-                    onClick={() => handleDelete(img._id)}
-                    disabled={deletingId === img._id}
-                    className="p-2 rounded-lg text-muted hover:text-destructive hover:bg-destructive/10 disabled:opacity-50 transition-all"
-                    title="حذف"
-                  >
-                    {deletingId === img._id ? (
-                      <Loader2 size={16} className="animate-spin" />
-                    ) : (
-                      <Trash2 size={16} />
-                    )}
-                  </button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         ) : (
           <div className="bg-surface-1 border border-card-border rounded-2xl p-8 text-center">
@@ -203,9 +230,7 @@ export default function AdminShowcasePage() {
         )}
       </div>
 
-      {/* ═══════════════════════════════════════════════════════
-          SECTION 2: BROWSE GENERATIONS
-      ═══════════════════════════════════════════════════════ */}
+      {/* SECTION 2: BROWSE GENERATIONS */}
       <div>
         <h2 className="text-lg font-bold mb-4 flex items-center gap-2">
           <Filter size={20} className="text-accent" />
@@ -240,14 +265,14 @@ export default function AdminShowcasePage() {
         </div>
 
         {/* Generation grid */}
-        {generations === undefined ? (
+        {!generations ? (
           <div className="flex items-center justify-center h-32">
             <Loader2 size={24} className="animate-spin text-muted" />
           </div>
         ) : generations.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {generations.flatMap((gen) =>
-              gen.outputs.map((output) => (
+            {generations.flatMap((gen: any) =>
+              gen.outputs.map((output: any) => (
                 <div
                   key={output.storageId}
                   className={`relative rounded-2xl overflow-hidden border bg-surface-1 transition-all group ${

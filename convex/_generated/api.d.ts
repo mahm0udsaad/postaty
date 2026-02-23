@@ -19,6 +19,7 @@ import type * as debug from "../debug.js";
 import type * as emailing from "../emailing.js";
 import type * as generations from "../generations.js";
 import type * as http from "../http.js";
+import type * as migrationHelper from "../migrationHelper.js";
 import type * as notifications from "../notifications.js";
 import type * as organizations from "../organizations.js";
 import type * as posterJobs from "../posterJobs.js";
@@ -49,6 +50,7 @@ declare const fullApi: ApiFromModules<{
   emailing: typeof emailing;
   generations: typeof generations;
   http: typeof http;
+  migrationHelper: typeof migrationHelper;
   notifications: typeof notifications;
   organizations: typeof organizations;
   posterJobs: typeof posterJobs;

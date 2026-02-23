@@ -1,12 +1,16 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
-import { usePaginatedQuery } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import { useState, useRef, useEffect, useCallback } from "react";
+import useSWR from "swr";
 import { Download, Calendar, Tag, Loader2, Image as ImageIcon, Gift } from "lucide-react";
 import { CATEGORY_LABELS, FORMAT_CONFIGS } from "@/lib/constants";
 import type { Category, OutputFormat } from "@/lib/types";
 import { useLocale } from "@/hooks/use-locale";
+
+const fetcher = (url: string) => fetch(url).then(r => {
+  if (!r.ok) throw new Error('API error');
+  return r.json();
+});
 
 interface PosterImageData {
   generationId: string;
@@ -36,34 +40,72 @@ const CATEGORY_LABELS_EN: Record<Category, string> = {
 
 export function PosterGallery({ category, imageType = "all" }: PosterGalleryProps) {
   const { locale, t } = useLocale();
-  const { results, status, loadMore } = usePaginatedQuery(
-    api.generations.listByOrgPaginated,
-    { category },
-    { initialNumItems: 12 }
+  const [offset, setOffset] = useState(0);
+  const [allResults, setAllResults] = useState<any[]>([]);
+  const [hasMore, setHasMore] = useState(true);
+  const pageSize = 12;
+
+  const params = new URLSearchParams({
+    limit: String(pageSize),
+    offset: String(offset),
+  });
+  if (category) params.set('category', category);
+
+  const { data, isLoading } = useSWR(
+    `/api/generations?${params.toString()}`,
+    fetcher
   );
+
+  // Reset when category changes
+  useEffect(() => {
+    setOffset(0);
+    setAllResults([]);
+    setHasMore(true);
+  }, [category]);
+
+  // Accumulate results
+  useEffect(() => {
+    if (data?.generations) {
+      const gens = data.generations as any[];
+      if (offset === 0) {
+        setAllResults(gens);
+      } else {
+        setAllResults(prev => [...prev, ...gens]);
+      }
+      setHasMore(gens.length >= pageSize);
+    }
+  }, [data, offset]);
 
   const observerTarget = useRef<HTMLDivElement>(null);
   const [selectedImage, setSelectedImage] = useState<PosterImageData | null>(null);
 
+  const loadMore = useCallback(() => {
+    if (hasMore && !isLoading) {
+      setOffset(prev => prev + pageSize);
+    }
+  }, [hasMore, isLoading]);
+
   const allImages: PosterImageData[] = [];
-  if (results) {
-    for (const generation of results) {
+  if (allResults) {
+    for (const generation of allResults) {
       if (generation.status === "complete" || generation.status === "partial") {
-        for (const output of generation.outputs) {
+        for (const output of generation.outputs ?? []) {
           if (!output.url) continue;
           const isGift = output.format === "gift";
           if (imageType === "pro" && isGift) continue;
           if (imageType === "gift" && !isGift) continue;
           allImages.push({
-            generationId: generation._id,
+            generationId: generation.id,
             url: output.url,
             format: output.format,
             width: output.width,
             height: output.height,
-            businessName: generation.businessName,
-            productName: generation.productName,
+            businessName: generation.business_name,
+            productName: generation.product_name,
             category: generation.category,
-            createdAt: generation.createdAt,
+            createdAt: typeof generation.created_at === "number"
+              ? generation.created_at
+              : new Date(generation.created_at).getTime(),
           });
         }
       }
@@ -73,8 +115,8 @@ export function PosterGallery({ category, imageType = "all" }: PosterGalleryProp
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && status === "CanLoadMore") {
-          loadMore(6);
+        if (entries[0].isIntersecting && hasMore && !isLoading) {
+          loadMore();
         }
       },
       { threshold: 0.1 }
@@ -85,7 +127,7 @@ export function PosterGallery({ category, imageType = "all" }: PosterGalleryProp
     }
 
     return () => observer.disconnect();
-  }, [status, loadMore]);
+  }, [hasMore, isLoading, loadMore]);
 
   const formatDate = (timestamp: number) => {
     return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA" : "en-US", {
@@ -93,11 +135,11 @@ export function PosterGallery({ category, imageType = "all" }: PosterGalleryProp
     }).format(new Date(timestamp));
   };
 
-  const isLoading = status === "LoadingFirstPage";
+  const isFirstLoad = isLoading && offset === 0;
 
   return (
     <div>
-      {isLoading ? (
+      {isFirstLoad ? (
         <div className="flex justify-center py-20">
           <Loader2 size={32} className="animate-spin text-primary" />
         </div>
@@ -182,7 +224,7 @@ export function PosterGallery({ category, imageType = "all" }: PosterGalleryProp
           </div>
 
           <div ref={observerTarget} className="py-8">
-            {status === "LoadingMore" && (
+            {isLoading && offset > 0 && (
               <div className="flex justify-center">
                 <Loader2 size={24} className="animate-spin text-primary" />
               </div>

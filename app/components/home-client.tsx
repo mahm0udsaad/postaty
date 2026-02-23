@@ -1,6 +1,7 @@
 "use client";
 
-import { useConvexAuth, useQuery } from "convex/react";
+import { useAuth } from "@/hooks/use-auth";
+import useSWR from "swr";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
@@ -28,18 +29,20 @@ import {
   Wrench,
   Shirt,
 } from "lucide-react";
-import { SignInButton } from "@clerk/nextjs";
 import { AnimateOnScroll, StaggerOnScroll } from "./animate-on-scroll";
 import { STAGGER_ITEM, TAP_SCALE } from "@/lib/animation";
-import { api } from "@/convex/_generated/api";
 import type { PricingSet } from "@/lib/country-pricing";
 import { formatPrice } from "@/lib/country-pricing";
 import type { AppLocale } from "@/lib/i18n";
 import { ShowcaseCarousel } from "./showcase-carousel";
 
-const AUTH_ENABLED = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
+const fetcher = (url: string) => fetch(url).then(r => {
+  if (!r.ok) throw new Error('API error');
+  return r.json();
+});
+
 const HeroVisual = dynamic(
-  () => import("./hero-visual").then((mod) => mod.HeroVisual),
+  () => import("./hero-visual.v1").then((mod) => mod.HeroVisual),
   { loading: () => <div className="w-full max-w-xs lg:max-w-sm aspect-[3/4] rounded-3xl bg-surface-2 animate-pulse" /> }
 );
 
@@ -212,9 +215,9 @@ type HomeClientProps = {
 
 export default function HomeClient({ pricing, countryCode, locale }: HomeClientProps) {
   const router = useRouter();
-  const { isAuthenticated } = useConvexAuth();
-  const showcaseImagesQuery = useQuery(api.showcase.list);
-  const showcaseImages = showcaseImagesQuery ?? [];
+  const { isSignedIn } = useAuth();
+  const { data: showcaseImagesQuery } = useSWR('/api/showcase', fetcher);
+  const showcaseImages = showcaseImagesQuery?.showcaseImages ?? [];
   const t = (ar: string, en: string) => (locale === "ar" ? ar : en);
   // Before/After are static local images; admin-selected showcase images fill the bento cards
   const showcaseCard1 = showcaseImages[0];
@@ -234,20 +237,38 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
       : ["50 AI designs/month", "Near-daily content", "Goal-based generation", "Smart conversion copy", "Auto-export all formats", "Advanced archive", "Priority generation", "Smart content filters"];
   void countryCode;
 
+  const renderAuthButton = (redirectUrl: string, label: string, className: string, isMotion = false) => {
+    if (!isSignedIn) {
+      return (
+        <Link href={`/sign-in?redirect_url=${encodeURIComponent(redirectUrl)}`} className={className}>
+          {label}
+        </Link>
+      );
+    }
+    if (isMotion) {
+      return (
+        <motion.button whileTap={TAP_SCALE} onClick={() => router.push(redirectUrl)} className={className}>
+          {label}
+        </motion.button>
+      );
+    }
+    return (
+      <button onClick={() => router.push(redirectUrl)} className={className}>
+        {label}
+      </button>
+    );
+  };
+
   return (
     <main className="min-h-screen relative overflow-x-clip pb-32 md:pb-0">
       <div className="bg-grid-pattern absolute inset-0 opacity-30 pointer-events-none" />
 
-      {/* ═══════════════════════════════════════════════════════
-          SECTION 1: HERO
-      ═══════════════════════════════════════════════════════ */}
+      {/* SECTION 1: HERO */}
       <section id="hero" className="relative pt-8 pb-16 px-4 md:pt-16 md:pb-24 border-b border-card-border">
-        {/* Hero glow */}
         <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-accent/5 rounded-full blur-[100px] pointer-events-none" />
 
         <div className="max-w-7xl mx-auto flex flex-col-reverse lg:flex-row items-center justify-between gap-8 lg:gap-16 relative">
-          {/* Text */}
           <motion.div
             className="flex-1 space-y-6 text-center lg:text-right"
             initial={{ opacity: 0, y: 20 }}
@@ -275,24 +296,13 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-4">
-              {!isAuthenticated ? (
-                AUTH_ENABLED ? (
-                  <SignInButton forceRedirectUrl="/pricing">
-                    <motion.button
-                      whileTap={TAP_SCALE}
-                      className="px-8 py-4 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-2xl font-bold shadow-lg shadow-primary/25 hover:shadow-primary/40 hover:-translate-y-0.5 transition-all text-lg"
-                    >
-                      {t("ابدأ تصميمك الآن", "Start Designing Now")}
-                    </motion.button>
-                  </SignInButton>
-                ) : (
-                  <Link
-                    href="/pricing"
-                    className="px-8 py-4 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-2xl font-bold shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all text-lg"
-                  >
-                    {t("ابدأ تصميمك الآن", "Start Designing Now")}
-                  </Link>
-                )
+              {!isSignedIn ? (
+                <Link
+                  href="/sign-in?redirect_url=/pricing"
+                  className="px-8 py-4 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-2xl font-bold shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all text-lg"
+                >
+                  {t("ابدأ تصميمك الآن", "Start Designing Now")}
+                </Link>
               ) : (
                 <motion.button
                   whileTap={TAP_SCALE}
@@ -324,16 +334,13 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
             </div>
           </motion.div>
 
-          {/* Visual */}
           <div className="w-full max-w-xs lg:max-w-sm">
             <HeroVisual />
           </div>
         </div>
       </section>
-      <ShowcaseCarousel showcaseImages={showcaseImagesQuery} />
-      {/* ═══════════════════════════════════════════════════════
-          SECTION 2: RESULTS SHOWCASE (BENTO GRID)
-      ═══════════════════════════════════════════════════════ */}
+      <ShowcaseCarousel showcaseImages={showcaseImages} />
+      {/* SECTION 2: RESULTS SHOWCASE (BENTO GRID) */}
       <section id="results-showcase" className="py-14 md:py-24 px-4 border-b border-card-border bg-surface-2/30">
         <div className="max-w-7xl mx-auto">
           <AnimateOnScroll className="text-center mb-10 md:mb-16">
@@ -353,7 +360,7 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
           </AnimateOnScroll>
 
           <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-4 gap-4 auto-rows-[200px] md:auto-rows-[240px]">
-            
+
             {/* 1. Large Feature Card (Before/After) - Spans 2x2 */}
             <motion.div
                className="row-span-2 md:col-span-2 rounded-3xl border border-card-border bg-surface-1 overflow-hidden relative group p-6 flex flex-col justify-between"
@@ -365,9 +372,8 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
                  <h3 className="text-xl font-bold mb-2">{t("تحول فوري للصور", "Instant image transformation")}</h3>
                  <p className="text-muted text-sm">{t("من صورة جوال عادية إلى بوستر إعلاني متكامل في ثوانٍ", "From a casual phone shot to a complete ad poster in seconds")}</p>
                </div>
-               
+
                <div className="absolute inset-0 mt-20 px-6 pb-6 flex items-end justify-center">
-                  {/* Before/After Visual */}
                   <div className="relative w-full h-full flex gap-2 items-end">
                       <div className="flex-1 h-[80%] relative rounded-xl overflow-hidden border border-card-border/50 rotate-[-3deg] translate-y-4 group-hover:translate-y-2 group-hover:rotate-[-5deg] transition-all duration-500 shadow-lg">
                          <Image src="/showcase/shawrma.jpeg" alt={t("قبل", "Before")} fill sizes="(max-width: 768px) 42vw, 26vw" className="object-cover grayscale" />
@@ -382,7 +388,7 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
             </motion.div>
 
             {/* 2. Stat Card 1 */}
-             <motion.div 
+             <motion.div
                className="md:col-span-1 md:row-span-1 rounded-3xl border border-card-border bg-surface-1 p-6 flex flex-col justify-center items-center text-center relative overflow-hidden"
                initial={{ opacity: 0, y: 20 }}
                whileInView={{ opacity: 1, y: 0 }}
@@ -395,7 +401,7 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
             </motion.div>
 
             {/* 3. Showcase Image 1 */}
-            <motion.div 
+            <motion.div
                className="md:col-span-1 md:row-span-1 rounded-3xl border border-card-border bg-surface-1 overflow-hidden relative group"
                initial={{ opacity: 0, y: 20 }}
                whileInView={{ opacity: 1, y: 0 }}
@@ -412,7 +418,7 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
             </motion.div>
 
             {/* 4. Stat Card 2 */}
-            <motion.div 
+            <motion.div
                className="md:col-span-1 md:row-span-1 rounded-3xl border border-card-border bg-surface-1 p-6 flex flex-col justify-center items-center text-center"
                initial={{ opacity: 0, y: 20 }}
                whileInView={{ opacity: 1, y: 0 }}
@@ -443,7 +449,7 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
             </motion.div>
 
              {/* 6. Text/CTA Card */}
-             <motion.div 
+             <motion.div
                className="md:col-span-2 md:row-span-1 rounded-3xl border border-card-border bg-gradient-to-br from-primary/10 to-accent/5 p-6 flex items-center justify-between relative overflow-hidden group"
                initial={{ opacity: 0, y: 20 }}
                whileInView={{ opacity: 1, y: 0 }}
@@ -460,14 +466,13 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
                       <ArrowLeft size={16} />
                    </Link>
                </div>
-               
-               {/* Decorative Circles */}
+
                <div className="absolute right-0 top-0 w-32 h-32 bg-primary/10 rounded-full blur-2xl -mr-10 -mt-10" />
                <div className="absolute left-0 bottom-0 w-24 h-24 bg-accent/10 rounded-full blur-2xl -ml-5 -mb-5" />
             </motion.div>
 
             {/* 7. Showcase Image */}
-             <motion.div 
+             <motion.div
                className="md:col-span-1 md:row-span-1 rounded-3xl border border-card-border bg-surface-1 overflow-hidden relative group"
                initial={{ opacity: 0, y: 20 }}
                whileInView={{ opacity: 1, y: 0 }}
@@ -487,9 +492,7 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
         </div>
       </section>
 
-      {/* ═══════════════════════════════════════════════════════
-          SECTION 4: SOCIAL PROOF BAR
-      ═══════════════════════════════════════════════════════ */}
+      {/* SECTION 4: SOCIAL PROOF BAR */}
       <AnimateOnScroll>
         <section className="py-8 border-b border-card-border">
           <div className="max-w-5xl mx-auto px-4 flex flex-wrap items-center justify-center gap-8 text-center">
@@ -515,9 +518,7 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
         </section>
       </AnimateOnScroll>
 
-      {/* ═══════════════════════════════════════════════════════
-          SECTION 5: HOW IT WORKS
-      ═══════════════════════════════════════════════════════ */}
+      {/* SECTION 5: HOW IT WORKS */}
       <section className="py-16 md:py-24 px-4">
         <div className="max-w-5xl mx-auto">
           <AnimateOnScroll className="text-center mb-12">
@@ -536,7 +537,6 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
                   variants={STAGGER_ITEM}
                   className="relative bg-surface-1 border border-card-border rounded-2xl p-8 text-center group hover:-translate-y-1 transition-transform"
                 >
-                  {/* Step number */}
                   <div className="absolute -top-3 right-6 w-8 h-8 rounded-full bg-gradient-to-br from-primary to-accent text-primary-foreground text-sm font-black flex items-center justify-center">
                     {idx + 1}
                   </div>
@@ -547,7 +547,6 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
                   <h3 className="text-xl font-bold mb-2">{step.title[locale]}</h3>
                   <p className="text-muted text-sm leading-relaxed">{step.description[locale]}</p>
 
-                  {/* Connector arrow (desktop only) */}
                   {idx < STEPS.length - 1 && (
                     <div className="hidden md:block absolute top-1/2 -left-4 -translate-y-1/2">
                       <ArrowLeft size={20} className="text-muted-foreground" />
@@ -560,9 +559,7 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
         </div>
       </section>
 
-      {/* ═══════════════════════════════════════════════════════
-          SECTION 4: CATEGORY SHOWCASE
-      ═══════════════════════════════════════════════════════ */}
+      {/* SECTION 4: CATEGORY SHOWCASE */}
       <section id="categories" className="py-16 md:py-24 px-4 border-t border-card-border">
         <div className="max-w-6xl mx-auto">
           <AnimateOnScroll className="text-center mb-12">
@@ -582,7 +579,6 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
                   onClick={() => router.push(`/create?category=${cat.id}`)}
                   className={`relative group cursor-pointer bg-surface-1 border ${cat.border} rounded-2xl p-8 ${locale === "ar" ? "text-right" : "text-left"} transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${cat.glow} overflow-hidden`}
                 >
-                  {/* Icon */}
                   <div className={`w-14 h-14 ${cat.iconBg} rounded-2xl flex items-center justify-center mb-5`}>
                     <Icon size={28} className={cat.iconColor} />
                   </div>
@@ -590,7 +586,6 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
                   <h3 className="text-2xl font-bold mb-1">{cat.title[locale]}</h3>
                   <p className="text-muted text-sm mb-5">{cat.subtitle[locale]}</p>
 
-                  {/* Bullet points */}
                   <ul className="space-y-2 mb-6">
                     {cat.bullets[locale].map((bullet, i) => (
                       <li key={i} className="flex items-center gap-2 text-sm text-muted">
@@ -600,13 +595,11 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
                     ))}
                   </ul>
 
-                  {/* CTA */}
                   <div className={`flex items-center gap-2 text-sm font-bold ${cat.iconColor} group-hover:gap-3 transition-all`}>
                     <span>{t("ابدأ التصميم", "Start design")}</span>
                     <ArrowLeft size={14} />
                   </div>
 
-                  {/* Glow decoration */}
                   <div className={`absolute -bottom-6 -left-6 w-28 h-28 bg-gradient-to-tr ${cat.gradient} opacity-5 rounded-full blur-2xl group-hover:opacity-10 transition-opacity`} />
                 </motion.div>
               );
@@ -615,9 +608,7 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
         </div>
       </section>
 
-      {/* ═══════════════════════════════════════════════════════
-          SECTION 5: FEATURES GRID
-      ═══════════════════════════════════════════════════════ */}
+      {/* SECTION 5: FEATURES GRID */}
       <section className="py-16 md:py-24 px-4 border-t border-card-border">
         <div className="max-w-5xl mx-auto">
           <AnimateOnScroll className="text-center mb-12">
@@ -648,9 +639,7 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
         </div>
       </section>
 
-      {/* ═══════════════════════════════════════════════════════
-          SECTION 6: PRICING PREVIEW
-      ═══════════════════════════════════════════════════════ */}
+      {/* SECTION 6: PRICING PREVIEW */}
       <section className="py-16 md:py-24 px-4 border-t border-card-border">
         <div className="max-w-6xl mx-auto">
           <AnimateOnScroll className="text-center mb-12">
@@ -664,145 +653,53 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
 
           <StaggerOnScroll className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Starter Plan */}
-            <motion.div
-              variants={STAGGER_ITEM}
-              className="bg-surface-1 border border-card-border rounded-2xl p-8"
-            >
-              <div className="text-sm font-bold text-muted mb-2">{t("مبتدي", "Starter")}</div>
+            <motion.div variants={STAGGER_ITEM} className="bg-surface-1 border border-card-border rounded-2xl p-8">
+              <div className="text-sm font-bold text-muted mb-2">{t("أساسي", "Basic")}</div>
               <div className="text-4xl font-black mb-1">
-                {formatPrice(pricing.starter.monthly)}{" "}
-                <span className="text-lg text-muted font-medium">{t("/شهر", "/month")}</span>
+                {formatPrice(pricing.starter.monthly)} <span className="text-lg text-muted font-medium">{t("/شهر", "/month")}</span>
               </div>
-              <p className="text-muted text-sm mb-1">
-                {t("الشهر الأول:", "First month:")} {formatPrice(pricing.starter.firstMonth)}
-              </p>
-              <p className="text-muted text-xs mb-6 opacity-75">
-                {t("ثم", "Then")} {formatPrice(pricing.starter.monthly)} {t("شهرياً", "monthly")}
-              </p>
+              <p className="text-muted text-sm mb-1">{t("الشهر الأول:", "First month:")} {formatPrice(pricing.starter.firstMonth)}</p>
+              <p className="text-muted text-xs mb-6 opacity-75">{t("ثم", "Then")} {formatPrice(pricing.starter.monthly)} {t("شهرياً", "monthly")}</p>
               <ul className="space-y-3 mb-8">
-                {starterFeatures.map((item, i) => (
-                  <li key={i} className="flex items-center gap-2 text-sm">
-                    <Check size={14} className="text-success" />
-                    <span>{item}</span>
-                  </li>
-                ))}
+                {starterFeatures.map((item, i) => (<li key={i} className="flex items-center gap-2 text-sm"><Check size={14} className="text-success" /><span>{item}</span></li>))}
               </ul>
-              {!isAuthenticated ? (
-                AUTH_ENABLED ? (
-                  <SignInButton forceRedirectUrl="/checkout?plan=starter">
-                    <button className="w-full py-3 border border-card-border rounded-xl font-bold text-foreground hover:bg-surface-2 transition-colors">
-                      {t("اشترك الآن", "Subscribe now")}
-                    </button>
-                  </SignInButton>
-                ) : (
-                  <Link href="/checkout?plan=starter" className="block w-full py-3 border border-card-border rounded-xl font-bold text-foreground text-center hover:bg-surface-2 transition-colors">
-                    {t("اشترك الآن", "Subscribe now")}
-                  </Link>
-                )
-              ) : (
-                <button onClick={() => router.push("/checkout?plan=starter")} className="w-full py-3 border border-card-border rounded-xl font-bold text-foreground hover:bg-surface-2 transition-colors">
-                  {t("اشترك الآن", "Subscribe now")}
-                </button>
-              )}
+              {renderAuthButton("/checkout?plan=starter", t("اشترك الآن", "Subscribe now"), "w-full py-3 border border-card-border rounded-xl font-bold text-foreground text-center hover:bg-surface-2 transition-colors block")}
             </motion.div>
 
-            {/* Growth Plan - Most Popular */}
-            <motion.div
-              variants={STAGGER_ITEM}
-              className="bg-surface-1 border-2 border-primary/30 rounded-2xl p-8 relative"
-            >
-              <div className="absolute -top-3 right-6 bg-gradient-to-r from-primary to-accent text-primary-foreground text-xs font-bold px-3 py-1 rounded-full">
-                {t("الأكثر شعبية", "Most popular")}
-              </div>
-              <div className="text-sm font-bold text-primary mb-2">{t("نمو", "Growth")}</div>
+            {/* Growth Plan */}
+            <motion.div variants={STAGGER_ITEM} className="bg-surface-1 border-2 border-primary/30 rounded-2xl p-8 relative">
+              <div className="absolute -top-3 right-6 bg-gradient-to-r from-primary to-accent text-primary-foreground text-xs font-bold px-3 py-1 rounded-full">{t("الأكثر شعبية", "Most popular")}</div>
+              <div className="text-sm font-bold text-primary mb-2">{t("احترافي", "Pro")}</div>
               <div className="text-4xl font-black mb-1">
-                {formatPrice(pricing.growth.monthly)}{" "}
-                <span className="text-lg text-muted font-medium">{t("/شهر", "/month")}</span>
+                {formatPrice(pricing.growth.monthly)} <span className="text-lg text-muted font-medium">{t("/شهر", "/month")}</span>
               </div>
-              <p className="text-muted text-sm mb-1">
-                {t("الشهر الأول:", "First month:")} {formatPrice(pricing.growth.firstMonth)}
-              </p>
-              <p className="text-muted text-xs mb-6 opacity-75">
-                {t("ثم", "Then")} {formatPrice(pricing.growth.monthly)} {t("شهرياً", "monthly")}
-              </p>
+              <p className="text-muted text-sm mb-1">{t("الشهر الأول:", "First month:")} {formatPrice(pricing.growth.firstMonth)}</p>
+              <p className="text-muted text-xs mb-6 opacity-75">{t("ثم", "Then")} {formatPrice(pricing.growth.monthly)} {t("شهرياً", "monthly")}</p>
               <ul className="space-y-3 mb-8">
-                {growthFeatures.map((item, i) => (
-                  <li key={i} className="flex items-center gap-2 text-sm">
-                    <Check size={14} className="text-primary" />
-                    <span>{item}</span>
-                  </li>
-                ))}
+                {growthFeatures.map((item, i) => (<li key={i} className="flex items-center gap-2 text-sm"><Check size={14} className="text-primary" /><span>{item}</span></li>))}
               </ul>
-              {!isAuthenticated ? (
-                AUTH_ENABLED ? (
-                  <SignInButton forceRedirectUrl="/checkout?plan=growth">
-                    <button className="w-full py-3 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-xl font-bold hover:shadow-lg hover:shadow-primary/25 transition-all">
-                      {t("اشترك الآن", "Subscribe now")}
-                    </button>
-                  </SignInButton>
-                ) : (
-                  <Link href="/checkout?plan=growth" className="block w-full py-3 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-xl font-bold text-center hover:shadow-lg hover:shadow-primary/25 transition-all">
-                    {t("اشترك الآن", "Subscribe now")}
-                  </Link>
-                )
-              ) : (
-                <button onClick={() => router.push("/checkout?plan=growth")} className="w-full py-3 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-xl font-bold hover:shadow-lg hover:shadow-primary/25 transition-all">
-                  {t("اشترك الآن", "Subscribe now")}
-                </button>
-              )}
+              {renderAuthButton("/checkout?plan=growth", t("اشترك الآن", "Subscribe now"), "w-full py-3 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-xl font-bold text-center hover:shadow-lg hover:shadow-primary/25 transition-all block")}
             </motion.div>
 
             {/* Dominant Plan */}
-            <motion.div
-              variants={STAGGER_ITEM}
-              className="bg-surface-1 border border-card-border rounded-2xl p-8"
-            >
-              <div className="text-sm font-bold text-muted mb-2">{t("هيمنة", "Dominant")}</div>
+            <motion.div variants={STAGGER_ITEM} className="bg-surface-1 border border-card-border rounded-2xl p-8">
+              <div className="text-sm font-bold text-muted mb-2">{t("بريميوم", "Premium")}</div>
               <div className="text-4xl font-black mb-1">
-                {formatPrice(pricing.dominant.monthly)}{" "}
-                <span className="text-lg text-muted font-medium">{t("/شهر", "/month")}</span>
+                {formatPrice(pricing.dominant.monthly)} <span className="text-lg text-muted font-medium">{t("/شهر", "/month")}</span>
               </div>
-              <p className="text-muted text-sm mb-1">
-                {t("الشهر الأول:", "First month:")} {formatPrice(pricing.dominant.firstMonth)}
-              </p>
-              <p className="text-muted text-xs mb-6 opacity-75">
-                {t("ثم", "Then")} {formatPrice(pricing.dominant.monthly)} {t("شهرياً", "monthly")}
-              </p>
+              <p className="text-muted text-sm mb-1">{t("الشهر الأول:", "First month:")} {formatPrice(pricing.dominant.firstMonth)}</p>
+              <p className="text-muted text-xs mb-6 opacity-75">{t("ثم", "Then")} {formatPrice(pricing.dominant.monthly)} {t("شهرياً", "monthly")}</p>
               <ul className="space-y-3 mb-8">
-                {dominantFeatures.map((item, i) => (
-                  <li key={i} className="flex items-center gap-2 text-sm">
-                    <Check size={14} className="text-accent" />
-                    <span>{item}</span>
-                  </li>
-                ))}
+                {dominantFeatures.map((item, i) => (<li key={i} className="flex items-center gap-2 text-sm"><Check size={14} className="text-accent" /><span>{item}</span></li>))}
               </ul>
-              {!isAuthenticated ? (
-                AUTH_ENABLED ? (
-                  <SignInButton forceRedirectUrl="/checkout?plan=dominant">
-                    <button className="w-full py-3 border border-card-border rounded-xl font-bold text-foreground hover:bg-surface-2 transition-colors">
-                      {t("اشترك الآن", "Subscribe now")}
-                    </button>
-                  </SignInButton>
-                ) : (
-                  <Link href="/checkout?plan=dominant" className="block w-full py-3 border border-card-border rounded-xl font-bold text-foreground text-center hover:bg-surface-2 transition-colors">
-                    {t("اشترك الآن", "Subscribe now")}
-                  </Link>
-                )
-              ) : (
-                <button onClick={() => router.push("/checkout?plan=dominant")} className="w-full py-3 border border-card-border rounded-xl font-bold text-foreground hover:bg-surface-2 transition-colors">
-                  {t("اشترك الآن", "Subscribe now")}
-                </button>
-              )}
+              {renderAuthButton("/checkout?plan=dominant", t("اشترك الآن", "Subscribe now"), "w-full py-3 border border-card-border rounded-xl font-bold text-foreground text-center hover:bg-surface-2 transition-colors block")}
             </motion.div>
           </StaggerOnScroll>
         </div>
       </section>
 
-      {/* ═══════════════════════════════════════════════════════
-          SECTION 7: FINAL CTA
-      ═══════════════════════════════════════════════════════ */}
+      {/* SECTION 7: FINAL CTA */}
       <section className="py-24 md:py-32 px-4 relative overflow-hidden">
-        {/* Background glow */}
         <div className="absolute inset-0 pointer-events-none">
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/8 rounded-full blur-[120px]" />
         </div>
@@ -826,24 +723,13 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
           </p>
 
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-            {!isAuthenticated ? (
-              AUTH_ENABLED ? (
-                <SignInButton forceRedirectUrl="/pricing">
-                  <motion.button
-                    whileTap={TAP_SCALE}
-                    className="px-10 py-4 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-2xl font-bold text-lg shadow-xl shadow-primary/25 hover:shadow-primary/40 hover:-translate-y-0.5 transition-all"
-                  >
-                    {t("اشترك وابدأ الآن", "Subscribe and start now")}
-                  </motion.button>
-                </SignInButton>
-              ) : (
-                <Link
-                  href="/pricing"
-                  className="inline-block px-10 py-4 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-2xl font-bold text-lg shadow-xl shadow-primary/25 hover:shadow-primary/40 transition-all"
-                >
-                  {t("اشترك وابدأ الآن", "Subscribe and start now")}
-                </Link>
-              )
+            {!isSignedIn ? (
+              <Link
+                href="/sign-in?redirect_url=/pricing"
+                className="inline-block px-10 py-4 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-2xl font-bold text-lg shadow-xl shadow-primary/25 hover:shadow-primary/40 transition-all"
+              >
+                {t("اشترك وابدأ الآن", "Subscribe and start now")}
+              </Link>
             ) : (
               <motion.button
                 whileTap={TAP_SCALE}

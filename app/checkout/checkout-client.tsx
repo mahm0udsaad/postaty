@@ -2,14 +2,12 @@
 
 import { useSearchParams } from "next/navigation";
 import { useCallback } from "react";
-import { useAction } from "convex/react";
-import { useConvexAuth } from "convex/react";
+import { useAuth } from "@/hooks/use-auth";
 import { loadStripe } from "@stripe/stripe-js";
 import {
   EmbeddedCheckoutProvider,
   EmbeddedCheckout,
 } from "@stripe/react-stripe-js";
-import { api } from "@/convex/_generated/api";
 import { useLocale } from "@/hooks/use-locale";
 import { Loader2, ArrowLeft } from "lucide-react";
 import Link from "next/link";
@@ -19,16 +17,16 @@ const stripePromise = loadStripe(
 );
 
 const PLAN_LABELS: Record<string, { ar: string; en: string }> = {
-  starter: { ar: "مبتدي", en: "Starter" },
-  growth: { ar: "نمو", en: "Growth" },
-  dominant: { ar: "هيمنة", en: "Dominant" },
+  starter: { ar: "أساسي", en: "Basic" },
+  growth: { ar: "احترافي", en: "Pro" },
+  dominant: { ar: "بريميوم", en: "Premium" },
   addon_5: { ar: "5 أرصدة", en: "5 credits" },
   addon_10: { ar: "10 أرصدة", en: "10 credits" },
 };
 
 export default function CheckoutClient() {
   const searchParams = useSearchParams();
-  const { isAuthenticated, isLoading } = useConvexAuth();
+  const { isSignedIn, isLoaded } = useAuth();
   const { locale, t } = useLocale();
 
   const planKey = searchParams.get("plan") as
@@ -42,23 +40,35 @@ export default function CheckoutClient() {
     | null;
   const couponId = searchParams.get("coupon") ?? undefined;
 
-  const createEmbeddedCheckout = useAction(api.billing.createEmbeddedCheckout);
-
   const fetchClientSecret = useCallback(async () => {
     const theme =
       document.documentElement.getAttribute("data-theme") === "light"
         ? "light"
         : "dark";
 
-    const { clientSecret } = await createEmbeddedCheckout({
-      planKey: planKey ?? undefined,
-      addonKey: addonKey ?? undefined,
-      couponId,
-      theme,
-      returnUrl: `${window.location.origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
+    // Read country from cookie (set by middleware, not httpOnly)
+    const countryCode =
+      document.cookie
+        .split("; ")
+        .find((c) => c.startsWith("pst_country="))
+        ?.split("=")[1] || undefined;
+
+    const res = await fetch('/api/billing/embedded-checkout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        planKey: planKey ?? undefined,
+        addonKey: addonKey ?? undefined,
+        couponId,
+        theme,
+        countryCode,
+        returnUrl: `${window.location.origin}/checkout/return?session_id={CHECKOUT_SESSION_ID}`,
+      }),
     });
+    if (!res.ok) throw new Error('Failed to create checkout session');
+    const { clientSecret } = await res.json();
     return clientSecret;
-  }, [createEmbeddedCheckout, planKey, addonKey, couponId]);
+  }, [planKey, addonKey, couponId]);
 
   // No plan or addon selected
   if (!planKey && !addonKey) {
@@ -80,7 +90,7 @@ export default function CheckoutClient() {
   }
 
   // Loading auth
-  if (isLoading) {
+  if (!isLoaded) {
     return (
       <main className="min-h-screen flex items-center justify-center">
         <Loader2 size={32} className="animate-spin text-muted" />
@@ -89,7 +99,7 @@ export default function CheckoutClient() {
   }
 
   // Not authenticated
-  if (!isAuthenticated) {
+  if (!isSignedIn) {
     return (
       <main className="min-h-screen flex items-center justify-center px-4">
         <div className="text-center max-w-md">

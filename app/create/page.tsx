@@ -1,13 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef, Suspense } from "react";
-import { useMutation, useQuery, useConvexAuth } from "convex/react";
-import { api } from "@/convex/_generated/api";
-import { useDevIdentity } from "@/hooks/use-dev-identity";
+import useSWR from "swr";
+import { useAuth } from "@/hooks/use-auth";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
 import { ArrowRight, Sparkles, LayoutGrid, LogIn, AlertCircle } from "lucide-react";
-import { SignInButton } from "@clerk/nextjs";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useLocale } from "@/hooks/use-locale";
@@ -18,12 +16,16 @@ import { CategorySelector } from "../components/category-selector";
 // Types & Libs
 import type { Category, PostFormData, PosterResult, PosterGenStep } from "@/lib/types";
 import type { BrandKitPromptData } from "@/lib/prompts";
-import type { Id } from "@/convex/_generated/dataModel";
 import type { GenerationUsage } from "@/lib/generate-designs";
 import { CATEGORY_LABELS, FORMAT_CONFIGS } from "@/lib/constants";
 import { CATEGORY_THEMES } from "@/lib/category-themes";
 import { generatePosters } from "../actions-v2";
 import { TAP_SCALE } from "@/lib/animation";
+
+const fetcher = (url: string) => fetch(url).then(r => {
+  if (!r.ok) throw new Error('API error');
+  return r.json();
+});
 
 const PosterGrid = dynamic(
   () => import("../components/poster-grid").then((mod) => mod.PosterGrid)
@@ -134,8 +136,7 @@ export default function CreatePage() {
 function CreatePageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { isAuthenticated, isLoading: isAuthLoading } = useConvexAuth();
-  const { orgId, isLoading: isIdentityLoading } = useDevIdentity();
+  const { isSignedIn, isLoaded: isAuthLoaded, userId } = useAuth();
   const { locale, t } = useLocale();
 
   const toLocalizedErrorMessage = (error: unknown): string => {
@@ -191,38 +192,31 @@ function CreatePageContent() {
     }
   }, [searchParams]);
 
-  const AUTH_ENABLED = Boolean(process.env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY);
-
   // Billing
-  const creditState = useQuery(
-    api.billing.getCreditState,
-    isAuthenticated ? {} : "skip"
+  const { data: creditState, mutate: mutateCreditState } = useSWR(
+    isSignedIn ? '/api/billing' : null,
+    fetcher
   );
   const canGenerate = creditState?.canGenerate ?? false;
-  const consumeCredit = useMutation(api.billing.consumeGenerationCredit);
 
-  // Data Fetching
-  const createGeneration = useMutation(api.generations.create);
-  const updateStatus = useMutation(api.generations.updateStatus);
-  const updateOutput = useMutation(api.generations.updateOutput);
-  const generateUploadUrl = useMutation(api.generations.generateUploadUrl);
-  const savePosterTemplate = useMutation(api.posterTemplates.save);
-  const recordUsageBatch = useMutation(api.aiUsage.recordUsageBatch);
-
-  const defaultBrandKit = useQuery(
-    api.brandKits.getDefault,
-    isAuthenticated && orgId ? {} : "skip"
+  // Brand kit
+  const { data: brandKitsData } = useSWR(
+    isSignedIn && userId ? '/api/brand-kits' : null,
+    fetcher
   );
+  const brandKits = brandKitsData?.brandKits as any[] | undefined;
+  const defaultBrandKit = brandKits?.[0];
 
-  const brandKitPromptData: BrandKitPromptData | undefined = defaultBrandKit
-    ? {
-        palette: defaultBrandKit.palette,
-        styleAdjectives: defaultBrandKit.styleAdjectives,
-        doRules: defaultBrandKit.doRules,
-        dontRules: defaultBrandKit.dontRules,
-        styleSeed: defaultBrandKit.styleSeed ?? undefined,
-      }
-    : undefined;
+  const brandKitPromptData: BrandKitPromptData | undefined =
+    defaultBrandKit?.palette
+      ? {
+          palette: defaultBrandKit.palette,
+          styleAdjectives: defaultBrandKit.styleAdjectives ?? [],
+          doRules: defaultBrandKit.doRules ?? [],
+          dontRules: defaultBrandKit.dontRules ?? [],
+          styleSeed: defaultBrandKit.styleSeed ?? undefined,
+        }
+      : undefined;
 
   useEffect(() => {
     let isCancelled = false;
@@ -247,7 +241,7 @@ function CreatePageContent() {
   }, [defaultBrandKit?.logoUrl]);
 
   useEffect(() => {
-    if (!AUTH_ENABLED || isAuthLoading || !isAuthenticated || isIdentityLoading) {
+    if (!isAuthLoaded || !isSignedIn) {
       return;
     }
 
@@ -264,10 +258,8 @@ function CreatePageContent() {
     }
 
   }, [
-    AUTH_ENABLED,
-    isAuthLoading,
-    isAuthenticated,
-    isIdentityLoading,
+    isAuthLoaded,
+    isSignedIn,
     creditState,
     isGenerating,
     results.length,
@@ -277,17 +269,21 @@ function CreatePageContent() {
   const persistUsageEvents = async (usages: GenerationUsage[]) => {
     if (usages.length === 0) return;
     try {
-      await recordUsageBatch({
-        events: usages.map((usage) => ({
-          route: usage.route,
-          model: usage.model,
-          inputTokens: usage.inputTokens,
-          outputTokens: usage.outputTokens,
-          imagesGenerated: usage.imagesGenerated,
-          durationMs: usage.durationMs,
-          success: usage.success,
-          error: usage.error,
-        })),
+      await fetch('/api/ai-usage', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          events: usages.map((usage) => ({
+            route: usage.route,
+            model: usage.model,
+            inputTokens: usage.inputTokens,
+            outputTokens: usage.outputTokens,
+            imagesGenerated: usage.imagesGenerated,
+            durationMs: usage.durationMs,
+            success: usage.success,
+            error: usage.error,
+          })),
+        }),
       });
     } catch (usageErr) {
       console.error("Failed to persist AI usage events:", usageErr);
@@ -339,10 +335,16 @@ function CreatePageContent() {
 
     // Consume credit BEFORE calling the expensive AI generation
     try {
-      const creditResult = await consumeCredit({ idempotencyKey });
-      if (!creditResult.ok) {
+      const creditRes = await fetch('/api/billing/consume-credit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idempotencyKey }),
+      });
+      const creditResult = await creditRes.json();
+      if (!creditRes.ok || !creditResult.ok) {
         throw new Error(t("لا يوجد لديك رصيد كافٍ", "You don't have enough credits"));
       }
+      mutateCreditState(); // Revalidate credit state
     } catch (err) {
       const msg = toLocalizedErrorMessage(err);
       setError(msg);
@@ -362,7 +364,7 @@ function CreatePageContent() {
         generatingRef.current = false;
 
         if (posterResult.status === "complete" && posterResult.imageBase64) {
-          saveToConvex(data, posterResult, gift ?? null, startTime);
+          saveToSupabase(data, posterResult, gift ?? null, startTime);
         }
       })
       .catch((err) => {
@@ -384,32 +386,21 @@ function CreatePageContent() {
       });
   };
 
-  const uploadImageToStorage = async (imageBase64: string): Promise<Id<"_storage">> => {
-    const base64Data = imageBase64.includes(",")
-      ? imageBase64.split(",")[1]
-      : imageBase64;
-    const mimeType = imageBase64.includes(",")
-      ? imageBase64.split(",")[0].split(":")[1].split(";")[0]
-      : "image/png";
-
-    const binaryStr = atob(base64Data);
-    const bytes = new Uint8Array(binaryStr.length);
-    for (let i = 0; i < binaryStr.length; i++) {
-      bytes[i] = binaryStr.charCodeAt(i);
-    }
-    const blob = new Blob([bytes], { type: mimeType });
-
-    const uploadUrl = await generateUploadUrl();
-    const uploadRes = await fetch(uploadUrl, {
-      method: "POST",
-      headers: { "Content-Type": blob.type || "image/png" },
-      body: blob,
+  const uploadImageToStorage = async (imageBase64: string): Promise<{ storagePath: string; publicUrl: string }> => {
+    const res = await fetch('/api/storage/upload', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        base64: imageBase64,
+        bucket: 'generations',
+        prefix: 'poster',
+      }),
     });
-    const { storageId } = await uploadRes.json();
-    return storageId;
+    if (!res.ok) throw new Error('Failed to upload image');
+    return res.json();
   };
 
-  const saveToConvex = async (
+  const saveToSupabase = async (
     data: PostFormData,
     posterResult: PosterResult,
     giftPosterResult: PosterResult | null,
@@ -420,49 +411,68 @@ function CreatePageContent() {
       const formatConfig = FORMAT_CONFIGS[format];
       const hasGift = giftPosterResult?.status === "complete" && giftPosterResult.imageBase64;
 
-      const generationId = await createGeneration({
-        brandKitId: defaultBrandKit?._id,
-        category: data.category,
-        businessName: getBusinessName(data),
-        productName: getProductName(data),
-        inputs: JSON.stringify({
-          ...data,
-          logo: undefined,
-          mealImage: undefined,
-          productImage: undefined,
-          productImages: undefined,
-          serviceImage: undefined,
+      // Create generation record
+      const createRes = await fetch('/api/generations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          brandKitId: defaultBrandKit?.id,
+          category: data.category,
+          businessName: getBusinessName(data),
+          productName: getProductName(data),
+          inputs: JSON.stringify({
+            ...data,
+            logo: undefined,
+            mealImage: undefined,
+            productImage: undefined,
+            productImages: undefined,
+            serviceImage: undefined,
+          }),
+          formats: hasGift ? [format, "gift"] : [format],
+          creditsCharged: 1,
         }),
-        formats: hasGift ? [format, "gift"] : [format],
-        creditsCharged: 1,
       });
+      if (!createRes.ok) throw new Error('Failed to create generation');
+      const { id: generationId } = await createRes.json();
 
       // Upload main poster
-      const storageId = await uploadImageToStorage(posterResult.imageBase64!);
-      await updateOutput({
-        generationId,
-        format,
-        storageId,
-        width: formatConfig.width,
-        height: formatConfig.height,
+      const { publicUrl } = await uploadImageToStorage(posterResult.imageBase64!);
+      await fetch(`/api/generations/${generationId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'updateOutput',
+          format,
+          imageUrl: publicUrl,
+          width: formatConfig.width,
+          height: formatConfig.height,
+        }),
       });
 
       // Upload gift image if available
       if (hasGift) {
-        const giftStorageId = await uploadImageToStorage(giftPosterResult.imageBase64!);
-        await updateOutput({
-          generationId,
-          format: "gift",
-          storageId: giftStorageId,
-          width: formatConfig.width,
-          height: formatConfig.height,
+        const { publicUrl: giftPublicUrl } = await uploadImageToStorage(giftPosterResult.imageBase64!);
+        await fetch(`/api/generations/${generationId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            action: 'updateOutput',
+            format: 'gift',
+            imageUrl: giftPublicUrl,
+            width: formatConfig.width,
+            height: formatConfig.height,
+          }),
         });
       }
 
-      await updateStatus({
-        generationId,
-        status: "complete",
-        durationMs: getNowMs() - startTime,
+      await fetch(`/api/generations/${generationId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'updateStatus',
+          status: 'complete',
+          durationMs: getNowMs() - startTime,
+        }),
       });
     } catch (saveErr) {
       console.error("Failed to save generation:", saveErr);
@@ -474,16 +484,20 @@ function CreatePageContent() {
     if (!result || result.status !== "complete") return;
 
     try {
-      await savePosterTemplate({
-        name: result.designName,
-        nameAr: result.designNameAr,
-        description: result.designName,
-        category: category!,
-        style: "modern",
-        designJson: JSON.stringify({
+      await fetch('/api/templates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
           name: result.designName,
           nameAr: result.designNameAr,
-          imageBase64: result.imageBase64,
+          description: result.designName,
+          category: category!,
+          style: "modern",
+          designJson: JSON.stringify({
+            name: result.designName,
+            nameAr: result.designNameAr,
+            imageBase64: result.imageBase64,
+          }),
         }),
       });
     } catch (err) {
@@ -491,7 +505,7 @@ function CreatePageContent() {
     }
   };
 
-  if (isAuthLoading || (isAuthenticated && isIdentityLoading)) {
+  if (!isAuthLoaded) {
     return <div className="min-h-screen flex items-center justify-center">
         <div className="animate-pulse flex flex-col items-center">
             <div className="h-12 w-12 bg-surface-2 rounded-full mb-4"></div>
@@ -500,7 +514,7 @@ function CreatePageContent() {
     </div>;
   }
 
-  if (!isAuthenticated && AUTH_ENABLED) {
+  if (!isSignedIn) {
     return (
       <div className="min-h-screen flex items-center justify-center p-4">
         <div className="text-center space-y-6 max-w-md">
@@ -509,11 +523,11 @@ function CreatePageContent() {
           </div>
           <h2 className="text-2xl font-bold text-foreground">{t("سجّل دخولك للمتابعة", "Sign in to continue")}</h2>
           <p className="text-muted">{t("يجب تسجيل الدخول لإنشاء تصاميم جديدة", "You need to sign in to create new designs")}</p>
-          <SignInButton forceRedirectUrl="/create">
+          <Link href="/sign-in?redirect_url=/create">
             <button className="px-8 py-3 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-xl font-bold shadow-lg shadow-primary/25 hover:shadow-primary/40 transition-all">
               {t("تسجيل الدخول", "Sign in")}
             </button>
-          </SignInButton>
+          </Link>
         </div>
       </div>
     );

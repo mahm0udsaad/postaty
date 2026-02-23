@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect } from "react";
-import { useAuth } from "@clerk/nextjs";
+import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
-import { HeroVisual } from "@/app/components/hero-visual";
 import { SignUpForm } from "@/app/components/auth/sign-up-form";
+import { AuthVisual } from "@/app/components/auth/auth-visual";
 import { useLocale } from "@/hooks/use-locale";
+import Image from "next/image";
 
 export default function SignUpPage() {
   const { t } = useLocale();
@@ -23,27 +24,31 @@ export default function SignUpPage() {
   }
 
   return (
-    <div className="min-h-screen flex w-full">
-      <div className="hidden lg:flex flex-1 relative bg-surface-2 items-center justify-center overflow-hidden border-l border-card-border">
-        <div className="absolute inset-0 bg-grid-pattern opacity-20 pointer-events-none" />
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-accent/5 rounded-full blur-[100px] pointer-events-none" />
+    <div className="min-h-screen flex w-full bg-background overflow-hidden">
+      {/* Visual Column */}
+      <div className="hidden lg:block flex-1 relative bg-surface-2 overflow-hidden border-l border-card-border h-screen sticky top-0">
+         <AuthVisual />
 
-        <div className="relative z-10 flex flex-col items-center max-w-lg text-center p-8">
-          <div className="mb-8 scale-125">
-            <HeroVisual />
-          </div>
-          <h2 className="text-3xl font-black mb-4 mt-8">
-            {t("انضم إلى", "Join")} <span className="text-gradient">Postaty</span>
-          </h2>
-          <p className="text-muted text-lg">
-            {t("ابدأ رحلة تصميم إعلاناتك بالذكاء الاصطناعي اليوم. أنشئ حسابك مجاناً.", "Start creating AI-powered ads today. Create your account for free.")}
-          </p>
-        </div>
+         <div className="absolute bottom-8 left-8 right-8 z-20">
+            <h1 className="text-3xl font-bold leading-tight mb-2 drop-shadow-lg">
+             {t("انطلق في رحلة", "Start your journey with")} <br />
+             <span className="text-transparent bg-clip-text bg-gradient-to-r from-accent to-primary">{t("الإبداع اللامحدود", "Limitless Creativity")}</span>
+           </h1>
+           <p className="text-sm text-foreground/80 max-w-md leading-relaxed drop-shadow-md backdrop-blur-sm bg-background/30 p-2 rounded-lg inline-block border border-white/10">
+             {t(
+               "كل ما تحتاجه لإنشاء محتوى بصري مذهل في مكان واحد.",
+               "Everything you need to create stunning visual content in one place."
+             )}
+           </p>
+         </div>
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 bg-background">
-        <SignUpForm />
+      {/* Form Column */}
+      <div className="flex-1 flex flex-col items-center justify-center p-4 sm:p-8 relative overflow-y-auto">
+        <div className="absolute inset-0 bg-grid-pattern opacity-[0.15] pointer-events-none" />
+        <div className="relative w-full max-w-sm z-10">
+           <SignUpForm />
+        </div>
       </div>
     </div>
   );

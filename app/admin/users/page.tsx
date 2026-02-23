@@ -1,21 +1,24 @@
 "use client";
 
-import { useQuery, useMutation } from "convex/react";
-import { api } from "@/convex/_generated/api";
+import useSWR from "swr";
 import {
   Users, Loader2, Search, Shield, Crown, Ban, ShieldX, CheckCircle,
   Coins, Bell, MoreHorizontal, UserCog, X, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { useState, useMemo, useRef, useEffect } from "react";
-import type { Id } from "@/convex/_generated/dataModel";
+
+const fetcher = (url: string) => fetch(url).then(r => {
+  if (!r.ok) throw new Error('API error');
+  return r.json();
+});
 
 const PAGE_SIZE = 10;
 
 const PLAN_LABELS: Record<string, string> = {
   none: "مجاني",
-  starter: "مبتدي",
-  growth: "نمو",
-  dominant: "هيمنة",
+  starter: "أساسي",
+  growth: "احترافي",
+  dominant: "بريميوم",
 };
 
 const PLAN_COLORS: Record<string, string> = {
@@ -57,36 +60,41 @@ function countryCodeToFlag(countryCode?: string) {
 // ── Modals ─────────────────────────────────────────────────────────
 
 type ModalUser = {
-  _id: Id<"users">;
+  id: string;
   name: string;
   email: string;
   role: "owner" | "admin" | "member";
-  effectiveStatus: string;
+  status: string;
 };
 
 function ConfirmActionModal({
   user,
   action,
   onClose,
+  onSuccess,
 }: {
   user: ModalUser;
   action: "suspend" | "ban";
   onClose: () => void;
+  onSuccess: () => void;
 }) {
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
-  const suspendUser = useMutation(api.admin.suspendUser);
-  const banUser = useMutation(api.admin.banUser);
 
   const handleSubmit = async () => {
     if (!reason.trim()) return;
     setLoading(true);
     try {
-      if (action === "suspend") {
-        await suspendUser({ userId: user._id, reason: reason.trim() });
-      } else {
-        await banUser({ userId: user._id, reason: reason.trim() });
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action, userId: user.id, reason: reason.trim() }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'حدث خطأ');
       }
+      onSuccess();
       onClose();
     } catch (err) {
       alert(err instanceof Error ? err.message : "حدث خطأ");
@@ -151,21 +159,31 @@ function ConfirmActionModal({
 function AddCreditsModal({
   user,
   onClose,
+  onSuccess,
 }: {
   user: ModalUser;
   onClose: () => void;
+  onSuccess: () => void;
 }) {
   const [amount, setAmount] = useState("");
   const [reason, setReason] = useState("");
   const [loading, setLoading] = useState(false);
-  const addCredits = useMutation(api.admin.addCreditsToUser);
 
   const handleSubmit = async () => {
     const num = parseInt(amount, 10);
     if (!num || num <= 0 || !reason.trim()) return;
     setLoading(true);
     try {
-      await addCredits({ userId: user._id, amount: num, reason: reason.trim() });
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'add_credits', userId: user.id, amount: num, reason: reason.trim() }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'حدث خطأ');
+      }
+      onSuccess();
       onClose();
     } catch (err) {
       alert(err instanceof Error ? err.message : "حدث خطأ");
@@ -228,26 +246,37 @@ function AddCreditsModal({
 function SendNotificationModal({
   user,
   onClose,
+  onSuccess,
 }: {
   user: ModalUser;
   onClose: () => void;
+  onSuccess: () => void;
 }) {
   const [title, setTitle] = useState("");
   const [body, setBody] = useState("");
   const [type, setType] = useState<"info" | "warning" | "success" | "credit" | "system">("info");
   const [loading, setLoading] = useState(false);
-  const sendNotification = useMutation(api.admin.sendNotification);
 
   const handleSubmit = async () => {
     if (!title.trim() || !body.trim()) return;
     setLoading(true);
     try {
-      await sendNotification({
-        userId: user._id,
-        title: title.trim(),
-        body: body.trim(),
-        type,
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'send_notification',
+          userId: user.id,
+          title: title.trim(),
+          notificationBody: body.trim(),
+          type,
+        }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'حدث خطأ');
+      }
+      onSuccess();
       onClose();
     } catch (err) {
       alert(err instanceof Error ? err.message : "حدث خطأ");
@@ -326,15 +355,16 @@ function SendNotificationModal({
 function ManageRoleModal({
   user,
   onClose,
+  onSuccess,
 }: {
   user: ModalUser;
   onClose: () => void;
+  onSuccess: () => void;
 }) {
   const [selectedRole, setSelectedRole] = useState<"admin" | "member">(
     user.role === "owner" ? "admin" : user.role
   );
   const [loading, setLoading] = useState(false);
-  const updateRole = useMutation(api.admin.updateUserRole);
 
   const handleSubmit = async () => {
     if (selectedRole === user.role) {
@@ -343,7 +373,16 @@ function ManageRoleModal({
     }
     setLoading(true);
     try {
-      await updateRole({ userId: user._id, role: selectedRole });
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'update_role', userId: user.id, role: selectedRole }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'حدث خطأ');
+      }
+      onSuccess();
       onClose();
     } catch (err) {
       alert(err instanceof Error ? err.message : "حدث خطأ");
@@ -441,19 +480,27 @@ function ManageRoleModal({
 
 // ── Actions Dropdown ──────────────────────────────────────────────
 
-function ActionsDropdown({ user, currentUserId }: { user: ModalUser; currentUserId?: Id<"users"> }) {
+function ActionsDropdown({ user, currentUserId, onMutate }: { user: ModalUser; currentUserId?: string; onMutate: () => void }) {
   const [open, setOpen] = useState(false);
   const [openUpward, setOpenUpward] = useState(false);
   const [modal, setModal] = useState<"suspend" | "ban" | "credits" | "notify" | "role" | null>(null);
-  const reinstateUser = useMutation(api.admin.reinstateUser);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
-  const isSelf = currentUserId === user._id;
-  const isSuspendedOrBanned = user.effectiveStatus === "suspended" || user.effectiveStatus === "banned";
+  const isSelf = currentUserId === user.id;
+  const isSuspendedOrBanned = (user.status ?? "active") === "suspended" || (user.status ?? "active") === "banned";
 
   const handleReinstate = async () => {
     try {
-      await reinstateUser({ userId: user._id });
+      const res = await fetch('/api/admin/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'reinstate', userId: user.id }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || 'حدث خطأ');
+      }
+      onMutate();
     } catch (err) {
       alert(err instanceof Error ? err.message : "حدث خطأ");
     }
@@ -556,16 +603,16 @@ function ActionsDropdown({ user, currentUserId }: { user: ModalUser; currentUser
 
       {/* Modals */}
       {modal === "role" && (
-        <ManageRoleModal user={user} onClose={() => setModal(null)} />
+        <ManageRoleModal user={user} onClose={() => setModal(null)} onSuccess={onMutate} />
       )}
       {(modal === "suspend" || modal === "ban") && (
-        <ConfirmActionModal user={user} action={modal} onClose={() => setModal(null)} />
+        <ConfirmActionModal user={user} action={modal} onClose={() => setModal(null)} onSuccess={onMutate} />
       )}
       {modal === "credits" && (
-        <AddCreditsModal user={user} onClose={() => setModal(null)} />
+        <AddCreditsModal user={user} onClose={() => setModal(null)} onSuccess={onMutate} />
       )}
       {modal === "notify" && (
-        <SendNotificationModal user={user} onClose={() => setModal(null)} />
+        <SendNotificationModal user={user} onClose={() => setModal(null)} onSuccess={onMutate} />
       )}
     </>
   );
@@ -574,8 +621,10 @@ function ActionsDropdown({ user, currentUserId }: { user: ModalUser; currentUser
 // ── Main Page ─────────────────────────────────────────────────────
 
 export default function AdminUsersPage() {
-  const users = useQuery(api.admin.listUsers, { limit: 200 });
-  const currentUser = useQuery(api.users.getCurrentUser);
+  const { data: usersData, mutate: mutateUsers } = useSWR('/api/admin/users?limit=200', fetcher);
+  const users = usersData?.users;
+  const { data: currentUserData } = useSWR('/api/users/me', fetcher);
+  const currentUser = currentUserData?.user;
   const [search, setSearch] = useState("");
   const [countryFilter, setCountryFilter] = useState<"all" | string>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | "active" | "suspended" | "banned">("all");
@@ -591,8 +640,8 @@ export default function AdminUsersPage() {
     if (!users) return [];
     const values = new Set<string>();
     for (const user of users) {
-      if (user.detectedCountry) values.add(user.detectedCountry.toUpperCase());
-      if (user.pricingCountry) values.add(user.pricingCountry.toUpperCase());
+      if (user.detected_country) values.add(user.detected_country.toUpperCase());
+      if (user.pricing_country) values.add(user.pricing_country.toUpperCase());
     }
     return Array.from(values).sort();
   }, [users]);
@@ -600,24 +649,24 @@ export default function AdminUsersPage() {
   const filteredUsers = useMemo(() => {
     if (!users) return [];
     const q = search.trim().toLowerCase();
-    return users.filter((u) => {
+    return users.filter((u: any) => {
       const matchesSearch =
         !q ||
         u.name.toLowerCase().includes(q) ||
         u.email.toLowerCase().includes(q) ||
-        (u.billing?.planKey ?? "").toLowerCase().includes(q) ||
-        (u.detectedCountry ?? "").toLowerCase().includes(q) ||
-        (u.pricingCountry ?? "").toLowerCase().includes(q);
+        (u.billing?.plan_key ?? "").toLowerCase().includes(q) ||
+        (u.detected_country ?? "").toLowerCase().includes(q) ||
+        (u.pricing_country ?? "").toLowerCase().includes(q);
 
       const matchesCountry =
         countryFilter === "all" ||
-        (u.detectedCountry ?? "").toUpperCase() === countryFilter ||
-        (u.pricingCountry ?? "").toUpperCase() === countryFilter;
+        (u.detected_country ?? "").toUpperCase() === countryFilter ||
+        (u.pricing_country ?? "").toUpperCase() === countryFilter;
 
       const matchesStatus =
-        statusFilter === "all" || u.effectiveStatus === statusFilter;
+        statusFilter === "all" || (u.status ?? "active") === statusFilter;
 
-      const userPlan = u.billing?.planKey ?? "none";
+      const userPlan = u.billing?.plan_key ?? "none";
       const matchesPlan = planFilter === "all" || userPlan === planFilter;
 
       return matchesSearch && matchesCountry && matchesStatus && matchesPlan;
@@ -628,7 +677,7 @@ export default function AdminUsersPage() {
   const safePage = Math.min(currentPage, totalPages - 1);
   const paginatedUsers = filteredUsers.slice(safePage * PAGE_SIZE, (safePage + 1) * PAGE_SIZE);
 
-  if (users === undefined) {
+  if (!users) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 size={32} className="animate-spin text-muted" />
@@ -665,9 +714,9 @@ export default function AdminUsersPage() {
         >
           <option value="all">كل الخطط</option>
           <option value="none">مجاني</option>
-          <option value="starter">مبتدي</option>
-          <option value="growth">نمو</option>
-          <option value="dominant">هيمنة</option>
+          <option value="starter">أساسي</option>
+          <option value="growth">احترافي</option>
+          <option value="dominant">بريميوم</option>
         </select>
         <select
           value={countryFilter}
@@ -675,7 +724,7 @@ export default function AdminUsersPage() {
           className="w-full px-3 py-3 bg-surface-1 border border-card-border rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-primary/30"
         >
           <option value="all">كل الدول</option>
-          {countryOptions.map((country) => (
+          {countryOptions.map((country: string) => (
             <option key={country} value={country}>
               {country}
             </option>
@@ -713,8 +762,8 @@ export default function AdminUsersPage() {
                 </tr>
               </thead>
               <tbody>
-                {paginatedUsers.map((user) => (
-                  <tr key={user._id} className="border-b border-card-border/50 hover:bg-surface-2/20 transition-colors">
+                {paginatedUsers.map((user: any) => (
+                  <tr key={user.id} className="border-b border-card-border/50 hover:bg-surface-2/20 transition-colors">
                     <td className="py-3 px-4 relative overflow-visible">
                       <div>
                         <div className="font-medium flex items-center gap-1.5">
@@ -736,16 +785,16 @@ export default function AdminUsersPage() {
                     </td>
                     <td className="py-3 px-4">
                       <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${
-                        ACCOUNT_STATUS_COLORS[user.effectiveStatus]
+                        ACCOUNT_STATUS_COLORS[(user.status ?? "active")]
                       }`}>
-                        {ACCOUNT_STATUS_LABELS[user.effectiveStatus]}
+                        {ACCOUNT_STATUS_LABELS[(user.status ?? "active")]}
                       </span>
                     </td>
                     <td className="py-3 px-4">
                       <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${
-                        PLAN_COLORS[user.billing?.planKey ?? "none"]
+                        PLAN_COLORS[user.billing?.plan_key ?? "none"]
                       }`}>
-                        {PLAN_LABELS[user.billing?.planKey ?? "none"]}
+                        {PLAN_LABELS[user.billing?.plan_key ?? "none"]}
                       </span>
                     </td>
                     <td className="py-3 px-4">
@@ -756,43 +805,44 @@ export default function AdminUsersPage() {
                       </span>
                     </td>
                     <td className="py-3 px-4">
-                      {(user.detectedCountry || user.pricingCountry) ? (
+                      {(user.detected_country || user.pricing_country) ? (
                         <span className="inline-flex items-center gap-1 text-xs">
                           <span className="text-base leading-none">
-                            {countryCodeToFlag(user.pricingCountry ?? user.detectedCountry) ?? "🏳️"}
+                            {countryCodeToFlag(user.pricing_country ?? user.detected_country) ?? ""}
                           </span>
-                          <span className="font-mono">{(user.pricingCountry ?? user.detectedCountry ?? "").toUpperCase()}</span>
+                          <span className="font-mono">{(user.pricing_country ?? user.detected_country ?? "").toUpperCase()}</span>
                         </span>
                       ) : (
-                        <span className="text-xs font-mono">—</span>
+                        <span className="text-xs font-mono">--</span>
                       )}
                     </td>
                     <td className="py-3 px-4">
                       {user.billing ? (
                         <div className="text-xs">
                           <div>
-                            شهري: <span className="font-bold">{user.billing.monthlyCreditsUsed}</span> / {user.billing.monthlyCreditLimit}
+                            شهري: <span className="font-bold">{user.billing.monthly_credits_used}</span> / {user.billing.monthly_credit_limit}
                           </div>
                           <div>
-                            إضافي: <span className="font-bold">{user.billing.addonCreditsBalance}</span>
+                            إضافي: <span className="font-bold">{user.billing.addon_credits_balance}</span>
                           </div>
                         </div>
                       ) : (
-                        <span className="text-xs text-muted">—</span>
+                        <span className="text-xs text-muted">--</span>
                       )}
                     </td>
-                    <td className="py-3 px-4 font-bold">{user.totalGenerations}</td>
-                    <td className="py-3 px-4 font-mono text-xs">${user.totalCostUsd.toFixed(4)}</td>
+                    <td className="py-3 px-4 font-bold">{user.totalGenerations ?? "—"}</td>
+                    <td className="py-3 px-4 font-mono text-xs">{user.totalCostUsd != null ? `$${Number(user.totalCostUsd).toFixed(4)}` : "—"}</td>
                     <td className="py-3 px-4">
                       <ActionsDropdown
                         user={{
-                          _id: user._id,
+                          id: user.id,
                           name: user.name,
                           email: user.email,
                           role: user.role,
-                          effectiveStatus: user.effectiveStatus,
+                          status: (user.status ?? "active"),
                         }}
-                        currentUserId={currentUser?._id}
+                        currentUserId={currentUser?.id}
+                        onMutate={() => mutateUsers()}
                       />
                     </td>
                   </tr>

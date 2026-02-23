@@ -70,9 +70,9 @@ const PLAN_FEATURES: Record<PlanKey, { ar: string[]; en: string[] }> = {
 };
 
 const PLAN_LABELS: Record<PlanKey, { ar: string; en: string }> = {
-  starter: { ar: "مبتدي", en: "Starter" },
-  growth: { ar: "نمو", en: "Growth" },
-  dominant: { ar: "هيمنة", en: "Dominant" },
+  starter: { ar: "أساسي", en: "Basic" },
+  growth: { ar: "احترافي", en: "Pro" },
+  dominant: { ar: "بريميوم", en: "Premium" },
 };
 
 const CHECK_COLORS: Record<PlanKey, string> = {
