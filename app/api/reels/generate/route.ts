@@ -15,14 +15,16 @@ import { startReelRender } from "@/lib/remotion-lambda";
 import { REEL_CONFIG } from "@/lib/constants";
 import { generateSpeech } from "@/lib/elevenlabs";
 
-const REEL_MODEL_ID = "gemini-3.1-pro-preview";
+const REEL_MODEL_ID = "gemini-3-flash-preview";
 
 export async function POST(request: Request) {
   const startTime = Date.now();
 
   try {
-    const user = await requireAuth();
-    const currentUser = await requireCurrentUser();
+    const [user, currentUser] = await Promise.all([
+      requireAuth(),
+      requireCurrentUser(),
+    ]);
     const admin = createAdminClient();
 
     // Parse request body
@@ -172,8 +174,10 @@ export async function POST(request: Request) {
       }
     }
 
-    const resolvedLogoUrl = await uploadBase64ForLambda(logoBase64, logoUrl, "logo");
-    const resolvedProductUrl = await uploadBase64ForLambda(productBase64, productUrl, "product");
+    const [resolvedLogoUrl, resolvedProductUrl] = await Promise.all([
+      uploadBase64ForLambda(logoBase64, logoUrl, "logo"),
+      uploadBase64ForLambda(productBase64, productUrl, "product"),
+    ]);
 
     // ── Call Gemini to generate animation spec ─────────────────────
     try {
@@ -254,8 +258,8 @@ export async function POST(request: Request) {
       const rawJson = extractJsonFromResponse(result.text);
       const spec = validateAndSanitizeSpec(rawJson);
 
-      // Update record with spec
-      await admin
+      // ── Update DB spec + Generate TTS in parallel ─────────────────
+      const specUpdatePromise = admin
         .from("reel_generations")
         .update({
           animation_spec: spec,
@@ -269,10 +273,8 @@ export async function POST(request: Request) {
         })
         .eq("id", reelId);
 
-      // ── Generate Voiceover Audio (if voice selected) ─────────────────
-      let audioUrl: string | undefined;
-
-      if (voiceId && spec.voiceover?.script) {
+      const ttsPromise = (async (): Promise<string | undefined> => {
+        if (!voiceId || !spec.voiceover?.script) return undefined;
         try {
           console.log("[reels/generate] Generating voiceover audio...", {
             voiceId,
@@ -296,24 +298,26 @@ export async function POST(request: Request) {
 
           if (uploadError) {
             console.error("[reels/generate] Audio upload failed:", uploadError);
-          } else {
-            const { data: publicUrlData } = admin.storage
-              .from("reels")
-              .getPublicUrl(audioFileName);
-            audioUrl = publicUrlData.publicUrl;
-
-            // Update record with audio info
-            await admin
-              .from("reel_generations")
-              .update({
-                audio_url: audioUrl,
-                audio_storage_path: audioFileName,
-                status: "rendering",
-              })
-              .eq("id", reelId);
-
-            console.log("[reels/generate] Voiceover audio generated:", audioUrl);
+            return undefined;
           }
+
+          const { data: publicUrlData } = admin.storage
+            .from("reels")
+            .getPublicUrl(audioFileName);
+          const url = publicUrlData.publicUrl;
+
+          // Update record with audio info
+          await admin
+            .from("reel_generations")
+            .update({
+              audio_url: url,
+              audio_storage_path: audioFileName,
+              status: "rendering",
+            })
+            .eq("id", reelId);
+
+          console.log("[reels/generate] Voiceover audio generated:", url);
+          return url;
         } catch (ttsError: any) {
           // Graceful degradation: continue without audio
           console.error("[reels/generate] TTS failed (continuing without audio):", ttsError.message);
@@ -321,8 +325,11 @@ export async function POST(request: Request) {
             .from("reel_generations")
             .update({ status: "rendering" })
             .eq("id", reelId);
+          return undefined;
         }
-      }
+      })();
+
+      const [, audioUrl] = await Promise.all([specUpdatePromise, ttsPromise]);
 
       // ── Start Remotion Lambda render ───────────────────────────────
       const posterUrl = sourceImageUrl || "";
@@ -341,22 +348,20 @@ export async function POST(request: Request) {
         })
         .eq("id", reelId);
 
-      // ── Track AI usage ─────────────────────────────────────────────
-      try {
-        await admin.from("ai_usage_events").insert({
-          user_auth_id: user.id,
-          model: REEL_MODEL_ID,
-          route: "reel",
-          input_tokens: result.usage?.inputTokens ?? 0,
-          output_tokens: result.usage?.outputTokens ?? 0,
-          images_generated: 0,
-          duration_ms: aiDurationMs,
-          success: true,
-          created_at: Date.now(),
-        });
-      } catch (usageErr) {
-        console.error("[reels/generate] Failed to track usage:", usageErr);
-      }
+      // ── Track AI usage (fire-and-forget) ──────────────────────────
+      admin.from("ai_usage_events").insert({
+        user_auth_id: user.id,
+        model: REEL_MODEL_ID,
+        route: "reel",
+        input_tokens: result.usage?.inputTokens ?? 0,
+        output_tokens: result.usage?.outputTokens ?? 0,
+        images_generated: 0,
+        duration_ms: aiDurationMs,
+        success: true,
+        created_at: Date.now(),
+      }).then(({ error }) => {
+        if (error) console.error("[reels/generate] Failed to track usage:", error);
+      });
 
       return NextResponse.json({
         reelId,
@@ -377,23 +382,19 @@ export async function POST(request: Request) {
         })
         .eq("id", reelId);
 
-      // Track failed usage
-      try {
-        await admin.from("ai_usage_events").insert({
-          user_auth_id: user.id,
-          model: REEL_MODEL_ID,
-          route: "reel",
-          input_tokens: 0,
-          output_tokens: 0,
-          images_generated: 0,
-          duration_ms: Date.now() - startTime,
-          success: false,
-          error: aiError.message || "AI generation failed",
-          created_at: Date.now(),
-        });
-      } catch {
-        // Ignore usage tracking errors
-      }
+      // Track failed usage (fire-and-forget)
+      admin.from("ai_usage_events").insert({
+        user_auth_id: user.id,
+        model: REEL_MODEL_ID,
+        route: "reel",
+        input_tokens: 0,
+        output_tokens: 0,
+        images_generated: 0,
+        duration_ms: Date.now() - startTime,
+        success: false,
+        error: aiError.message || "AI generation failed",
+        created_at: Date.now(),
+      }).then(() => {});
 
       return NextResponse.json(
         { reelId, error: "AI generation failed", status: "error" },
