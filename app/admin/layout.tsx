@@ -17,7 +17,6 @@ import {
   ChevronLeft,
   Menu,
   X,
-  Shield,
   ImageIcon,
   Tag,
   Mail,
@@ -167,88 +166,20 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   );
 }
 
-const ALLOW_BOOTSTRAP = process.env.NEXT_PUBLIC_ALLOW_ADMIN_BOOTSTRAP === "true";
-
 function AdminAccessDenied() {
-  const [bootstrapping, setBootstrapping] = useState(false);
-  const [bootstrapError, setBootstrapError] = useState<string | null>(null);
-  const [bootstrapDone, setBootstrapDone] = useState(false);
-  const [secret, setSecret] = useState("");
-  const [showSecretInput, setShowSecretInput] = useState(false);
-
-  const handleBootstrap = async () => {
-    setBootstrapping(true);
-    setBootstrapError(null);
-    try {
-      const res = await fetch('/api/admin/bootstrap', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ secret: secret || undefined }),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || 'فشل تعيين المسؤول');
-      }
-      setBootstrapDone(true);
-      window.location.reload();
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "فشل تعيين المسؤول";
-      if (msg.includes("secret") || msg.includes("Admin already exists")) {
-        setShowSecretInput(true);
-      }
-      setBootstrapError(msg);
-    } finally {
-      setBootstrapping(false);
-    }
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center px-4">
       <div className="bg-surface-1 border border-card-border rounded-2xl p-8 max-w-md w-full text-center">
         <ShieldAlert size={48} className="text-destructive mx-auto mb-4" />
         <h1 className="text-2xl font-bold mb-2">صلاحيات غير كافية</h1>
-        <p className="text-muted mb-4">هذه الصفحة متاحة فقط للمسؤولين.</p>
-
-        {ALLOW_BOOTSTRAP && !bootstrapDone && (
-          <div className="space-y-3 mb-4">
-            {showSecretInput && (
-              <input
-                type="password"
-                value={secret}
-                onChange={(e) => setSecret(e.target.value)}
-                placeholder="ADMIN_BOOTSTRAP_SECRET"
-                className="w-full px-4 py-3 bg-surface-2 border border-card-border rounded-xl text-sm text-center font-mono focus:outline-none focus:ring-2 focus:ring-primary/50"
-                dir="ltr"
-              />
-            )}
-            <button
-              onClick={handleBootstrap}
-              disabled={bootstrapping}
-              className="inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-accent to-accent/80 text-white rounded-xl font-bold disabled:opacity-50 transition-opacity"
-            >
-              {bootstrapping ? (
-                <Loader2 size={16} className="animate-spin" />
-              ) : (
-                <Shield size={16} />
-              )}
-              {bootstrapping ? "جاري التعيين..." : "تعيين كمسؤول"}
-            </button>
-          </div>
-        )}
-
-        {bootstrapError && (
-          <p className="text-destructive text-sm mb-3">{bootstrapError}</p>
-        )}
-
-        <div>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-xl font-bold"
-          >
-            <ChevronLeft size={16} />
-            العودة للرئيسية
-          </Link>
-        </div>
+        <p className="text-muted mb-6">هذه الصفحة متاحة فقط للمسؤولين.</p>
+        <Link
+          href="/"
+          className="inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-xl font-bold"
+        >
+          <ChevronLeft size={16} />
+          العودة للرئيسية
+        </Link>
       </div>
     </div>
   );

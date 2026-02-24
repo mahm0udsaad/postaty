@@ -24,6 +24,7 @@ import {
   PartyPopper,
   Gem,
   Maximize2,
+  Film,
 } from "lucide-react";
 import confetti from "canvas-confetti";
 import type { PosterResult, PosterGenStep } from "@/lib/types";
@@ -40,6 +41,7 @@ interface PosterGridProps {
   error?: string;
   totalExpected?: number;
   onSaveAsTemplate?: (designIndex: number) => void;
+  onTurnIntoReel?: (result: PosterResult) => void;
 }
 
 // ── Poster Skeleton (Advanced Generative Visualization) ───────────
@@ -434,6 +436,7 @@ export function PosterGrid({
   error,
   totalExpected = results.length || 3,
   onSaveAsTemplate,
+  onTurnIntoReel,
 }: PosterGridProps) {
   const { t } = useLocale();
   const shouldReduceMotion = useReducedMotion();
@@ -539,19 +542,31 @@ export function PosterGrid({
           </div>
 
           {successResults.length > 0 && (
-            <button
-              type="button"
-              onClick={handleExportAll}
-              disabled={exportingAll}
-              className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary-hover text-white rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-95 font-medium"
-            >
-              {exportingAll ? (
-                <Loader2 size={18} className="animate-spin" />
-              ) : (
-                <DownloadCloud size={18} />
+            <div className="flex items-center gap-3">
+              {onTurnIntoReel && (
+                <button
+                  type="button"
+                  onClick={() => onTurnIntoReel(successResults[0])}
+                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all active:scale-95 font-bold"
+                >
+                  <Film size={18} />
+                  {t("تحويل إلى ريلز", "Turn into Reel")}
+                </button>
               )}
-              {t("تصدير التصميم", "Export design")}
-            </button>
+              <button
+                type="button"
+                onClick={handleExportAll}
+                disabled={exportingAll}
+                className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary-hover text-white rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-95 font-medium"
+              >
+                {exportingAll ? (
+                  <Loader2 size={18} className="animate-spin" />
+                ) : (
+                  <DownloadCloud size={18} />
+                )}
+                {t("تصدير التصميم", "Export design")}
+              </button>
+            </div>
           )}
         </div>
       )}
@@ -582,6 +597,7 @@ export function PosterGrid({
             <PosterCard
               result={successResults[0]}
               onSaveAsTemplate={onSaveAsTemplate}
+              onTurnIntoReel={onTurnIntoReel}
               lowMotion={lowMotionMode}
               onClick={() => handleCardClick(successResults[0])}
             />
@@ -605,6 +621,7 @@ export function PosterGrid({
                   <PosterCard
                     result={result}
                     onSaveAsTemplate={onSaveAsTemplate}
+                    onTurnIntoReel={onTurnIntoReel}
                     lowMotion={lowMotionMode}
                     onClick={() => handleCardClick(result)}
                   />
@@ -642,11 +659,12 @@ export function PosterGrid({
       </AnimatePresence>
       
       {/* Full Screen Modal */}
-      <PosterModal 
+      <PosterModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         result={selectedResult}
         onSaveAsTemplate={onSaveAsTemplate}
+        onTurnIntoReel={onTurnIntoReel}
       />
     </div>
   );
@@ -951,11 +969,13 @@ async function exportPoster(result: PosterResult): Promise<void> {
 function PosterCard({
   result,
   onSaveAsTemplate,
+  onTurnIntoReel,
   lowMotion,
   onClick,
 }: {
   result: PosterResult;
   onSaveAsTemplate?: (designIndex: number) => void;
+  onTurnIntoReel?: (result: PosterResult) => void;
   lowMotion: boolean;
   onClick: () => void;
 }) {
@@ -1079,6 +1099,16 @@ function PosterCard({
             {result.designNameAr || `${t("تصميم", "Design")} ${result.designIndex + 1}`}
           </span>
           <div className="flex items-center gap-1.5">
+            {onTurnIntoReel && (
+              <button
+                type="button"
+                onClick={(e) => { e.stopPropagation(); onTurnIntoReel(result); }}
+                className="p-2 rounded-lg text-muted hover:text-purple-500 hover:bg-purple-500/10 transition-colors"
+                title={t("تحويل إلى ريلز", "Turn into Reel")}
+              >
+                <Film size={18} />
+              </button>
+            )}
             {onSaveAsTemplate && (
               <button
                 type="button"

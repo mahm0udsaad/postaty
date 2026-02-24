@@ -9,9 +9,9 @@ export async function POST() {
 
     const { error } = await admin
       .from("notifications")
-      .update({ read_at: Date.now() })
+      .update({ is_read: true })
       .eq("user_auth_id", user.id)
-      .is("read_at", null);
+      .eq("is_read", false);
 
     if (error) {
       console.error("Failed to mark all notifications as read:", error);

@@ -272,9 +272,9 @@ export default function AdminShowcasePage() {
         ) : generations.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             {generations.flatMap((gen: any) =>
-              gen.outputs.map((output: any) => (
+              gen.outputs.map((output: any, idx: number) => (
                 <div
-                  key={output.storageId}
+                  key={`${gen.id}-${output.storageId ?? idx}`}
                   className={`relative rounded-2xl overflow-hidden border bg-surface-1 transition-all group ${
                     output.alreadyInShowcase
                       ? "border-success/40 ring-2 ring-success/20"

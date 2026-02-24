@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   try {
     const user = await requireAuth();
     const admin = createAdminClient();
-    const { idempotencyKey } = await request.json();
+    const { idempotencyKey, amount: rawAmount } = await request.json();
 
     if (!idempotencyKey || typeof idempotencyKey !== "string") {
       return NextResponse.json(
@@ -35,6 +35,11 @@ export async function POST(request: Request) {
         { status: 400 }
       );
     }
+
+    // Amount defaults to 1, supports consuming multiple credits at once (e.g. 2 for reels)
+    const amount = typeof rawAmount === "number" && Number.isInteger(rawAmount) && rawAmount >= 1 && rawAmount <= 10
+      ? rawAmount
+      : 1;
 
     // Check if already consumed (idempotency)
     const { data: existingLedger } = await admin
@@ -79,7 +84,7 @@ export async function POST(request: Request) {
     );
     const addonRemaining = billing.addon_credits_balance;
 
-    if (monthlyRemaining + addonRemaining < 1) {
+    if (monthlyRemaining + addonRemaining < amount) {
       return NextResponse.json(
         { error: "No credits remaining" },
         { status: 403 }
@@ -91,12 +96,20 @@ export async function POST(request: Request) {
     let addonCreditsBalance = billing.addon_credits_balance;
     let source: "monthly" | "addon" = "monthly";
 
-    if (monthlyRemaining > 0) {
-      monthlyCreditsUsed += 1;
+    let remaining = amount;
+
+    // Consume from monthly first
+    const fromMonthly = Math.min(remaining, monthlyRemaining);
+    if (fromMonthly > 0) {
+      monthlyCreditsUsed += fromMonthly;
+      remaining -= fromMonthly;
       source = "monthly";
-    } else {
-      addonCreditsBalance -= 1;
-      source = "addon";
+    }
+
+    // Overflow to addon credits
+    if (remaining > 0) {
+      addonCreditsBalance -= remaining;
+      source = remaining === amount ? "addon" : "monthly"; // primary source
     }
 
     const now = Date.now();
@@ -123,7 +136,7 @@ export async function POST(request: Request) {
     await admin.from("credit_ledger").insert({
       user_auth_id: user.id,
       billing_id: billing.id,
-      amount: -1,
+      amount: -amount,
       reason: "usage",
       source,
       idempotency_key: idempotencyKey,

@@ -43,6 +43,32 @@ export function getPublicUrl(bucket: string, path: string): string {
 }
 
 /**
+ * Uploads a raw buffer to Supabase Storage.
+ * Used for video files (MP4) and other binary data.
+ */
+export async function uploadBufferToStorage(
+  buffer: Buffer,
+  bucket: string,
+  path: string,
+  contentType: string
+): Promise<string> {
+  const admin = createAdminClient();
+
+  const { error } = await admin.storage
+    .from(bucket)
+    .upload(path, buffer, {
+      contentType,
+      upsert: true,
+    });
+
+  if (error) {
+    throw new Error(`Failed to upload buffer to storage: ${error.message}`);
+  }
+
+  return path;
+}
+
+/**
  * Deletes a file from Supabase Storage.
  */
 export async function deleteFromStorage(

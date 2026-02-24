@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/hooks/use-auth";
 import useSWR from "swr";
-import { Loader2, Zap, Calendar, LogOut, ExternalLink } from "lucide-react";
+import { Loader2, Zap, Calendar, LogOut, ExternalLink, LifeBuoy } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
@@ -38,7 +38,6 @@ function SettingsPageContent() {
   const { user, isSignedIn, isLoaded, signOut } = useAuth();
   const { locale, t } = useLocale();
   const [loadingAction, setLoadingAction] = useState<string | null>(null);
-
   const { data: creditState, isLoading: isCreditLoading } = useSWR(
     isSignedIn ? '/api/billing' : null,
     fetcher
@@ -239,15 +238,16 @@ function SettingsPageContent() {
 
         {/* Support */}
         <div className="bg-surface-2/30 border border-card-border rounded-2xl p-6 text-center">
-          <p className="text-sm text-muted">
-            {t("هل تحتاج إلى مساعدة؟", "Need help?")}{" "}
-            <a
-              href="mailto:support@postaty.com"
-              className="text-primary hover:underline font-bold"
-            >
-              {t("تواصل معنا", "Contact us")}
-            </a>
+          <p className="text-sm text-muted mb-3">
+            {t("هل تحتاج إلى مساعدة؟", "Need help?")}
           </p>
+          <Link
+            href="/support"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary/10 text-primary border border-primary/20 rounded-xl text-sm font-bold hover:bg-primary/20 transition-colors"
+          >
+            <LifeBuoy size={16} />
+            {t("تواصل مع الدعم الفني", "Contact support")}
+          </Link>
         </div>
 
         {/* Sign Out */}

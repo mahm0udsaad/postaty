@@ -28,8 +28,25 @@ export async function GET() {
     }
 
     const productsWithPrices = products.data.map((product) => ({
-      ...product,
-      prices: pricesByProduct[product.id] || [],
+      id: product.id,
+      name: product.name,
+      description: product.description,
+      active: product.active,
+      metadata: product.metadata,
+      defaultPriceId:
+        typeof product.default_price === "string"
+          ? product.default_price
+          : product.default_price?.id ?? null,
+      prices: (pricesByProduct[product.id] || []).map((p) => ({
+        id: p.id,
+        unitAmount: p.unit_amount,
+        currency: p.currency,
+        recurring: p.recurring
+          ? { interval: p.recurring.interval }
+          : null,
+        lookupKey: p.lookup_key,
+        active: p.active,
+      })),
     }));
 
     return NextResponse.json({ products: productsWithPrices });

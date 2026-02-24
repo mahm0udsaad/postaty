@@ -85,6 +85,11 @@ export async function GET(request: Request) {
     const apiCostUsd = totalCostUsd;
     const netProfit = grossRevenue - stripeFees - apiCostUsd;
 
+    // Total users count
+    const { count: totalUsers } = await admin
+      .from("users")
+      .select("id", { count: "exact", head: true });
+
     // Active subscriptions
     const { data: allBilling } = await admin.from("billing").select("*");
     const activeSubs = (allBilling || []).filter(
@@ -125,6 +130,7 @@ export async function GET(request: Request) {
         hasActualFees,
         apiCostUsd,
         netProfit,
+        totalUsers: totalUsers ?? 0,
         activeSubscriptions: activeSubs.length,
         subscriptionsByPlan: {
           starter: activeSubs.filter((b) => b.plan_key === "starter").length,

@@ -16,7 +16,7 @@ export async function POST(request: Request) {
     }
 
     // Validate bucket name
-    const allowedBuckets = ["generations", "logos", "showcase", "feedback", "previews"];
+    const allowedBuckets = ["generations", "logos", "showcase", "feedback", "previews", "reels"];
     if (!allowedBuckets.includes(bucket)) {
       return NextResponse.json(
         { error: "Invalid bucket" },

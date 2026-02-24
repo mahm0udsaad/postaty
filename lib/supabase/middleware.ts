@@ -1,6 +1,11 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 
+const ADMIN_EMAILS = [
+  "postatyhq@gmail.com",
+  "101mahm0udsaad@gmail.com",
+];
+
 const COUNTRY_COOKIE = "pst_country";
 
 const PROTECTED_PATHS = [
@@ -65,6 +70,16 @@ export async function updateSession(request: NextRequest) {
     const url = request.nextUrl.clone();
     url.pathname = "/sign-in";
     return NextResponse.redirect(url);
+  }
+
+  // Block non-admin users from /admin routes
+  const { pathname } = request.nextUrl;
+  if (pathname === "/admin" || pathname.startsWith("/admin/")) {
+    if (!user || !ADMIN_EMAILS.includes(user.email?.toLowerCase() ?? "")) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/";
+      return NextResponse.redirect(url);
+    }
   }
 
   // Set country detection cookie (from Vercel geo headers)

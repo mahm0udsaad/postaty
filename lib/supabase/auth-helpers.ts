@@ -26,9 +26,21 @@ export async function requireCurrentUser() {
   return dbUser;
 }
 
+const ADMIN_EMAILS = [
+  "postatyhq@gmail.com",
+  "101mahm0udsaad@gmail.com",
+];
+
+export function isAdminEmail(email: string): boolean {
+  return ADMIN_EMAILS.includes(email.toLowerCase());
+}
+
 export async function requireAdmin() {
   const dbUser = await requireCurrentUser();
-  if (dbUser.role !== "admin" && dbUser.role !== "owner") {
+  if (
+    (dbUser.role !== "admin" && dbUser.role !== "owner") ||
+    !isAdminEmail(dbUser.email)
+  ) {
     throw new Error("Admin access required");
   }
   return dbUser;

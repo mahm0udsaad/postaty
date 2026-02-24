@@ -5,7 +5,7 @@ import useSWR from "swr";
 import { useAuth } from "@/hooks/use-auth";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Sparkles, LayoutGrid, LogIn, AlertCircle } from "lucide-react";
+import { ArrowRight, Sparkles, LayoutGrid, LogIn, AlertCircle, Film } from "lucide-react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useLocale } from "@/hooks/use-locale";
@@ -17,7 +17,7 @@ import { CategorySelector } from "../components/category-selector";
 import type { Category, PostFormData, PosterResult, PosterGenStep } from "@/lib/types";
 import type { BrandKitPromptData } from "@/lib/prompts";
 import type { GenerationUsage } from "@/lib/generate-designs";
-import { CATEGORY_LABELS, FORMAT_CONFIGS } from "@/lib/constants";
+import { CATEGORY_LABELS, FORMAT_CONFIGS, REEL_CONFIG } from "@/lib/constants";
 import { CATEGORY_THEMES } from "@/lib/category-themes";
 import { generatePosters } from "../actions-v2";
 import { TAP_SCALE } from "@/lib/animation";
@@ -54,6 +54,16 @@ const FashionForm = dynamic(
 const BeautyForm = dynamic(
   () => import("../components/forms/beauty-form").then((mod) => mod.BeautyForm),
   { loading: () => <FormLoadingFallback /> }
+);
+
+const ReelGenerationModal = dynamic(
+  () => import("../components/reel-generation-modal").then((mod) => mod.ReelGenerationModal),
+  { ssr: false }
+);
+
+const ReelUpgradePrompt = dynamic(
+  () => import("../components/reel-upgrade-prompt").then((mod) => mod.ReelUpgradePrompt),
+  { ssr: false }
 );
 
 const ALL_CATEGORIES: Category[] = ["restaurant", "supermarket", "ecommerce", "services", "fashion", "beauty"];
@@ -115,6 +125,17 @@ function getProductName(data: PostFormData): string {
     case "services": return data.serviceName;
     case "fashion": return data.itemName;
     case "beauty": return data.serviceName;
+  }
+}
+
+function getProductImage(data: PostFormData): string | undefined {
+  switch (data.category) {
+    case "restaurant": return data.mealImage || undefined;
+    case "supermarket": return data.productImages?.[0] || undefined;
+    case "ecommerce": return data.productImage || undefined;
+    case "services": return data.serviceImage || undefined;
+    case "fashion": return data.productImage || undefined;
+    case "beauty": return data.serviceImage || undefined;
   }
 }
 
@@ -180,6 +201,11 @@ function CreatePageContent() {
   const [lastSubmittedData, setLastSubmittedData] = useState<PostFormData | null>(null);
   const [defaultLogo, setDefaultLogo] = useState<string | null>(null);
   const generatingRef = useRef(false);
+
+  // Reel state
+  const [reelModalOpen, setReelModalOpen] = useState(false);
+  const [reelUpgradeOpen, setReelUpgradeOpen] = useState(false);
+  const [reelSourceResult, setReelSourceResult] = useState<PosterResult | null>(null);
 
   // Get category theme
   const theme = category ? CATEGORY_THEMES[category] : null;
@@ -505,6 +531,22 @@ function CreatePageContent() {
     }
   };
 
+  const handleTurnIntoReel = (result: PosterResult) => {
+    if (!creditState || creditState.planKey === "none" || creditState.planKey === "free") {
+      setReelUpgradeOpen(true);
+      return;
+    }
+    if ((creditState.totalRemaining ?? 0) < REEL_CONFIG.creditsPerReel) {
+      setError(t(
+        `تحتاج ${REEL_CONFIG.creditsPerReel} رصيد على الأقل لإنشاء ريلز`,
+        `You need at least ${REEL_CONFIG.creditsPerReel} credits to create a reel`
+      ));
+      return;
+    }
+    setReelSourceResult(result);
+    setReelModalOpen(true);
+  };
+
   if (!isAuthLoaded) {
     return <div className="min-h-screen flex items-center justify-center">
         <div className="animate-pulse flex flex-col items-center">
@@ -622,6 +664,7 @@ function CreatePageContent() {
                         error={error}
                         totalExpected={1}
                         onSaveAsTemplate={handleSaveAsTemplate}
+                        onTurnIntoReel={handleTurnIntoReel}
                     />
                 </div>
 
@@ -683,6 +726,25 @@ function CreatePageContent() {
           )}
         </AnimatePresence>
       </main>
+
+      {/* Reel Modals */}
+      <ReelGenerationModal
+        isOpen={reelModalOpen}
+        onClose={() => setReelModalOpen(false)}
+        posterResult={reelSourceResult}
+        generationId={undefined}
+        sourceImageUrl={undefined}
+        businessName={lastSubmittedData ? getBusinessName(lastSubmittedData) : undefined}
+        productName={lastSubmittedData ? getProductName(lastSubmittedData) : undefined}
+        category={category ?? undefined}
+        onCreditsChanged={() => mutateCreditState()}
+        logoBase64={lastSubmittedData?.logo || undefined}
+        productImageBase64={lastSubmittedData ? getProductImage(lastSubmittedData) : undefined}
+      />
+      <ReelUpgradePrompt
+        isOpen={reelUpgradeOpen}
+        onClose={() => setReelUpgradeOpen(false)}
+      />
     </div>
   );
 }

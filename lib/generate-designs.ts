@@ -24,7 +24,7 @@ export type GeneratedDesign = {
 };
 
 export type GenerationUsage = {
-  route: "poster" | "gift";
+  route: "poster" | "gift" | "reel";
   model: string;
   inputTokens: number;
   outputTokens: number;

@@ -320,6 +320,27 @@ export interface PosterResult {
   isGift?: boolean;
 }
 
+// ── Reel Generation ─────────────────────────────────────────────
+export type ReelGenStatus =
+  | "pending"
+  | "generating_spec"
+  | "rendering"
+  | "uploading"
+  | "complete"
+  | "error";
+
+export interface ReelGeneration {
+  id: string;
+  generationId?: string;
+  sourceImageUrl: string;
+  status: ReelGenStatus;
+  videoUrl?: string;
+  thumbnailUrl?: string;
+  progress?: number; // 0-1 for rendering phase
+  error?: string;
+  createdAt: number;
+}
+
 export type GiftEditorFontFamily = "noto-kufi";
 
 export interface GiftEditorTextLayer {
@@ -368,6 +389,7 @@ export interface PlanLimits {
   exportFormats: OutputFormat[];
   hasWatermark: boolean;
   historyRetentionDays: number;
+  canCreateReels: boolean;
 }
 
 // ── Admin API Contracts ─────────────────────────────────────────────

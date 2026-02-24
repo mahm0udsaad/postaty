@@ -22,7 +22,7 @@ export async function GET() {
     }
 
     const unreadCount = (notifications ?? []).filter(
-      (n) => !n.read_at
+      (n) => !n.is_read
     ).length;
 
     return NextResponse.json({

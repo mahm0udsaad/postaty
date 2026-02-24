@@ -9,6 +9,7 @@ import {
   Tag,
   Image as ImageIcon,
   Gift,
+  Film,
 } from "lucide-react";
 import { CATEGORY_LABELS, FORMAT_CONFIGS } from "@/lib/constants";
 import type { Category, OutputFormat } from "@/lib/types";
@@ -36,6 +37,7 @@ interface GenerationData {
 interface GenerationCardProps {
   generation: GenerationData;
   imageType?: "all" | "pro" | "gift";
+  onTurnIntoReel?: (imageUrl: string, businessName: string, productName: string, category: string) => void;
 }
 
 const CATEGORY_LABELS_EN: Record<Category, string> = {
@@ -47,7 +49,7 @@ const CATEGORY_LABELS_EN: Record<Category, string> = {
   beauty: "Beauty & Care",
 };
 
-export function GenerationCard({ generation, imageType = "all" }: GenerationCardProps) {
+export function GenerationCard({ generation, imageType = "all", onTurnIntoReel }: GenerationCardProps) {
   const { locale, t } = useLocale();
   const [expanded, setExpanded] = useState(false);
 
@@ -206,10 +208,19 @@ export function GenerationCard({ generation, imageType = "all" }: GenerationCard
                       )}
                     </div>
                     {output.url && (
-                      <div className="p-3 border-t border-card-border bg-surface-1">
+                      <div className="p-3 border-t border-card-border bg-surface-1 flex gap-2">
+                        {onTurnIntoReel && !isGiftOutput && (
+                          <button
+                            onClick={() => onTurnIntoReel(output.url!, generation.business_name, generation.product_name, generation.category)}
+                            className="flex-1 flex items-center justify-center gap-2 py-2 bg-purple-500/10 hover:bg-gradient-to-r hover:from-purple-600 hover:to-pink-600 hover:text-white text-purple-600 rounded-lg text-xs font-bold transition-all"
+                          >
+                            <Film size={14} />
+                            {t("ريلز", "Reel")}
+                          </button>
+                        )}
                         <button
                           onClick={() => handleDownload(output.url!, output.format)}
-                          className="w-full flex items-center justify-center gap-2 py-2 bg-surface-1 border border-card-border text-foreground rounded-lg text-xs font-bold hover:bg-surface-1 hover:text-primary hover:border-primary/20 transition-all shadow-sm"
+                          className={`${onTurnIntoReel && !isGiftOutput ? "flex-1" : "w-full"} flex items-center justify-center gap-2 py-2 bg-surface-1 border border-card-border text-foreground rounded-lg text-xs font-bold hover:bg-surface-1 hover:text-primary hover:border-primary/20 transition-all shadow-sm`}
                         >
                           <Download size={14} />
                           {t("تحميل", "Download")}

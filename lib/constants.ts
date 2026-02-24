@@ -199,6 +199,7 @@ export const PLAN_LIMITS: Record<OrgPlan, PlanLimits> = {
     exportFormats: ["instagram-square", "instagram-story"],
     hasWatermark: true,
     historyRetentionDays: 7,
+    canCreateReels: false,
   },
   starter: {
     creditsMonthly: 100,
@@ -215,6 +216,7 @@ export const PLAN_LIMITS: Record<OrgPlan, PlanLimits> = {
     ],
     hasWatermark: false,
     historyRetentionDays: 30,
+    canCreateReels: true,
   },
   pro: {
     creditsMonthly: 500,
@@ -231,6 +233,7 @@ export const PLAN_LIMITS: Record<OrgPlan, PlanLimits> = {
     ],
     hasWatermark: false,
     historyRetentionDays: -1, // unlimited
+    canCreateReels: true,
   },
   agency: {
     creditsMonthly: 2000,
@@ -247,8 +250,68 @@ export const PLAN_LIMITS: Record<OrgPlan, PlanLimits> = {
     ],
     hasWatermark: false,
     historyRetentionDays: -1, // unlimited
+    canCreateReels: true,
   },
 };
+
+// ── Reel Configuration ────────────────────────────────────────────
+
+export const REEL_CONFIG = {
+  width: 1080,
+  height: 1920,
+  fps: 30,
+  durationSeconds: { min: 8, max: 10 },
+  creditsPerReel: 2,
+  minPlanRequired: "starter" as OrgPlan,
+  ttsModel: "eleven_multilingual_v2" as const,
+} as const;
+
+// ── Voiceover Voice Presets ──────────────────────────────────────
+
+export interface VoicePreset {
+  id: string;
+  name: string;
+  nameAr: string;
+  language: "ar" | "en";
+  gender: "male" | "female";
+  accent: string;
+  accentAr: string;
+  country: string;       // ISO country code
+  countryLabel: string;  // Arabic country name
+  countryLabelEn: string;
+}
+
+export const VOICE_PRESETS: VoicePreset[] = [
+  // ── Levantine (Jordan / Palestine) ──
+  { id: "a1KZUXKFVFDOb33I1uqr", name: "Salma", nameAr: "سلمى", language: "ar", gender: "female", accent: "levantine", accentAr: "شامي", country: "JO", countryLabel: "الأردن", countryLabelEn: "Jordan" },
+  { id: "pNInz6obpgDQGcFmaJgB", name: "Adam", nameAr: "آدم", language: "ar", gender: "male", accent: "levantine", accentAr: "شامي", country: "JO", countryLabel: "الأردن", countryLabelEn: "Jordan" },
+  { id: "qi4PkV9c01kb869Vh7Su", name: "Asmaa", nameAr: "أسماء", language: "ar", gender: "female", accent: "msa", accentAr: "فصحى", country: "PS", countryLabel: "فلسطين", countryLabelEn: "Palestine" },
+  { id: "Qp2PG6sgef1EHtrNQKnf", name: "Mohamed", nameAr: "محمد", language: "ar", gender: "male", accent: "msa", accentAr: "فصحى", country: "PS", countryLabel: "فلسطين", countryLabelEn: "Palestine" },
+  // ── Egyptian ──
+  { id: "VMy40598IGgDeaOE8phq", name: "Fathy", nameAr: "فتحي", language: "ar", gender: "male", accent: "egyptian", accentAr: "مصري", country: "EG", countryLabel: "مصر", countryLabelEn: "Egypt" },
+  { id: "meAbY2VpJkt1q46qk56T", name: "Hoda", nameAr: "هدى", language: "ar", gender: "female", accent: "egyptian", accentAr: "مصري", country: "EG", countryLabel: "مصر", countryLabelEn: "Egypt" },
+  { id: "yrPIy5b3iLnVLIBfUSw8", name: "Amr", nameAr: "عمرو", language: "ar", gender: "male", accent: "egyptian", accentAr: "مصري", country: "EG", countryLabel: "مصر", countryLabelEn: "Egypt" },
+  // ── Saudi / Gulf ──
+  { id: "IK7YYZcSpmlkjKrQxbSn", name: "Raed", nameAr: "رائد", language: "ar", gender: "male", accent: "saudi", accentAr: "سعودي", country: "SA", countryLabel: "السعودية", countryLabelEn: "Saudi Arabia" },
+  { id: "tavIIPLplRB883FzWU0V", name: "Mona", nameAr: "منى", language: "ar", gender: "female", accent: "msa", accentAr: "فصحى", country: "SA", countryLabel: "السعودية", countryLabelEn: "Saudi Arabia" },
+  { id: "5Spsi3mCH9e7futpnGE5", name: "Fares", nameAr: "فارس", language: "ar", gender: "male", accent: "gulf", accentAr: "خليجي", country: "AE", countryLabel: "الإمارات", countryLabelEn: "UAE" },
+  { id: "G1QUjBCuRBbLbAmYlTgl", name: "Abu Salem", nameAr: "أبو سالم", language: "ar", gender: "male", accent: "kuwaiti", accentAr: "كويتي", country: "KW", countryLabel: "الكويت", countryLabelEn: "Kuwait" },
+  // ── English ──
+  { id: "21m00Tcm4TlvDq8ikWAM", name: "Rachel", nameAr: "راشيل", language: "en", gender: "female", accent: "american", accentAr: "أمريكي", country: "US", countryLabel: "أمريكا", countryLabelEn: "USA" },
+  { id: "AZnzlk1XvdvUeBnXmlld", name: "Domi", nameAr: "دومي", language: "en", gender: "female", accent: "american", accentAr: "أمريكي", country: "US", countryLabel: "أمريكا", countryLabelEn: "USA" },
+  { id: "VR6AewLTigWG4xSOukaG", name: "Arnold", nameAr: "أرنولد", language: "en", gender: "male", accent: "american", accentAr: "أمريكي", country: "US", countryLabel: "أمريكا", countryLabelEn: "USA" },
+];
+
+// Unique countries for the voice filter UI
+export const VOICE_COUNTRIES = [
+  { code: "ALL", label: "الكل", labelEn: "All" },
+  { code: "JO", label: "الأردن", labelEn: "Jordan" },
+  { code: "PS", label: "فلسطين", labelEn: "Palestine" },
+  { code: "EG", label: "مصر", labelEn: "Egypt" },
+  { code: "SA", label: "السعودية", labelEn: "Saudi" },
+  { code: "AE", label: "الإمارات", labelEn: "UAE" },
+  { code: "KW", label: "الكويت", labelEn: "Kuwait" },
+] as const;
 
 // ── Default Negative Prompts ───────────────────────────────────────
 

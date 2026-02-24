@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 import useSWR from "swr";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useLocale } from "@/hooks/use-locale";
 
 const fetcher = (url: string) => fetch(url).then(r => {
@@ -45,16 +46,17 @@ function formatRelativeTime(timestamp: number | string, locale: "ar" | "en") {
 export function NotificationBell() {
   const { userId, isSignedIn } = useAuth();
   const { locale, t } = useLocale();
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
-  const { data: unreadData } = useSWR(
-    isSignedIn ? '/api/notifications?count=true' : null,
+  const { data: unreadData, mutate: mutateUnread } = useSWR(
+    isSignedIn ? '/api/notifications' : null,
     fetcher,
     { refreshInterval: 30000 }
   );
-  const { data: notifications, mutate: mutateNotifications } = useSWR(
-    isSignedIn && open ? '/api/notifications?limit=10' : null,
+  const { data: notifData, mutate: mutateNotifications } = useSWR(
+    isSignedIn && open ? '/api/notifications' : null,
     fetcher
   );
 
@@ -70,16 +72,16 @@ export function NotificationBell() {
 
   if (!isSignedIn) return null;
 
-  const count = unreadData?.count ?? 0;
+  const count = unreadData?.unreadCount ?? 0;
+  const notifications = notifData?.notifications ?? [];
 
   const markAsRead = async (notificationId: string) => {
     try {
-      await fetch('/api/notifications', {
+      await fetch(`/api/notifications/${notificationId}/read`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'markAsRead', notificationId }),
       });
       mutateNotifications();
+      mutateUnread();
     } catch (err) {
       console.error("Failed to mark as read:", err);
     }
@@ -87,12 +89,11 @@ export function NotificationBell() {
 
   const markAllAsRead = async () => {
     try {
-      await fetch('/api/notifications', {
+      await fetch('/api/notifications/read-all', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'markAllAsRead' }),
       });
       mutateNotifications();
+      mutateUnread();
     } catch (err) {
       console.error("Failed to mark all as read:", err);
     }
@@ -136,7 +137,7 @@ export function NotificationBell() {
             </div>
 
             <div className="overflow-y-auto max-h-[320px]">
-              {notifications && notifications.length > 0 ? (
+              {notifications.length > 0 ? (
                 notifications.map((n: any) => {
                   const Icon = TYPE_ICONS[n.type] ?? Info;
                   const color = TYPE_COLORS[n.type] ?? "text-muted";
@@ -144,10 +145,16 @@ export function NotificationBell() {
                     <button
                       key={n.id}
                       onClick={() => {
-                        if (!n.isRead) markAsRead(n.id);
+                        if (!n.is_read) markAsRead(n.id);
+                        // Navigate based on metadata
+                        const meta = n.metadata ? (typeof n.metadata === "string" ? JSON.parse(n.metadata) : n.metadata) : null;
+                        if (meta?.ticketId) {
+                          router.push(`/support/${meta.ticketId}`);
+                          setOpen(false);
+                        }
                       }}
                       className={`w-full text-right px-4 py-3 flex gap-3 hover:bg-surface-2/40 transition-colors border-b border-card-border/50 last:border-b-0 ${
-                        !n.isRead ? "bg-primary/5" : ""
+                        !n.is_read ? "bg-primary/5" : ""
                       }`}
                     >
                       <div className={`shrink-0 mt-0.5 ${color}`}>
@@ -156,13 +163,13 @@ export function NotificationBell() {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
                           <span className="text-sm font-bold truncate">{n.title}</span>
-                          {!n.isRead && (
+                          {!n.is_read && (
                             <span className="shrink-0 w-2 h-2 rounded-full bg-primary" />
                           )}
                         </div>
                         <p className="text-xs text-muted line-clamp-2 mt-0.5">{n.body}</p>
                         <span className="text-[10px] text-muted mt-1 block">
-                          {formatRelativeTime(n.createdAt, locale)}
+                          {formatRelativeTime(n.created_at, locale)}
                         </span>
                       </div>
                     </button>
@@ -176,7 +183,7 @@ export function NotificationBell() {
               )}
             </div>
 
-            {notifications && notifications.length > 0 && (
+            {notifications.length > 0 && (
               <div className="border-t border-card-border px-4 py-2">
                 <Link
                   href="/notifications"

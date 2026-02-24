@@ -12,6 +12,8 @@ import {
   ThumbsUp,
   ThumbsDown,
   WandSparkles,
+  Film,
+  AlertTriangle,
 } from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
 import { useAuth } from "@/hooks/use-auth";
@@ -35,6 +37,7 @@ interface PosterModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSaveAsTemplate?: (designIndex: number) => void;
+  onTurnIntoReel?: (result: PosterResult) => void;
   category?: string;
   model?: string;
   generationId?: string;
@@ -99,6 +102,7 @@ export function PosterModal({
   isOpen,
   onClose,
   onSaveAsTemplate,
+  onTurnIntoReel,
   category,
   model,
   generationId,
@@ -117,6 +121,9 @@ export function PosterModal({
   const [editorState, setEditorState] = useState<GiftEditorState>(() => defaultEditorState(t("هدية مجانية", "Free gift")));
   const [removeBgLoading, setRemoveBgLoading] = useState(false);
   const [removeBgMessage, setRemoveBgMessage] = useState<string>();
+  const [showReportForm, setShowReportForm] = useState(false);
+  const [reportMessage, setReportMessage] = useState("");
+  const [reportState, setReportState] = useState<"idle" | "sending" | "sent">("idle");
 
   const { isSignedIn } = useAuth();
 
@@ -144,6 +151,9 @@ export function PosterModal({
     setEditorState(defaultEditorState(defaultGiftLabel));
     setRemoveBgLoading(false);
     setRemoveBgMessage(undefined);
+    setShowReportForm(false);
+    setReportMessage("");
+    setReportState("idle");
   }, [result, isOpen, defaultGiftLabel]);
 
   useEffect(() => {
@@ -247,6 +257,31 @@ export function PosterModal({
       console.error("Feedback submission failed:", error);
     } finally {
       setIsSendingFeedback(false);
+    }
+  };
+
+  const handleSubmitReport = async () => {
+    if (!reportMessage.trim()) return;
+    setReportState("sending");
+    try {
+      await fetch("/api/support", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          subject: "شكوى على تصميم",
+          message: reportMessage.trim(),
+          priority: "medium",
+          metadata: {
+            generationId: generationId || undefined,
+            imageStoragePath: imageStorageId || undefined,
+            category: category || undefined,
+          },
+        }),
+      });
+      setReportState("sent");
+    } catch (error) {
+      console.error("Report submission failed:", error);
+      setReportState("idle");
     }
   };
 
@@ -447,11 +482,72 @@ export function PosterModal({
                         )}
                       </div>
                     )}
+
+                    {/* Report a problem */}
+                    {reportState === "sent" ? (
+                      <div className="p-4 bg-success/10 border border-success/20 rounded-2xl">
+                        <div className="flex items-center gap-2 text-success text-sm font-medium">
+                          <CheckCircle2 size={16} />
+                          <span>{t("تم إرسال البلاغ بنجاح!", "Report submitted successfully!")}</span>
+                        </div>
+                      </div>
+                    ) : showReportForm ? (
+                      <div className="p-4 bg-surface-2 rounded-2xl border border-destructive/20 space-y-3">
+                        <div className="text-sm font-medium text-destructive flex items-center gap-1.5">
+                          <AlertTriangle size={14} />
+                          {t("الإبلاغ عن مشكلة في التصميم", "Report a problem with this design")}
+                        </div>
+                        <textarea
+                          value={reportMessage}
+                          onChange={(e) => setReportMessage(e.target.value)}
+                          placeholder={t("صف المشكلة في التصميم...", "Describe the issue with this design...")}
+                          rows={2}
+                          className="w-full px-3 py-2 bg-surface-1 border border-card-border rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-destructive/30"
+                        />
+                        <div className="flex gap-2">
+                          <button
+                            onClick={handleSubmitReport}
+                            disabled={reportState === "sending" || !reportMessage.trim()}
+                            className="flex-1 py-2 bg-destructive/10 text-destructive border border-destructive/20 rounded-xl text-sm font-bold hover:bg-destructive/20 transition-colors disabled:opacity-50"
+                          >
+                            {reportState === "sending" ? (
+                              <Loader2 size={14} className="animate-spin mx-auto" />
+                            ) : (
+                              t("إرسال البلاغ", "Submit report")
+                            )}
+                          </button>
+                          <button
+                            onClick={() => { setShowReportForm(false); setReportMessage(""); }}
+                            className="px-3 py-2 text-sm text-muted hover:text-foreground transition-colors"
+                          >
+                            {t("إلغاء", "Cancel")}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setShowReportForm(true)}
+                        className="flex items-center gap-1.5 text-xs text-muted hover:text-destructive transition-colors"
+                      >
+                        <AlertTriangle size={12} />
+                        <span>{t("الإبلاغ عن مشكلة", "Report a problem")}</span>
+                      </button>
+                    )}
                   </>
                 )}
               </div>
 
               <div className="space-y-3 mt-auto">
+                {onTurnIntoReel && !isGift && (
+                  <button
+                    onClick={() => { onTurnIntoReel(result); onClose(); }}
+                    className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all active:scale-95"
+                  >
+                    <Film size={20} />
+                    <span>{t("تحويل إلى ريلز", "Turn into Reel")}</span>
+                  </button>
+                )}
+
                 <button
                   onClick={handleExport}
                   disabled={isExporting}

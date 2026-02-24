@@ -16,12 +16,12 @@ export async function GET(request: Request) {
     let query = admin
       .from("generations")
       .select("id, inputs, outputs, created_at")
-      .eq("status", "completed")
+      .eq("status", "complete")
       .order("created_at", { ascending: false })
       .limit(limit);
 
     if (category) {
-      query = query.contains("inputs", { category });
+      query = query.like("inputs", `%"category":"${category}"%`);
     }
 
     const { data: generations, error } = await query;

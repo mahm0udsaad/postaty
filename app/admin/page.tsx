@@ -122,7 +122,7 @@ export default function AdminDashboard() {
               <div className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-sm text-muted">إجمالي المستخدمين</span>
-                  <span className="font-bold">{users?.length ?? 0}</span>
+                  <span className="font-bold">{financialOverview?.totalUsers ?? 0}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-muted">اشتراكات نشطة</span>

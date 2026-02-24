@@ -110,8 +110,8 @@ export default function AdminSubscriptionsPage() {
                   const addonCreditsBalance = sub.addon_credits_balance ?? sub.addonCreditsBalance ?? 0;
                   const currentPeriodStart = sub.current_period_start ?? sub.currentPeriodStart;
                   const currentPeriodEnd = sub.current_period_end ?? sub.currentPeriodEnd;
-                  const userName = sub.user_name ?? sub.userName ?? "";
-                  const userEmail = sub.user_email ?? sub.userEmail ?? "";
+                  const userName = sub.user?.name ?? "";
+                  const userEmail = sub.user?.email ?? "";
                   const subId = sub.id ?? sub._id;
                   return (
                     <tr key={subId} className="border-b border-card-border/50 hover:bg-surface-2/20 transition-colors">

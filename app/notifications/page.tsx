@@ -40,14 +40,13 @@ export default function NotificationsPage() {
   const { isSignedIn } = useAuth();
   const { locale, t } = useLocale();
 
-  const { data: notifications, mutate: mutateNotifications } = useSWR(
-    isSignedIn ? '/api/notifications?limit=100' : null,
+  const { data: notifData, mutate: mutateNotifications } = useSWR(
+    isSignedIn ? '/api/notifications' : null,
     fetcher
   );
 
-  const unreadCount = notifications
-    ? notifications.filter((n: any) => !n.is_read).length
-    : 0;
+  const notifications = notifData?.notifications ?? [];
+  const unreadCount = notifData?.unreadCount ?? 0;
 
   const handleMarkAsRead = async (notificationId: string) => {
     await fetch(`/api/notifications/${notificationId}/read`, { method: 'POST' });
@@ -59,7 +58,7 @@ export default function NotificationsPage() {
     mutateNotifications();
   };
 
-  if (notifications === undefined) {
+  if (notifData === undefined) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 size={32} className="animate-spin text-muted" />

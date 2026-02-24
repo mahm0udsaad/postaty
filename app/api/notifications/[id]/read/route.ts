@@ -28,7 +28,7 @@ export async function POST(
 
     const { error } = await admin
       .from("notifications")
-      .update({ read_at: Date.now() })
+      .update({ is_read: true })
       .eq("id", id);
 
     if (error) {
