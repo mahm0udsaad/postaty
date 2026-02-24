@@ -14,7 +14,7 @@ type Bundle = {
 };
 
 const BUNDLES: Bundle[] = [
-  { key: "addon_5", credits: 5, price: "$3" },
+  { key: "addon_5", credits: 5, price: "$4" },
   { key: "addon_10", credits: 10, price: "$7" },
 ];
 

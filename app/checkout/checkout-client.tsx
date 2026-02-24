@@ -141,7 +141,7 @@ export default function CheckoutClient() {
         {/* Embedded Checkout */}
         <div id="checkout" className="bg-surface-1 border border-card-border rounded-2xl overflow-hidden">
           <EmbeddedCheckoutProvider
-            stripe={stripePromise}
+            stripe={stripePromise as any}
             options={{ fetchClientSecret }}
           >
             <EmbeddedCheckout />
