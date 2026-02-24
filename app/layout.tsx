@@ -10,6 +10,7 @@ import { Footer } from "./components/footer";
 import { AccountStatusGate } from "./components/account-status-gate";
 import { LocaleProvider } from "./components/locale-provider";
 import { isRtlLocale, LOCALE_COOKIE, normalizeLocale } from "@/lib/i18n";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 const notoKufiArabic = localFont({
@@ -128,6 +129,7 @@ export default async function RootLayout({
               <Footer locale={locale} />
               <BottomDock />
             </AccountStatusGate>
+            <Toaster position="top-center" dir={dir} richColors />
           </SupabaseProvider>
         </LocaleProvider>
       </body>

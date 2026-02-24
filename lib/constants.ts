@@ -199,7 +199,6 @@ export const PLAN_LIMITS: Record<OrgPlan, PlanLimits> = {
     exportFormats: ["instagram-square", "instagram-story"],
     hasWatermark: true,
     historyRetentionDays: 7,
-    canCreateReels: false,
   },
   starter: {
     creditsMonthly: 100,
@@ -216,7 +215,6 @@ export const PLAN_LIMITS: Record<OrgPlan, PlanLimits> = {
     ],
     hasWatermark: false,
     historyRetentionDays: 30,
-    canCreateReels: true,
   },
   pro: {
     creditsMonthly: 500,
@@ -233,7 +231,6 @@ export const PLAN_LIMITS: Record<OrgPlan, PlanLimits> = {
     ],
     hasWatermark: false,
     historyRetentionDays: -1, // unlimited
-    canCreateReels: true,
   },
   agency: {
     creditsMonthly: 2000,
@@ -250,60 +247,8 @@ export const PLAN_LIMITS: Record<OrgPlan, PlanLimits> = {
     ],
     hasWatermark: false,
     historyRetentionDays: -1, // unlimited
-    canCreateReels: true,
   },
 };
-
-// ── Reel Configuration ────────────────────────────────────────────
-
-export const REEL_CONFIG = {
-  width: 1080,
-  height: 1920,
-  fps: 30,
-  durationSeconds: { min: 8, max: 10 },
-  creditsPerReel: 2,
-  minPlanRequired: "starter" as OrgPlan,
-  ttsModel: "eleven_multilingual_v2" as const,
-} as const;
-
-// ── Voiceover Voice Presets ──────────────────────────────────────
-
-export interface VoicePreset {
-  id: string;
-  name: string;
-  nameAr: string;
-  language: "ar" | "en";
-  gender: "male" | "female";
-  accent: string;
-  accentAr: string;
-  country: string;       // ISO country code
-  countryLabel: string;  // Arabic country name
-  countryLabelEn: string;
-  previewUrl: string;
-}
-
-export const VOICE_PRESETS: VoicePreset[] = [
-  // ── Arabic – Levantine ──
-  { id: "a1KZUXKFVFDOb33I1uqr", name: "Salma", nameAr: "سلمى", language: "ar", gender: "female", accent: "levantine", accentAr: "شامي", country: "JO", countryLabel: "الأردن", countryLabelEn: "Jordan", previewUrl: "https://storage.googleapis.com/eleven-public-prod/database/workspace/ed9b05e6324c457685490352e9a1ec90/voices/a1KZUXKFVFDOb33I1uqr/UiaMs7jj02K2CGN2TPAU.mp3" },
-  // ── Arabic – MSA ──
-  { id: "qi4PkV9c01kb869Vh7Su", name: "Asmaa", nameAr: "أسماء", language: "ar", gender: "female", accent: "msa", accentAr: "فصحى", country: "PS", countryLabel: "فلسطين", countryLabelEn: "Palestine", previewUrl: "https://storage.googleapis.com/eleven-public-prod/database/user/38R6DuPgCXg1KiNYLbn5BHO5XXN2/voices/qi4PkV9c01kb869Vh7Su/ptErGjYO9KvfQDjWBd0E.mp3" },
-  // ── Arabic – Saudi ──
-  { id: "IK7YYZcSpmlkjKrQxbSn", name: "Raed", nameAr: "رائد", language: "ar", gender: "male", accent: "saudi", accentAr: "سعودي", country: "SA", countryLabel: "السعودية", countryLabelEn: "Saudi Arabia", previewUrl: "https://storage.googleapis.com/eleven-public-prod/2IWzWT3G3sgilYJywwA1YhbUxU73/voices/IK7YYZcSpmlkjKrQxbSn/23430e54-d41e-4b40-b321-9e5a9f3018b4.mp3" },
-  { id: "FjJJxwBrv1I5sk34AdgP", name: "Rayyan", nameAr: "ريان", language: "ar", gender: "male", accent: "saudi", accentAr: "سعودي", country: "SA", countryLabel: "السعودية", countryLabelEn: "Saudi Arabia", previewUrl: "https://storage.googleapis.com/eleven-public-prod/database/user/im2WTyKBaTewpQerEmb4277hkZU2/voices/FjJJxwBrv1I5sk34AdgP/bbea4818-4c38-4311-9da8-66f44ee2deff.mp3" },
-  // ── English ──
-  { id: "EXAVITQu4vr4xnSDxMaL", name: "Sarah", nameAr: "سارة", language: "en", gender: "female", accent: "american", accentAr: "أمريكي", country: "US", countryLabel: "أمريكا", countryLabelEn: "USA", previewUrl: "https://storage.googleapis.com/eleven-public-prod/premade/voices/EXAVITQu4vr4xnSDxMaL/01a3e33c-6e99-4ee7-8543-ff2216a32186.mp3" },
-  { id: "TX3LPaxmHKxFdv7VOQHJ", name: "Liam", nameAr: "ليام", language: "en", gender: "male", accent: "american", accentAr: "أمريكي", country: "US", countryLabel: "أمريكا", countryLabelEn: "USA", previewUrl: "https://storage.googleapis.com/eleven-public-prod/premade/voices/TX3LPaxmHKxFdv7VOQHJ/63148076-6363-42db-aea8-31424308b92c.mp3" },
-  { id: "pNInz6obpgDQGcFmaJgB", name: "Adam", nameAr: "آدم", language: "en", gender: "male", accent: "american", accentAr: "أمريكي", country: "US", countryLabel: "أمريكا", countryLabelEn: "USA", previewUrl: "https://storage.googleapis.com/eleven-public-prod/premade/voices/pNInz6obpgDQGcFmaJgB/d6905d7a-dd26-4187-bfff-1bd3a5ea7cac.mp3" },
-  { id: "Xb7hH8MSUJpSbSDYk0k2", name: "Alice", nameAr: "أليس", language: "en", gender: "female", accent: "british", accentAr: "بريطاني", country: "GB", countryLabel: "بريطانيا", countryLabelEn: "UK", previewUrl: "https://storage.googleapis.com/eleven-public-prod/premade/voices/Xb7hH8MSUJpSbSDYk0k2/d10f7534-11f6-41fe-a012-2de1e482d336.mp3" },
-];
-
-// Unique countries for the voice filter UI
-export const VOICE_COUNTRIES = [
-  { code: "ALL", label: "الكل", labelEn: "All" },
-  { code: "JO", label: "الأردن", labelEn: "Jordan" },
-  { code: "PS", label: "فلسطين", labelEn: "Palestine" },
-  { code: "SA", label: "السعودية", labelEn: "Saudi" },
-] as const;
 
 // ── Default Negative Prompts ───────────────────────────────────────
 

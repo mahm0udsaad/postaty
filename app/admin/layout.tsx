@@ -20,6 +20,7 @@ import {
   ImageIcon,
   Tag,
   Mail,
+  ScrollText,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -33,6 +34,7 @@ const ADMIN_NAV = [
   { href: "/admin/ai", label: "تحليلات AI", icon: Brain },
   { href: "/admin/finance", label: "المالية", icon: DollarSign },
   { href: "/admin/users", label: "المستخدمون", icon: Users },
+  { href: "/admin/activity", label: "سجل النشاط", icon: ScrollText },
   { href: "/admin/subscriptions", label: "الاشتراكات", icon: CreditCard },
   { href: "/admin/stripe", label: "إدارة الأسعار", icon: Tag },
   { href: "/admin/support", label: "الدعم الفني", icon: LifeBuoy },

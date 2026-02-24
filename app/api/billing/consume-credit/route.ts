@@ -36,7 +36,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Amount defaults to 1, supports consuming multiple credits at once (e.g. 2 for reels)
+    // Amount defaults to 1, supports consuming multiple credits at once
     const amount = typeof rawAmount === "number" && Number.isInteger(rawAmount) && rawAmount >= 1 && rawAmount <= 10
       ? rawAmount
       : 1;

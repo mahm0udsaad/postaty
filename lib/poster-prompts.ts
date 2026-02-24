@@ -285,3 +285,119 @@ Use beautiful visual elements: abstract shapes, gradient overlays, light effects
 
 Remember: ZERO text, ZERO numbers, ZERO letters. Only visuals.`;
 }
+
+// ── Marketing Content Prompts ─────────────────────────────────────
+
+function getBusinessNameFromData(data: PostFormData): string {
+  switch (data.category) {
+    case "restaurant": return data.restaurantName;
+    case "supermarket": return data.supermarketName;
+    case "ecommerce": return data.shopName;
+    case "services": return data.businessName;
+    case "fashion": return data.brandName;
+    case "beauty": return data.salonName;
+  }
+}
+
+function getProductNameFromData(data: PostFormData): string {
+  switch (data.category) {
+    case "restaurant": return data.mealName;
+    case "supermarket": return data.productName;
+    case "ecommerce": return data.productName;
+    case "services": return data.serviceName;
+    case "fashion": return data.itemName;
+    case "beauty": return data.serviceName;
+  }
+}
+
+export function getMarketingContentSystemPrompt(): string {
+  return `You are an expert Arabic social media marketer specializing in MENA region businesses.
+
+You will receive:
+1. A generated marketing poster image — analyze its visual style, colors, mood, and energy
+2. Business and product details
+
+Your task: Generate engaging Arabic social media marketing content that matches the poster's visual energy and style.
+
+RULES:
+- ALL text output MUST be in Arabic
+- The caption should be engaging, professional, and match the poster's mood (3-5 lines)
+- Include relevant emojis naturally within the caption and story text
+- Hashtags should be a mix of Arabic and transliterated English (common in MENA social media), 8-12 hashtags
+- Story text should be extremely short and punchy (1-2 lines max), suitable for Instagram/WhatsApp stories
+- Do NOT include any markdown formatting, bullet points, or special characters beyond standard Arabic text and emojis
+- Keep the tone commercial but professional — trustworthy and engaging
+- If there is a price or discount, highlight it in the caption
+- Include a call-to-action naturally in the caption
+
+OUTPUT FORMAT (strict JSON only):
+{
+  "caption": "the full post caption text here",
+  "hashtags": ["tag1", "tag2", "tag3"],
+  "storyText": "short punchy story text here"
+}
+
+Return ONLY the JSON object. No explanation, no markdown fences, no extra text.`;
+}
+
+export function getMarketingContentUserMessage(data: PostFormData): string {
+  const businessName = getBusinessNameFromData(data);
+  const productName = getProductNameFromData(data);
+  const campaignLine = data.campaignType !== "standard" ? `- Campaign: ${data.campaignType}\n` : "";
+
+  let details = `Generate Arabic social media marketing content for:\n`;
+  details += `- Business: ${businessName}\n`;
+  details += `- Product/Service: ${productName}\n`;
+  details += `- Category: ${data.category}\n`;
+
+  switch (data.category) {
+    case "restaurant":
+      if (data.description) details += `- Description: ${data.description}\n`;
+      details += `- New Price: ${data.newPrice}\n`;
+      details += `- Old Price: ${data.oldPrice}\n`;
+      if (data.offerBadge) details += `- Offer Type: ${data.offerBadge}\n`;
+      if (data.deliveryType) details += `- Delivery: ${data.deliveryType === "free" ? "Free" : "Paid"}\n`;
+      if (data.deliveryTime) details += `- Delivery Time: ${data.deliveryTime}\n`;
+      if (data.offerDuration) details += `- Offer Duration: ${data.offerDuration}\n`;
+      break;
+    case "supermarket":
+      details += `- New Price: ${data.newPrice}\n`;
+      details += `- Old Price: ${data.oldPrice}\n`;
+      if (data.discountPercentage) details += `- Discount: ${data.discountPercentage}%\n`;
+      if (data.offerDuration) details += `- Offer Duration: ${data.offerDuration}\n`;
+      break;
+    case "ecommerce":
+      if (data.features) details += `- Features: ${data.features}\n`;
+      details += `- New Price: ${data.newPrice}\n`;
+      details += `- Old Price: ${data.oldPrice}\n`;
+      details += `- Availability: ${data.availability}\n`;
+      if (data.shippingDuration) details += `- Shipping: ${data.shippingDuration}\n`;
+      break;
+    case "services":
+      if (data.serviceDetails) details += `- Details: ${data.serviceDetails}\n`;
+      details += `- Price: ${data.price}\n`;
+      if (data.quickFeatures) details += `- Features: ${data.quickFeatures}\n`;
+      if (data.executionTime) details += `- Execution Time: ${data.executionTime}\n`;
+      break;
+    case "fashion":
+      if (data.description) details += `- Description: ${data.description}\n`;
+      details += `- New Price: ${data.newPrice}\n`;
+      details += `- Old Price: ${data.oldPrice}\n`;
+      if (data.availableSizes) details += `- Sizes: ${data.availableSizes}\n`;
+      if (data.availableColors) details += `- Colors: ${data.availableColors}\n`;
+      break;
+    case "beauty":
+      if (data.benefit) details += `- Benefit: ${data.benefit}\n`;
+      details += `- New Price: ${data.newPrice}\n`;
+      details += `- Old Price: ${data.oldPrice}\n`;
+      if (data.sessionDuration) details += `- Duration: ${data.sessionDuration}\n`;
+      break;
+  }
+
+  details += campaignLine;
+  details += `- CTA: ${data.cta}\n`;
+  details += `- WhatsApp: ${data.whatsapp}\n`;
+  details += `\nThe attached image is the generated marketing poster. Match your text style to its visual mood, energy, and color palette.`;
+
+  return details;
+}

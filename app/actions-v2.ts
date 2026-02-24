@@ -1,10 +1,10 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { generatePoster, generateGiftImage } from "@/lib/generate-designs";
+import { generatePoster, generateGiftImage, generateMarketingContent } from "@/lib/generate-designs";
 import { removeBackgroundWithFallback } from "@/lib/gift-editor/remove-background";
 import { postFormDataSchema } from "@/lib/validation";
-import type { PostFormData, OutputFormat, GeneratePostersResult } from "@/lib/types";
+import type { PostFormData, OutputFormat, GeneratePostersResult, MarketingContent } from "@/lib/types";
 import type { BrandKitPromptData } from "@/lib/prompts";
 import type { GenerationUsage } from "@/lib/generate-designs";
 
@@ -12,6 +12,20 @@ import type { GenerationUsage } from "@/lib/generate-designs";
 const RATE_LIMIT_WINDOW_MS = 60_000;
 const RATE_LIMIT_MAX = 5;
 const rateLimitMap = new Map<string, number[]>();
+
+// Server-side poster store: keeps poster base64 in memory so the client
+// can request marketing content without re-sending the massive base64 string.
+const POSTER_STORE_TTL_MS = 5 * 60_000; // 5 minutes
+const posterStore = new Map<string, { base64: string; createdAt: number }>();
+
+function cleanPosterStore(): void {
+  const now = Date.now();
+  for (const [key, entry] of posterStore) {
+    if (now - entry.createdAt > POSTER_STORE_TTL_MS) {
+      posterStore.delete(key);
+    }
+  }
+}
 
 function checkRateLimit(userId: string): void {
   const now = Date.now();
@@ -33,7 +47,7 @@ function extractUsageFromUnknown(value: unknown): GenerationUsage | undefined {
 
   const usage = maybeUsage as Partial<GenerationUsage>;
   if (
-    (usage.route === "poster" || usage.route === "gift") &&
+    (usage.route === "poster" || usage.route === "gift" || usage.route === "marketing") &&
     typeof usage.model === "string" &&
     typeof usage.inputTokens === "number" &&
     typeof usage.outputTokens === "number" &&
@@ -46,11 +60,13 @@ function extractUsageFromUnknown(value: unknown): GenerationUsage | undefined {
   return undefined;
 }
 
-/** Generate main poster + gift image in parallel */
+/** Generate main poster — returns immediately so the UI can show the image.
+ *  Stores poster base64 server-side and returns a `posterRef` key so the
+ *  client can request marketing content without re-sending the massive base64. */
 export async function generatePosters(
   data: PostFormData,
   brandKit?: BrandKitPromptData
-): Promise<GeneratePostersResult & { usages: GenerationUsage[] }> {
+): Promise<GeneratePostersResult & { usages: GenerationUsage[]; posterRef?: string }> {
   // Server-side auth gate — block unauthenticated requests
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -77,19 +93,13 @@ export async function generatePosters(
 
   const usages: GenerationUsage[] = [];
 
-  // Run main poster and gift image in parallel
-  const [mainResult, giftResult] = await Promise.allSettled([
-    generatePoster(data, brandKit),
-    generateGiftImage(data),
-  ]);
-
-  // Build main poster result
-  let main: GeneratePostersResult["main"];
-  if (mainResult.status === "fulfilled") {
-    const design = mainResult.value;
+  // Generate main poster
+  try {
+    const design = await generatePoster(data, brandKit);
     usages.push(design.usage);
     console.info("[generatePosters] main success");
-    main = {
+
+    const main: GeneratePostersResult["main"] = {
       designIndex: 0,
       format,
       html: "",
@@ -98,48 +108,55 @@ export async function generatePosters(
       designName: design.name,
       designNameAr: design.nameAr,
     };
-  } else {
-    console.error("[generatePosters] main failed", mainResult.reason);
-    const errUsage = extractUsageFromUnknown(mainResult.reason);
+
+    // Store poster base64 server-side for the follow-up marketing content call
+    const posterRef = `pr_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    posterStore.set(posterRef, { base64: design.imageBase64, createdAt: Date.now() });
+    cleanPosterStore();
+
+    return { main, usages, posterRef };
+  } catch (err) {
+    console.error("[generatePosters] main failed", err);
+    const errUsage = extractUsageFromUnknown(err);
     if (errUsage) usages.push(errUsage);
-    main = {
+
+    const main: GeneratePostersResult["main"] = {
       designIndex: 0,
       format,
       html: "",
       status: "error",
-      error:
-        mainResult.reason instanceof Error
-          ? mainResult.reason.message
-          : "Generation failed",
+      error: err instanceof Error ? err.message : "Generation failed",
       designName: "AI Design",
       designNameAr: "تصميم بالذكاء الاصطناعي",
     };
-  }
 
-  // Build gift result (non-blocking — gift failure doesn't affect main)
-  let gift: GeneratePostersResult["gift"];
-  if (giftResult.status === "fulfilled") {
-    const design = giftResult.value;
-    usages.push(design.usage);
-    console.info("[generatePosters] gift success");
-    gift = {
-      designIndex: 1,
-      format,
-      html: "",
-      imageBase64: design.imageBase64,
-      status: "complete" as const,
-      designName: design.name,
-      designNameAr: design.nameAr,
-      isGift: true,
-    };
-  } else {
-    console.warn("[generatePosters] gift failed (non-blocking)", giftResult.reason);
-    const errUsage = extractUsageFromUnknown(giftResult.reason);
-    if (errUsage) usages.push(errUsage);
+    return { main, usages };
   }
-
-  return { main, gift, usages };
 }
+
+/** Generate marketing content using a server-side poster reference (no base64 over the wire). */
+export async function generateMarketingContentAction(
+  posterRef: string,
+  data: PostFormData
+): Promise<{ content: MarketingContent; usage: GenerationUsage }> {
+  // Auth gate
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.id) {
+    throw new Error("يجب تسجيل الدخول");
+  }
+
+  const entry = posterStore.get(posterRef);
+  if (!entry) {
+    throw new Error("انتهت صلاحية المرجع. يرجى إعادة إنشاء التصميم.");
+  }
+
+  // Clean up after retrieval (one-time use)
+  posterStore.delete(posterRef);
+
+  return generateMarketingContent(entry.base64, data);
+}
+
 
 export async function removeOverlayBackground(
   base64: string

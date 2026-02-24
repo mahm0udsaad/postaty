@@ -24,13 +24,25 @@ export async function GET() {
     const showcaseImages = (rows ?? []).map((img) => {
       let url: string | null = null;
       if (img.storage_path) {
-        const { data } = admin.storage.from("showcase").getPublicUrl(img.storage_path);
+        // If storage_path is a generations bucket path (e.g. "userId/poster_xxx.png"),
+        // resolve from generations bucket. Otherwise from showcase bucket (migrated data).
+        const bucket = img.storage_path.includes("/poster_")
+          ? "generations"
+          : "showcase";
+        const { data } = admin.storage
+          .from(bucket)
+          .getPublicUrl(img.storage_path);
         url = data.publicUrl;
       }
       return { ...img, url };
     });
 
-    return NextResponse.json({ showcaseImages });
+    return NextResponse.json({ showcaseImages }, {
+      headers: {
+        "Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+        "CDN-Cache-Control": "public, s-maxage=300, stale-while-revalidate=600",
+      },
+    });
   } catch (error) {
     console.error("GET /api/showcase error:", error);
     return NextResponse.json(
@@ -42,11 +54,41 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    await requireAdmin();
+    const adminUser = await requireAdmin();
     const body = await request.json();
     const admin = createAdminClient();
 
-    const { title, description, storage_path, category, display_order } = body;
+    const { action } = body;
+
+    // Handle reorder
+    if (action === "reorder") {
+      const { id, order } = body;
+      if (!id) {
+        return NextResponse.json(
+          { error: "id is required for reorder" },
+          { status: 400 }
+        );
+      }
+      const { error } = await admin
+        .from("showcase_images")
+        .update({ display_order: order ?? 0 })
+        .eq("id", id);
+
+      if (error) {
+        console.error("Failed to reorder showcase image:", error);
+        return NextResponse.json(
+          { error: "Failed to reorder showcase image" },
+          { status: 500 }
+        );
+      }
+      return NextResponse.json({ ok: true });
+    }
+
+    // Handle add (default)
+    const storage_path = body.storage_path || body.storageId;
+    const title = body.title;
+    const category = body.category;
+    const display_order = body.display_order ?? body.order ?? 0;
 
     if (!storage_path) {
       return NextResponse.json(
@@ -61,7 +103,8 @@ export async function POST(request: Request) {
         title: title || null,
         storage_path,
         category: category || null,
-        display_order: display_order ?? 0,
+        display_order,
+        added_by: adminUser.id,
         created_at: Date.now(),
       })
       .select("*")

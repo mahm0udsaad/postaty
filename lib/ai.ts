@@ -17,5 +17,5 @@ export const paidImageModel = google("gemini-3-pro-image-preview");
 /** Free image model — Gemini 2.5 Flash Image */
 export const freeImageModel = google("gemini-2.5-flash-image");
 
-/** Reel animation spec model — Gemini 3 Flash Preview (text-only output, image input, faster) */
-export const reelSpecModel = google("gemini-3-flash-preview");
+/** Text model — Gemini 3 Flash Preview (text-only output, image input, faster) */
+export const textModel = google("gemini-3-flash-preview");

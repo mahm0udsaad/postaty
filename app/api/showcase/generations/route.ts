@@ -34,7 +34,58 @@ export async function GET(request: Request) {
       );
     }
 
-    return NextResponse.json(generations || []);
+    // Fetch existing showcase storage_paths to mark already-added outputs
+    const { data: showcaseRows } = await admin
+      .from("showcase_images")
+      .select("storage_path");
+    const showcasePaths = new Set(
+      (showcaseRows || []).map((r) => r.storage_path)
+    );
+
+    // Parse inputs and enrich outputs
+    const enriched = (generations || []).map((gen) => {
+      let parsedInputs: Record<string, any> = {};
+      try {
+        parsedInputs =
+          typeof gen.inputs === "string"
+            ? JSON.parse(gen.inputs)
+            : gen.inputs || {};
+      } catch {
+        parsedInputs = {};
+      }
+
+      const outputs = (gen.outputs || []).map((output: any) => {
+        // Derive a storage_path from the URL if not present
+        let storagePath = output.storage_path || null;
+        if (!storagePath && output.url) {
+          const match = output.url.match(
+            /\/storage\/v1\/object\/public\/generations\/(.+)$/
+          );
+          if (match) storagePath = match[1];
+        }
+
+        return {
+          ...output,
+          storage_path: storagePath,
+          alreadyInShowcase: storagePath
+            ? showcasePaths.has(storagePath)
+            : false,
+        };
+      });
+
+      return {
+        id: gen.id,
+        created_at: gen.created_at,
+        category: parsedInputs.category,
+        businessName:
+          parsedInputs.businessName || parsedInputs.restaurantName || "",
+        productName:
+          parsedInputs.productName || parsedInputs.mealName || "",
+        outputs,
+      };
+    });
+
+    return NextResponse.json(enriched);
   } catch (error) {
     if (error instanceof Error && error.message === "Not authenticated") {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });

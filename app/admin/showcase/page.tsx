@@ -4,6 +4,7 @@ import { useState } from "react";
 import useSWR from "swr";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import type { Category } from "@/lib/types";
+import { toast } from "sonner";
 import {
   Loader2,
   Trash2,
@@ -30,48 +31,59 @@ export default function AdminShowcasePage() {
 
   // ── Browse generations ──
   const [browseCategory, setBrowseCategory] = useState<string>("");
-  const { data: generations } = useSWR(
+  const { data: generations, mutate: mutateGenerations } = useSWR(
     `/api/showcase/generations?limit=50${browseCategory ? `&category=${browseCategory}` : ''}`,
     fetcher
   );
 
-  const [addingStorageId, setAddingStorageId] = useState<string | null>(null);
+  const [addingPath, setAddingPath] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleAddToShowcase = async (
-    storageId: string,
+    storagePath: string,
     category: string,
     title: string
   ) => {
-    setAddingStorageId(storageId);
+    setAddingPath(storagePath);
     try {
       const nextOrder = showcaseImages ? showcaseImages.length : 0;
-      await fetch('/api/showcase', {
+      const res = await fetch('/api/showcase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           action: 'add',
-          storageId,
+          storage_path: storagePath,
           title: title || undefined,
           category,
           order: nextOrder,
         }),
       });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "فشل في الإضافة");
+      }
+      toast.success("تمت إضافة الصورة للمعرض");
       mutateShowcase();
-    } catch (err) {
+      mutateGenerations();
+    } catch (err: any) {
       console.error("Failed to add to showcase:", err);
+      toast.error(err.message || "فشل في إضافة الصورة");
     } finally {
-      setAddingStorageId(null);
+      setAddingPath(null);
     }
   };
 
   const handleDelete = async (id: string) => {
     setDeletingId(id);
     try {
-      await fetch(`/api/showcase?id=${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/showcase?id=${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error("فشل في الحذف");
+      toast.success("تم حذف الصورة من المعرض");
       mutateShowcase();
-    } catch (err) {
+      mutateGenerations();
+    } catch (err: any) {
       console.error("Failed to delete showcase image:", err);
+      toast.error(err.message || "فشل في حذف الصورة");
     } finally {
       setDeletingId(null);
     }
@@ -85,12 +97,12 @@ export default function AdminShowcasePage() {
       fetch('/api/showcase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'reorder', id: current.id ?? current._id, order: prev.order }),
+        body: JSON.stringify({ action: 'reorder', id: current.id ?? current._id, order: prev.display_order }),
       }),
       fetch('/api/showcase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'reorder', id: prev.id ?? prev._id, order: current.order }),
+        body: JSON.stringify({ action: 'reorder', id: prev.id ?? prev._id, order: current.display_order }),
       }),
     ]);
     mutateShowcase();
@@ -104,12 +116,12 @@ export default function AdminShowcasePage() {
       fetch('/api/showcase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'reorder', id: current.id ?? current._id, order: next.order }),
+        body: JSON.stringify({ action: 'reorder', id: current.id ?? current._id, order: next.display_order }),
       }),
       fetch('/api/showcase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'reorder', id: next.id ?? next._id, order: current.order }),
+        body: JSON.stringify({ action: 'reorder', id: next.id ?? next._id, order: current.display_order }),
       }),
     ]);
     mutateShowcase();
@@ -272,67 +284,66 @@ export default function AdminShowcasePage() {
         ) : generations.length > 0 ? (
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             {generations.flatMap((gen: any) =>
-              gen.outputs.map((output: any, idx: number) => (
-                <div
-                  key={`${gen.id}-${output.storageId ?? idx}`}
-                  className={`relative rounded-2xl overflow-hidden border bg-surface-1 transition-all group ${
-                    output.alreadyInShowcase
-                      ? "border-success/40 ring-2 ring-success/20"
-                      : "border-card-border hover:border-primary/30 hover:shadow-lg"
-                  }`}
-                >
-                  {/* Image */}
-                  {output.url ? (
-                    <img
-                      src={output.url}
-                      alt={gen.productName}
-                      className="w-full aspect-square object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div className="w-full aspect-square bg-surface-2 flex items-center justify-center text-muted text-sm">
-                      ...
-                    </div>
-                  )}
-
-                  {/* Category badge */}
-                  <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
-                    {(CATEGORY_LABELS as Record<string, string>)[gen.category] ?? gen.category}
-                  </div>
-
-                  {/* Info overlay */}
-                  <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent p-3 pt-8">
-                    <p className="text-white text-xs font-bold truncate">{gen.businessName}</p>
-                    <p className="text-white/70 text-[10px] truncate">{gen.productName}</p>
-                  </div>
-
-                  {/* Add / Already added button */}
-                  {output.alreadyInShowcase ? (
-                    <div className="absolute top-2 left-2 bg-success text-white p-1.5 rounded-full">
-                      <Check size={14} />
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() =>
-                        handleAddToShowcase(
-                          output.storageId,
-                          gen.category,
-                          `${gen.businessName} — ${gen.productName}`
-                        )
-                      }
-                      disabled={addingStorageId === output.storageId}
-                      className="absolute top-2 left-2 bg-primary text-primary-foreground p-1.5 rounded-full opacity-0 group-hover:opacity-100 hover:scale-110 disabled:opacity-50 transition-all shadow-lg"
-                      title="إضافة للمعرض"
+              gen.outputs
+                .filter((output: any) => output.url)
+                .map((output: any, idx: number) => {
+                  const outputKey = output.storage_path || output.storageId || `${gen.id}-${idx}`;
+                  return (
+                    <div
+                      key={outputKey}
+                      className={`relative rounded-2xl overflow-hidden border bg-surface-1 transition-all group ${
+                        output.alreadyInShowcase
+                          ? "border-success/40 ring-2 ring-success/20"
+                          : "border-card-border hover:border-primary/30 hover:shadow-lg"
+                      }`}
                     >
-                      {addingStorageId === output.storageId ? (
-                        <Loader2 size={14} className="animate-spin" />
-                      ) : (
-                        <Plus size={14} />
-                      )}
-                    </button>
-                  )}
-                </div>
-              ))
+                      {/* Image */}
+                      <img
+                        src={output.url}
+                        alt={gen.productName || gen.businessName}
+                        className="w-full aspect-square object-cover"
+                        loading="lazy"
+                      />
+
+                      {/* Category badge */}
+                      <div className="absolute top-2 right-2 bg-black/60 backdrop-blur-sm text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                        {(CATEGORY_LABELS as Record<string, string>)[gen.category] ?? gen.category}
+                      </div>
+
+                      {/* Info overlay */}
+                      <div className="absolute bottom-0 inset-x-0 bg-gradient-to-t from-black/70 via-black/30 to-transparent p-3 pt-8">
+                        <p className="text-white text-xs font-bold truncate">{gen.businessName}</p>
+                        <p className="text-white/70 text-[10px] truncate">{gen.productName}</p>
+                      </div>
+
+                      {/* Add / Already added button */}
+                      {output.alreadyInShowcase ? (
+                        <div className="absolute top-2 left-2 bg-success text-white p-1.5 rounded-full">
+                          <Check size={14} />
+                        </div>
+                      ) : output.storage_path ? (
+                        <button
+                          onClick={() =>
+                            handleAddToShowcase(
+                              output.storage_path,
+                              gen.category,
+                              `${gen.businessName} — ${gen.productName}`
+                            )
+                          }
+                          disabled={addingPath === output.storage_path}
+                          className="absolute top-2 left-2 bg-primary text-primary-foreground p-1.5 rounded-full opacity-0 group-hover:opacity-100 hover:scale-110 disabled:opacity-50 transition-all shadow-lg"
+                          title="إضافة للمعرض"
+                        >
+                          {addingPath === output.storage_path ? (
+                            <Loader2 size={14} className="animate-spin" />
+                          ) : (
+                            <Plus size={14} />
+                          )}
+                        </button>
+                      ) : null}
+                    </div>
+                  );
+                })
             )}
           </div>
         ) : (

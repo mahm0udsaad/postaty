@@ -320,26 +320,16 @@ export interface PosterResult {
   isGift?: boolean;
 }
 
-// ── Reel Generation ─────────────────────────────────────────────
-export type ReelGenStatus =
-  | "pending"
-  | "generating_spec"
-  | "rendering"
-  | "uploading"
-  | "complete"
-  | "error";
+// ── Marketing Content ──────────────────────────────────────────
+export type SocialPlatform = "instagram" | "facebook" | "tiktok" | "x" | "whatsapp" | "snapchat";
 
-export interface ReelGeneration {
-  id: string;
-  generationId?: string;
-  sourceImageUrl: string;
-  status: ReelGenStatus;
-  videoUrl?: string;
-  thumbnailUrl?: string;
-  progress?: number; // 0-1 for rendering phase
-  error?: string;
-  createdAt: number;
+export interface MarketingContent {
+  caption: string;       // Main post caption (Arabic, 3-5 lines)
+  hashtags: string[];    // 8-12 hashtags (without # prefix)
+  storyText: string;     // Short punchy text for stories (1-2 lines)
 }
+
+export type MarketingContentStatus = "idle" | "generating" | "complete" | "error";
 
 export type GiftEditorFontFamily = "noto-kufi";
 
@@ -389,7 +379,6 @@ export interface PlanLimits {
   exportFormats: OutputFormat[];
   hasWatermark: boolean;
   historyRetentionDays: number;
-  canCreateReels: boolean;
 }
 
 // ── Admin API Contracts ─────────────────────────────────────────────

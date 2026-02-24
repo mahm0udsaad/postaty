@@ -216,7 +216,10 @@ type HomeClientProps = {
 export default function HomeClient({ pricing, countryCode, locale }: HomeClientProps) {
   const router = useRouter();
   const { isSignedIn } = useAuth();
-  const { data: showcaseImagesQuery } = useSWR('/api/showcase', fetcher);
+  const { data: showcaseImagesQuery } = useSWR('/api/showcase', fetcher, {
+    dedupingInterval: 300_000,
+    revalidateOnFocus: false,
+  });
   const showcaseImages = showcaseImagesQuery?.showcaseImages ?? [];
   const t = (ar: string, en: string) => (locale === "ar" ? ar : en);
   // Before/After are static local images; admin-selected showcase images fill the bento cards
@@ -380,7 +383,7 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
                          <div className="absolute top-2 right-2 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded">{t("قبل", "Before")}</div>
                       </div>
                       <div className="flex-1 h-full relative rounded-xl overflow-hidden border border-primary/30 rotate-[2deg] z-10 shadow-2xl group-hover:scale-105 transition-all duration-500">
-                         <Image src="/showcase/image.png" alt={t("بعد", "After")} fill sizes="(max-width: 768px) 42vw, 26vw" className="object-cover" />
+                         <Image src="/showcase/image.jpg" alt={t("بعد", "After")} fill sizes="(max-width: 768px) 42vw, 26vw" className="object-cover" />
                          <div className="absolute top-2 right-2 bg-primary text-white text-[10px] px-2 py-0.5 rounded">{t("بعد", "After")}</div>
                       </div>
                   </div>
@@ -409,7 +412,7 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
                transition={{ delay: 0.2 }}
             >
                {showcaseCard1?.url ? (
-                 <Image src={showcaseCard1.url} alt={showcaseCard1.title || t("تصميم مُنشأ بالذكاء الاصطناعي", "AI generated design")} fill sizes="(max-width: 768px) 92vw, (max-width: 1024px) 32vw, 24vw" className="object-cover transition-transform duration-700 group-hover:scale-110" />
+                 <Image src={showcaseCard1.url} alt={showcaseCard1.title || t("تصميم مُنشأ بالذكاء الاصطناعي", "AI generated design")} fill sizes="(max-width: 768px) 92vw, (max-width: 1024px) 32vw, 24vw" className="object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
                ) : (
                  <div className="w-full h-full bg-surface-2" />
                )}
@@ -440,7 +443,7 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
                transition={{ delay: 0.4 }}
             >
                {showcaseTall?.url ? (
-                 <Image src={showcaseTall.url} alt={showcaseTall.title || t("تصميم مُنشأ بالذكاء الاصطناعي", "AI generated design")} fill sizes="(max-width: 768px) 92vw, (max-width: 1024px) 32vw, 24vw" className="object-cover transition-transform duration-700 group-hover:scale-110" />
+                 <Image src={showcaseTall.url} alt={showcaseTall.title || t("تصميم مُنشأ بالذكاء الاصطناعي", "AI generated design")} fill sizes="(max-width: 768px) 92vw, (max-width: 1024px) 32vw, 24vw" className="object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
                ) : (
                  <div className="w-full h-full bg-surface-2" />
                )}
@@ -480,7 +483,7 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
                transition={{ delay: 0.6 }}
             >
                {showcaseCard2?.url ? (
-                 <Image src={showcaseCard2.url} alt={showcaseCard2.title || t("تصميم مُنشأ بالذكاء الاصطناعي", "AI generated design")} fill sizes="(max-width: 768px) 92vw, (max-width: 1024px) 32vw, 24vw" className="object-cover transition-transform duration-700 group-hover:scale-110" />
+                 <Image src={showcaseCard2.url} alt={showcaseCard2.title || t("تصميم مُنشأ بالذكاء الاصطناعي", "AI generated design")} fill sizes="(max-width: 768px) 92vw, (max-width: 1024px) 32vw, 24vw" className="object-cover transition-transform duration-700 group-hover:scale-110" loading="lazy" />
                ) : (
                  <div className="w-full h-full bg-surface-2" />
                )}
@@ -491,33 +494,6 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
           </div>
         </div>
       </section>
-
-      {/* SECTION 4: SOCIAL PROOF BAR */}
-      <AnimateOnScroll>
-        <section className="py-8 border-b border-card-border">
-          <div className="max-w-5xl mx-auto px-4 flex flex-wrap items-center justify-center gap-8 text-center">
-            <div className="flex items-center gap-3">
-              <div className="flex -space-x-2 space-x-reverse">
-                {[...Array(4)].map((_, i) => (
-                  <div key={i} className="w-8 h-8 rounded-full bg-surface-2 border-2 border-background" />
-                ))}
-              </div>
-              <span className="text-sm text-muted font-medium">{t("+500 مطعم ومتجر يستخدم Postaty", "500+ restaurants and stores use Postaty")}</span>
-            </div>
-            <div className="h-6 w-px bg-card-border hidden md:block" />
-            <div className="flex items-center gap-2 text-sm text-muted">
-              <Sparkles size={14} className="text-primary" />
-              <span className="font-bold text-foreground">2,000+</span> {t("تصميم تم إنشاؤه", "designs generated")}
-            </div>
-            <div className="h-6 w-px bg-card-border hidden md:block" />
-            <div className="flex items-center gap-2 text-sm text-muted">
-              <Zap size={14} className="text-primary" />
-              {t("متوسط", "Average")} <span className="font-bold text-foreground">{t("30 ثانية", "30 seconds")}</span> {t("للتصميم", "per design")}
-            </div>
-          </div>
-        </section>
-      </AnimateOnScroll>
-
       {/* SECTION 5: HOW IT WORKS */}
       <section className="py-16 md:py-24 px-4">
         <div className="max-w-5xl mx-auto">

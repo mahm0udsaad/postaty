@@ -1,18 +1,20 @@
 "use server";
 
 import { generateText } from "ai";
-import { paidImageModel, freeImageModel } from "@/lib/ai";
+import { paidImageModel, freeImageModel, textModel } from "@/lib/ai";
 import {
   getImageDesignSystemPrompt,
   getImageDesignUserMessage,
   getGiftImageSystemPrompt,
   getGiftImageUserMessage,
+  getMarketingContentSystemPrompt,
+  getMarketingContentUserMessage,
 } from "./poster-prompts";
 import { formatRecipeForPrompt } from "./design-recipes";
 import { selectRecipes } from "./design-recipes";
 import { getInspirationImages } from "./inspiration-images";
 import { FORMAT_CONFIGS } from "./constants";
-import type { PostFormData } from "./types";
+import type { PostFormData, MarketingContent } from "./types";
 import type { BrandKitPromptData } from "./prompts";
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -24,7 +26,7 @@ export type GeneratedDesign = {
 };
 
 export type GenerationUsage = {
-  route: "poster" | "gift" | "reel";
+  route: "poster" | "gift" | "marketing";
   model: string;
   inputTokens: number;
   outputTokens: number;
@@ -410,4 +412,120 @@ export async function generateGiftImage(
     imageBase64: base64DataUrl,
     usage,
   };
+}
+
+// ── Generate marketing content via Gemini 3 Flash (text-only) ────
+
+const MARKETING_MODEL_ID = "gemini-3-flash-preview";
+
+export async function generateMarketingContent(
+  posterBase64: string,
+  data: PostFormData
+): Promise<{ content: MarketingContent; usage: GenerationUsage }> {
+  const systemPrompt = getMarketingContentSystemPrompt();
+  const userMessage = getMarketingContentUserMessage(data);
+
+  console.info("[generateMarketingContent] start", { model: MARKETING_MODEL_ID });
+
+  // Parse poster image from data URL
+  const match = posterBase64.match(/^data:(image\/[^;]+);base64,(.+)$/);
+  if (!match) {
+    throw new Error("Invalid poster image format for marketing content generation");
+  }
+  const imageBuffer = Buffer.from(match[2], "base64");
+  const mediaType = match[1];
+
+  const startTime = Date.now();
+  let result;
+  try {
+    result = await generateText({
+      model: textModel,
+      system: systemPrompt,
+      messages: [
+        {
+          role: "user" as const,
+          content: [
+            {
+              type: "image" as const,
+              image: imageBuffer,
+              mediaType,
+            },
+            {
+              type: "text" as const,
+              text: userMessage,
+            },
+          ],
+        },
+      ],
+    });
+  } catch (err) {
+    const durationMs = Date.now() - startTime;
+    console.error("[generateMarketingContent] generateText threw", err);
+    const usage: GenerationUsage = {
+      route: "marketing",
+      model: MARKETING_MODEL_ID,
+      inputTokens: 0,
+      outputTokens: 0,
+      imagesGenerated: 0,
+      durationMs,
+      success: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
+    throw Object.assign(
+      new Error(`Marketing content generation failed: ${err instanceof Error ? err.message : String(err)}`),
+      { usage }
+    );
+  }
+
+  const durationMs = Date.now() - startTime;
+
+  // Parse JSON from response text
+  let content: MarketingContent;
+  try {
+    const text = result.text.trim();
+    // Strip markdown fences if present
+    const jsonStr = text.replace(/^```json?\n?/, "").replace(/\n?```$/, "");
+    content = JSON.parse(jsonStr);
+
+    // Validate required fields
+    if (!content.caption || !Array.isArray(content.hashtags) || !content.storyText) {
+      throw new Error("Missing required fields in AI response");
+    }
+  } catch (parseErr) {
+    console.error("[generateMarketingContent] JSON parse failed", {
+      text: result.text?.slice(0, 500),
+      error: parseErr,
+    });
+    const usage: GenerationUsage = {
+      route: "marketing",
+      model: MARKETING_MODEL_ID,
+      inputTokens: result.usage?.inputTokens ?? 0,
+      outputTokens: result.usage?.outputTokens ?? 0,
+      imagesGenerated: 0,
+      durationMs,
+      success: false,
+      error: "Failed to parse marketing content JSON",
+    };
+    throw Object.assign(new Error("Failed to parse marketing content"), { usage });
+  }
+
+  const usage: GenerationUsage = {
+    route: "marketing",
+    model: MARKETING_MODEL_ID,
+    inputTokens: result.usage?.inputTokens ?? 0,
+    outputTokens: result.usage?.outputTokens ?? 0,
+    imagesGenerated: 0,
+    durationMs,
+    success: true,
+  };
+
+  console.info("[generateMarketingContent] success", {
+    model: MARKETING_MODEL_ID,
+    durationMs,
+    inputTokens: usage.inputTokens,
+    outputTokens: usage.outputTokens,
+    hashtagCount: content.hashtags.length,
+  });
+
+  return { content, usage };
 }
