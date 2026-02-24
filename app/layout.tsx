@@ -108,7 +108,7 @@ export default async function RootLayout({
   const dir = isRtlLocale(locale) ? "rtl" : "ltr";
 
   return (
-    <html lang={locale} dir={dir}>
+    <html lang={locale} dir={dir} suppressHydrationWarning>
       <head>
         {/* Hardcoded OG meta tags as fallback for WhatsApp/Facebook crawlers */}
         <meta property="og:image" content={ogImageUrl} />

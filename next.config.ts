@@ -47,7 +47,7 @@ const nextConfig: NextConfig = {
       `img-src 'self' data: blob: https://*.convex.cloud https://*.convex.site https://*.supabase.co https://lh3.googleusercontent.com https://img.clerk.com https://*.clerk.accounts.dev https://*.clerk.com${devImgSrc}`,
       "font-src 'self' https://fonts.gstatic.com",
       `connect-src 'self' data: https://*.convex.cloud wss://*.convex.cloud https://*.convex.site wss://*.convex.site https://*.supabase.co wss://*.supabase.co https://*.clerk.accounts.dev https://*.clerk.com https://clerk-telemetry.com https://fonts.googleapis.com https://fonts.gstatic.com https://api.stripe.com https://challenges.cloudflare.com${devConnectSrc}`,
-      "media-src 'self' blob: https://*.supabase.co",
+      "media-src 'self' blob: https://*.supabase.co https://storage.googleapis.com",
       "worker-src 'self' blob:",
       "frame-src 'self' https://*.clerk.accounts.dev https://*.clerk.com https://js.stripe.com https://hooks.stripe.com https://challenges.cloudflare.com",
       "object-src 'none'",
