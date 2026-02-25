@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/supabase/auth-helpers";
 import { createAdminClient } from "@/lib/supabase/server";
 
+export const maxDuration = 30;
+
 export async function GET() {
   try {
     const user = await requireAuth();
@@ -76,7 +78,7 @@ export async function POST(request: Request) {
         .eq("model", model)
         .order("created_at", { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
 
       if (pricing) {
         pricingMap.set(model, pricing);

@@ -3,6 +3,8 @@ import { requireAuth } from "@/lib/supabase/auth-helpers";
 import { uploadBase64ToStorage, getPublicUrl } from "@/lib/supabase-upload";
 import { randomUUID } from "crypto";
 
+export const maxDuration = 30;
+
 export async function POST(request: Request) {
   try {
     const user = await requireAuth();

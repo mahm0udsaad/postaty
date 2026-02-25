@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireCurrentUser } from "@/lib/supabase/auth-helpers";
 
+export const maxDuration = 30;
+
 export async function GET(request: Request) {
   try {
     const dbUser = await requireCurrentUser();

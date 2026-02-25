@@ -2,6 +2,8 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { requireAuth } from "@/lib/supabase/auth-helpers";
 
+export const maxDuration = 30;
+
 const CREDIT_THRESHOLDS = [
   {
     remaining: 0,

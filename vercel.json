@@ -1,2 +1,7 @@
 {
+  "functions": {
+    "app/create/page.tsx": {
+      "maxDuration": 120
+    }
+  }
 }
