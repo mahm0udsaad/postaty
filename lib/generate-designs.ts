@@ -1,18 +1,20 @@
 "use server";
 
 import { generateText } from "ai";
-import { paidImageModel, freeImageModel } from "@/lib/ai";
+import { paidImageModel, freeImageModel, marketingContentModel, google } from "@/lib/ai";
 import {
   getImageDesignSystemPrompt,
   getImageDesignUserMessage,
   getGiftImageSystemPrompt,
   getGiftImageUserMessage,
+  buildMarketingContentSystemPrompt,
+  buildMarketingContentUserMessage,
 } from "./poster-prompts";
 import { formatRecipeForPrompt } from "./design-recipes";
 import { selectRecipes } from "./design-recipes";
 import { getInspirationImages } from "./inspiration-images";
 import { FORMAT_CONFIGS } from "./constants";
-import type { PostFormData } from "./types";
+import type { PostFormData, MarketingContentHub, SocialPlatform, PlatformContent } from "./types";
 import type { BrandKitPromptData } from "./prompts";
 
 // ── Types ──────────────────────────────────────────────────────────
@@ -24,7 +26,7 @@ export type GeneratedDesign = {
 };
 
 export type GenerationUsage = {
-  route: "poster" | "gift" | "reel";
+  route: "poster" | "gift" | "reel" | "marketing-content";
   model: string;
   inputTokens: number;
   outputTokens: number;
@@ -410,4 +412,125 @@ export async function generateGiftImage(
     imageBase64: base64DataUrl,
     usage,
   };
+}
+
+// ── Generate Marketing Content via Gemini 3 Flash (with web search) ──
+
+const MARKETING_MODEL_ID = "gemini-3-flash-preview";
+
+const MARKETING_JSON_INSTRUCTION = `
+
+IMPORTANT: You MUST respond with ONLY a valid JSON object (no markdown, no code blocks, no explanation). The JSON must have this exact structure:
+{
+  "facebook": { "caption": "...", "hashtags": ["...", "..."], "bestPostingTime": "...", "bestPostingTimeReason": "...", "contentTip": "..." },
+  "instagram": { "caption": "...", "hashtags": ["...", "..."], "bestPostingTime": "...", "bestPostingTimeReason": "...", "contentTip": "..." },
+  "whatsapp": { "caption": "...", "hashtags": ["...", "..."], "bestPostingTime": "...", "bestPostingTimeReason": "...", "contentTip": "..." },
+  "tiktok": { "caption": "...", "hashtags": ["...", "..."], "bestPostingTime": "...", "bestPostingTimeReason": "...", "contentTip": "..." }
+}`;
+
+function parseMarketingContentJson(text: string): Record<string, { caption: string; hashtags: string[]; bestPostingTime: string; bestPostingTimeReason: string; contentTip: string }> {
+  // Strip markdown code blocks if present
+  let cleaned = text.trim();
+  if (cleaned.startsWith("```")) {
+    cleaned = cleaned.replace(/^```(?:json)?\s*\n?/, "").replace(/\n?```\s*$/, "");
+  }
+
+  const parsed = JSON.parse(cleaned);
+
+  // Validate required platforms
+  for (const platform of ["facebook", "instagram", "whatsapp", "tiktok"]) {
+    if (!parsed[platform]) {
+      throw new Error(`Missing platform: ${platform}`);
+    }
+    const p = parsed[platform];
+    if (typeof p.caption !== "string" || !Array.isArray(p.hashtags) || typeof p.bestPostingTime !== "string") {
+      throw new Error(`Invalid structure for platform: ${platform}`);
+    }
+  }
+
+  return parsed;
+}
+
+export async function generateMarketingContent(
+  data: PostFormData,
+  language: "ar" | "en" = "ar"
+): Promise<MarketingContentHub & { usage: GenerationUsage }> {
+  const systemPrompt = buildMarketingContentSystemPrompt(data, language) + MARKETING_JSON_INSTRUCTION;
+  const userMessage = buildMarketingContentUserMessage(data, language);
+
+  console.info("[generateMarketingContent] start", {
+    model: MARKETING_MODEL_ID,
+    language,
+    category: data.category,
+  });
+
+  const startTime = Date.now();
+  try {
+    const result = await generateText({
+      model: marketingContentModel,
+      tools: {
+        google_search: google.tools.googleSearch({}),
+      },
+      system: systemPrompt,
+      prompt: userMessage,
+    });
+
+    const durationMs = Date.now() - startTime;
+
+    const parsed = parseMarketingContentJson(result.text);
+
+    const PLATFORM_KEYS: SocialPlatform[] = ["facebook", "instagram", "whatsapp", "tiktok"];
+    const contents = {} as Record<SocialPlatform, PlatformContent>;
+    for (const platform of PLATFORM_KEYS) {
+      contents[platform] = {
+        platform,
+        caption: parsed[platform].caption,
+        hashtags: parsed[platform].hashtags,
+        bestPostingTime: parsed[platform].bestPostingTime,
+        bestPostingTimeReason: parsed[platform].bestPostingTimeReason || "",
+        contentTip: parsed[platform].contentTip || "",
+      };
+    }
+
+    const usage: GenerationUsage = {
+      route: "marketing-content",
+      model: MARKETING_MODEL_ID,
+      inputTokens: result.usage?.inputTokens ?? 0,
+      outputTokens: result.usage?.outputTokens ?? 0,
+      imagesGenerated: 0,
+      durationMs,
+      success: true,
+    };
+
+    console.info("[generateMarketingContent] success", {
+      model: MARKETING_MODEL_ID,
+      durationMs,
+      inputTokens: usage.inputTokens,
+      outputTokens: usage.outputTokens,
+    });
+
+    return {
+      contents,
+      language,
+      generatedAt: Date.now(),
+      usage,
+    };
+  } catch (err) {
+    const durationMs = Date.now() - startTime;
+    console.error("[generateMarketingContent] failed", err);
+    const usage: GenerationUsage = {
+      route: "marketing-content",
+      model: MARKETING_MODEL_ID,
+      inputTokens: 0,
+      outputTokens: 0,
+      imagesGenerated: 0,
+      durationMs,
+      success: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
+    throw Object.assign(
+      new Error(`Marketing content generation failed: ${err instanceof Error ? err.message : String(err)}`),
+      { usage }
+    );
+  }
 }

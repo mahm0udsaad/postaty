@@ -1,10 +1,10 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
-import { generatePoster, generateGiftImage } from "@/lib/generate-designs";
+import { generatePoster, generateMarketingContent } from "@/lib/generate-designs";
 import { removeBackgroundWithFallback } from "@/lib/gift-editor/remove-background";
 import { postFormDataSchema } from "@/lib/validation";
-import type { PostFormData, OutputFormat, GeneratePostersResult } from "@/lib/types";
+import type { PostFormData, OutputFormat, GeneratePostersResult, MarketingContentHub } from "@/lib/types";
 import type { BrandKitPromptData } from "@/lib/prompts";
 import type { GenerationUsage } from "@/lib/generate-designs";
 
@@ -33,7 +33,7 @@ function extractUsageFromUnknown(value: unknown): GenerationUsage | undefined {
 
   const usage = maybeUsage as Partial<GenerationUsage>;
   if (
-    (usage.route === "poster" || usage.route === "gift") &&
+    (usage.route === "poster" || usage.route === "gift" || usage.route === "marketing-content") &&
     typeof usage.model === "string" &&
     typeof usage.inputTokens === "number" &&
     typeof usage.outputTokens === "number" &&
@@ -46,7 +46,7 @@ function extractUsageFromUnknown(value: unknown): GenerationUsage | undefined {
   return undefined;
 }
 
-/** Generate main poster + gift image in parallel */
+/** Generate main poster (marketing content is generated separately after poster completes) */
 export async function generatePosters(
   data: PostFormData,
   brandKit?: BrandKitPromptData
@@ -77,19 +77,13 @@ export async function generatePosters(
 
   const usages: GenerationUsage[] = [];
 
-  // Run main poster and gift image in parallel
-  const [mainResult, giftResult] = await Promise.allSettled([
-    generatePoster(data, brandKit),
-    generateGiftImage(data),
-  ]);
-
-  // Build main poster result
-  let main: GeneratePostersResult["main"];
-  if (mainResult.status === "fulfilled") {
-    const design = mainResult.value;
+  // Generate main poster only (gift removed, marketing content generated separately)
+  try {
+    const design = await generatePoster(data, brandKit);
     usages.push(design.usage);
     console.info("[generatePosters] main success");
-    main = {
+
+    const main: GeneratePostersResult["main"] = {
       designIndex: 0,
       format,
       html: "",
@@ -98,47 +92,46 @@ export async function generatePosters(
       designName: design.name,
       designNameAr: design.nameAr,
     };
-  } else {
-    console.error("[generatePosters] main failed", mainResult.reason);
-    const errUsage = extractUsageFromUnknown(mainResult.reason);
+
+    return { main, usages };
+  } catch (err) {
+    console.error("[generatePosters] main failed", err);
+    const errUsage = extractUsageFromUnknown(err);
     if (errUsage) usages.push(errUsage);
-    main = {
+
+    const main: GeneratePostersResult["main"] = {
       designIndex: 0,
       format,
       html: "",
       status: "error",
-      error:
-        mainResult.reason instanceof Error
-          ? mainResult.reason.message
-          : "Generation failed",
+      error: err instanceof Error ? err.message : "Generation failed",
       designName: "AI Design",
       designNameAr: "تصميم بالذكاء الاصطناعي",
     };
-  }
 
-  // Build gift result (non-blocking — gift failure doesn't affect main)
-  let gift: GeneratePostersResult["gift"];
-  if (giftResult.status === "fulfilled") {
-    const design = giftResult.value;
-    usages.push(design.usage);
-    console.info("[generatePosters] gift success");
-    gift = {
-      designIndex: 1,
-      format,
-      html: "",
-      imageBase64: design.imageBase64,
-      status: "complete" as const,
-      designName: design.name,
-      designNameAr: design.nameAr,
-      isGift: true,
-    };
-  } else {
-    console.warn("[generatePosters] gift failed (non-blocking)", giftResult.reason);
-    const errUsage = extractUsageFromUnknown(giftResult.reason);
-    if (errUsage) usages.push(errUsage);
+    return { main, usages };
   }
+}
 
-  return { main, gift, usages };
+/** Generate marketing content for all social platforms (called AFTER poster is ready, no credit cost) */
+export async function generateMarketingContentAction(
+  data: PostFormData,
+  language: "ar" | "en" = "ar"
+): Promise<{ content: MarketingContentHub; usage: GenerationUsage } | { error: string }> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user?.id) {
+      return { error: "Authentication required" };
+    }
+
+    const result = await generateMarketingContent(data, language);
+    const { usage, ...content } = result;
+    return { content, usage };
+  } catch (err) {
+    console.warn("[generateMarketingContentAction] failed (non-blocking)", err);
+    return { error: err instanceof Error ? err.message : "Marketing content generation failed" };
+  }
 }
 
 export async function removeOverlayBackground(

@@ -285,3 +285,127 @@ Use beautiful visual elements: abstract shapes, gradient overlays, light effects
 
 Remember: ZERO text, ZERO numbers, ZERO letters. Only visuals.`;
 }
+
+// ── Shared Helpers ─────────────────────────────────────────────────
+
+export function getBusinessNameFromForm(data: PostFormData): string {
+  switch (data.category) {
+    case "restaurant": return data.restaurantName;
+    case "supermarket": return data.supermarketName;
+    case "ecommerce": return data.shopName;
+    case "services": return data.businessName;
+    case "fashion": return data.brandName;
+    case "beauty": return data.salonName;
+  }
+}
+
+export function getProductNameFromForm(data: PostFormData): string {
+  switch (data.category) {
+    case "restaurant": return data.mealName;
+    case "supermarket": return data.productName;
+    case "ecommerce": return data.productName;
+    case "services": return data.serviceName;
+    case "fashion": return data.itemName;
+    case "beauty": return data.serviceName;
+  }
+}
+
+// ── Marketing Content Hub Prompts ──────────────────────────────────
+
+const CATEGORY_LABELS_MAP: Record<Category, { ar: string; en: string }> = {
+  restaurant: { ar: "مطاعم وكافيهات", en: "Restaurants & Cafes" },
+  supermarket: { ar: "سوبر ماركت", en: "Supermarkets" },
+  ecommerce: { ar: "متاجر إلكترونية", en: "E-commerce" },
+  services: { ar: "خدمات", en: "Services" },
+  fashion: { ar: "أزياء وموضة", en: "Fashion" },
+  beauty: { ar: "تجميل وعناية", en: "Beauty & Care" },
+};
+
+export function buildMarketingContentSystemPrompt(
+  data: PostFormData,
+  language: "ar" | "en"
+): string {
+  const langInstruction = language === "ar"
+    ? "CRITICAL: ALL output text MUST be in Arabic. Hashtags can mix Arabic and English."
+    : "CRITICAL: ALL output text MUST be in English. Hashtags should be in English.";
+
+  return `You are an expert social media marketing strategist specializing in MENA region businesses.
+
+${langInstruction}
+
+Your task: Generate optimized marketing content for 4 social media platforms (Facebook, Instagram, WhatsApp, TikTok) based on the business and product information provided.
+
+Use Google Search to find:
+1. Current best posting times for each platform in the MENA/Arab region (${new Date().getFullYear()})
+2. Platform-specific content strategies and character limits
+3. Trending hashtags relevant to the business category
+4. Current engagement best practices per platform
+
+REQUIREMENTS PER PLATFORM:
+
+**Facebook:**
+- Caption: 1-3 paragraphs, storytelling approach, can be longer
+- Include a clear CTA
+- 3-5 relevant hashtags (mix of broad and niche)
+- Best posting time specific to MENA region
+
+**Instagram:**
+- Caption: Engaging, emoji-rich, formatted with line breaks
+- Start with a hook (first line visible before "more")
+- 15-25 hashtags (mix of popular, medium, and niche)
+- Best posting time specific to MENA region
+
+**WhatsApp:**
+- Caption: Short, direct, conversational (like a message to a friend/customer)
+- Include price and offer details prominently
+- 0-3 hashtags (WhatsApp captions are often shared without hashtags)
+- Best time to send broadcast messages
+
+**TikTok:**
+- Caption: Very short, trendy, with hook
+- Use trending sounds/challenge references if applicable
+- 5-10 hashtags (trending + niche)
+- Best posting time for maximum reach
+
+For bestPostingTime: provide specific days and time ranges.
+For bestPostingTimeReason: explain WHY this time works (1 sentence).
+For contentTip: give ONE actionable tip specific to this platform and this business category.`;
+}
+
+export function buildMarketingContentUserMessage(
+  data: PostFormData,
+  language: "ar" | "en"
+): string {
+  const businessName = getBusinessNameFromForm(data);
+  const productName = getProductNameFromForm(data);
+  const categoryLabel = language === "ar"
+    ? CATEGORY_LABELS_MAP[data.category].ar
+    : CATEGORY_LABELS_MAP[data.category].en;
+
+  let details = `Business: ${businessName}
+Category: ${categoryLabel}
+Product/Service: ${productName}`;
+
+  if ("newPrice" in data && data.newPrice) details += `\nPrice: ${data.newPrice}`;
+  if ("oldPrice" in data && data.oldPrice) details += `\nOriginal Price: ${data.oldPrice}`;
+  if ("price" in data && data.price) details += `\nPrice: ${data.price}`;
+  if ("offerDuration" in data && data.offerDuration) details += `\nOffer Duration: ${data.offerDuration}`;
+
+  details += `\nCTA: ${data.cta}`;
+  details += `\nWhatsApp: ${data.whatsapp}`;
+
+  if (data.category === "restaurant" && data.description) {
+    details += `\nDescription: ${data.description}`;
+  }
+  if (data.category === "ecommerce" && data.features) {
+    details += `\nFeatures: ${data.features}`;
+  }
+
+  const lang = language === "ar" ? "Arabic" : "English";
+
+  return `Generate optimized marketing captions in ${lang} for all 4 platforms for this business:
+
+${details}
+
+Use web search to find the latest best practices, posting times, and trending hashtags for the "${data.category}" category in the MENA/Arab region. Make the content compelling, platform-native, and optimized for engagement.`;
+}

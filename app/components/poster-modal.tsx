@@ -12,7 +12,6 @@ import {
   ThumbsUp,
   ThumbsDown,
   WandSparkles,
-  Film,
   AlertTriangle,
 } from "lucide-react";
 import { useMemo, useState, useEffect } from "react";
@@ -37,7 +36,6 @@ interface PosterModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSaveAsTemplate?: (designIndex: number) => void;
-  onTurnIntoReel?: (result: PosterResult) => void;
   category?: string;
   model?: string;
   generationId?: string;
@@ -97,12 +95,14 @@ function downloadBlob(blob: Blob, fileName: string): void {
   URL.revokeObjectURL(url);
 }
 
+// Hidden behind feature flag — gift editor code is preserved but not reachable
+const GIFT_EDITOR_ENABLED = false;
+
 export function PosterModal({
   result,
   isOpen,
   onClose,
   onSaveAsTemplate,
-  onTurnIntoReel,
   category,
   model,
   generationId,
@@ -127,7 +127,7 @@ export function PosterModal({
 
   const { isSignedIn } = useAuth();
 
-  const isGift = Boolean(result?.isGift);
+  const isGift = GIFT_EDITOR_ENABLED && Boolean(result?.isGift);
   const defaultGiftLabel = useMemo(
     () => (locale === "ar" ? "هدية مجانية" : "Free gift"),
     [locale]
@@ -538,7 +538,8 @@ export function PosterModal({
               </div>
 
               <div className="space-y-3 mt-auto">
-                {onTurnIntoReel && !isGift && (
+                {/* Reel generation button temporarily disabled */}
+                {/* {onTurnIntoReel && !isGift && (
                   <button
                     onClick={() => { onTurnIntoReel(result); onClose(); }}
                     className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl font-bold shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all active:scale-95"
@@ -546,7 +547,7 @@ export function PosterModal({
                     <Film size={20} />
                     <span>{t("تحويل إلى ريلز", "Turn into Reel")}</span>
                   </button>
-                )}
+                )} */}
 
                 <button
                   onClick={handleExport}

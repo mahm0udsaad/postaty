@@ -40,7 +40,7 @@ export function FormatSelector({ selected, onChange }: FormatSelectorProps) {
       <label className="block text-sm font-semibold mb-3 text-foreground/80">
         {t("اختر حجم المنشور", "Select post size")}
       </label>
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-2 gap-3">
         {POSTER_GENERATION_FORMATS.map((format) => {
           const Icon = formatIcons[format];
           const isSelected = selected === format;

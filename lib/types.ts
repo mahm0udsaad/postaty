@@ -371,6 +371,26 @@ export interface GeneratePostersResult {
   gift?: PosterResult;
 }
 
+// ── Marketing Content Hub ─────────────────────────────────────────
+export type SocialPlatform = "facebook" | "instagram" | "whatsapp" | "tiktok";
+
+export interface PlatformContent {
+  platform: SocialPlatform;
+  caption: string;
+  hashtags: string[];
+  bestPostingTime: string;
+  bestPostingTimeReason: string;
+  contentTip: string;
+}
+
+export interface MarketingContentHub {
+  contents: Record<SocialPlatform, PlatformContent>;
+  language: "ar" | "en";
+  generatedAt: number;
+}
+
+export type MarketingContentStatus = "idle" | "loading" | "complete" | "error";
+
 // ── Credits ────────────────────────────────────────────────────────
 export type CreditReason =
   | "generation"

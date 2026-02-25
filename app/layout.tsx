@@ -10,6 +10,7 @@ import { Footer } from "./components/footer";
 import { AccountStatusGate } from "./components/account-status-gate";
 import { LocaleProvider } from "./components/locale-provider";
 import { isRtlLocale, LOCALE_COOKIE, normalizeLocale } from "@/lib/i18n";
+import { Toaster } from "sonner";
 import "./globals.css";
 
 const notoKufiArabic = localFont({
@@ -127,6 +128,16 @@ export default async function RootLayout({
               <main className="pb-20 md:pb-0 min-h-screen">{children}</main>
               <Footer locale={locale} />
               <BottomDock />
+              <Toaster
+                position="top-center"
+                toastOptions={{
+                  style: {
+                    background: "var(--surface-2)",
+                    color: "var(--foreground)",
+                    border: "1px solid var(--card-border)",
+                  },
+                }}
+              />
             </AccountStatusGate>
           </SupabaseProvider>
         </LocaleProvider>

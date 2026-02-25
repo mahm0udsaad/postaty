@@ -1,23 +1,15 @@
 "use client";
 
 import { useState } from "react";
-import dynamic from "next/dynamic";
 import useSWR from "swr";
 import { useAuth } from "@/hooks/use-auth";
 import { PosterGallery } from "./poster-gallery";
-import type { PosterImageData } from "./poster-gallery";
 import { GenerationCard } from "./generation-card";
 import { Clock, Grid3x3, List, Sparkles, Gift } from "lucide-react";
-import type { Category, PosterResult } from "@/lib/types";
-import { CATEGORY_LABELS, REEL_CONFIG } from "@/lib/constants";
+import type { Category } from "@/lib/types";
+import { CATEGORY_LABELS } from "@/lib/constants";
 import Link from "next/link";
 import { useLocale } from "@/hooks/use-locale";
-import { ReelUpgradePrompt } from "@/app/components/reel-upgrade-prompt";
-
-const ReelGenerationModal = dynamic(
-  () => import("@/app/components/reel-generation-modal").then((mod) => mod.ReelGenerationModal),
-  { ssr: false }
-);
 
 const fetcher = (url: string) => fetch(url).then(r => {
   if (!r.ok) throw new Error('API error');
@@ -41,66 +33,8 @@ export default function HistoryPage() {
   const [viewMode, setViewMode] = useState<"gallery" | "list">("gallery");
   const [selectedCategory, setSelectedCategory] = useState<"all" | Category>("all");
   const [imageType, setImageType] = useState<ImageTypeFilter>("all");
-  // Reel state
-  const [reelModalOpen, setReelModalOpen] = useState(false);
-  const [reelUpgradeOpen, setReelUpgradeOpen] = useState(false);
-  const [reelSourceUrl, setReelSourceUrl] = useState<string | null>(null);
-  const [reelBusinessName, setReelBusinessName] = useState("");
-  const [reelProductName, setReelProductName] = useState("");
-  const [reelCategory, setReelCategory] = useState("");
-
-  // Billing for plan gating
-  const { data: creditState, mutate: mutateCreditState } = useSWR(
-    isSignedIn ? "/api/billing" : null,
-    fetcher
-  );
 
   const categoryFilter = selectedCategory === "all" ? undefined : selectedCategory;
-
-  // Handler for gallery view (receives PosterImageData)
-  const handleTurnIntoReelGallery = (image: PosterImageData) => {
-    if (!creditState || creditState.planKey === "none" || creditState.planKey === "free") {
-      setReelUpgradeOpen(true);
-      return;
-    }
-    if ((creditState.totalRemaining ?? 0) < REEL_CONFIG.creditsPerReel) {
-      return; // silently fail if not enough credits – could add toast later
-    }
-    setReelSourceUrl(image.url);
-    setReelBusinessName(image.businessName);
-    setReelProductName(image.productName);
-    setReelCategory(image.category);
-    setReelModalOpen(true);
-  };
-
-  // Handler for list view (receives individual strings)
-  const handleTurnIntoReelList = (imageUrl: string, businessName: string, productName: string, category: string) => {
-    if (!creditState || creditState.planKey === "none" || creditState.planKey === "free") {
-      setReelUpgradeOpen(true);
-      return;
-    }
-    if ((creditState.totalRemaining ?? 0) < REEL_CONFIG.creditsPerReel) {
-      return;
-    }
-    setReelSourceUrl(imageUrl);
-    setReelBusinessName(businessName);
-    setReelProductName(productName);
-    setReelCategory(category);
-    setReelModalOpen(true);
-  };
-
-  // Construct a minimal PosterResult for the ReelGenerationModal
-  const reelPosterResult: PosterResult | null = reelSourceUrl
-    ? {
-        designIndex: 0,
-        format: "post" as any,
-        html: "",
-        imageBase64: undefined,
-        status: "complete",
-        designName: reelBusinessName,
-        designNameAr: reelBusinessName,
-      }
-    : null;
 
   const HISTORY_FILTERS: Array<{ value: "all" | Category; label: string }> = [
     { value: "all", label: t("الكل", "All") },
@@ -233,7 +167,7 @@ export default function HistoryPage() {
             </Link>
           </div>
         ) : viewMode === "gallery" ? (
-          <PosterGallery category={categoryFilter} imageType={imageType} onTurnIntoReel={handleTurnIntoReelGallery} />
+          <PosterGallery category={categoryFilter} imageType={imageType} />
         ) : (
           <div className="max-w-5xl mx-auto space-y-4">
             {!isLoaded || isListLoading || generations === undefined ? (
@@ -253,29 +187,13 @@ export default function HistoryPage() {
                   );
                 })
                 .map((gen: any) => (
-                  <GenerationCard key={gen.id} generation={gen} imageType={imageType} onTurnIntoReel={handleTurnIntoReelList} />
+                  <GenerationCard key={gen.id} generation={gen} imageType={imageType} />
                 ))
             )}
           </div>
         )}
       </div>
 
-      {/* Reel Modals */}
-      <ReelGenerationModal
-        isOpen={reelModalOpen}
-        onClose={() => setReelModalOpen(false)}
-        posterResult={reelPosterResult}
-        generationId={undefined}
-        sourceImageUrl={reelSourceUrl ?? undefined}
-        businessName={reelBusinessName}
-        productName={reelProductName}
-        category={reelCategory}
-        onCreditsChanged={() => mutateCreditState()}
-      />
-      <ReelUpgradePrompt
-        isOpen={reelUpgradeOpen}
-        onClose={() => setReelUpgradeOpen(false)}
-      />
     </main>
   );
 }

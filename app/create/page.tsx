@@ -5,7 +5,7 @@ import useSWR from "swr";
 import { useAuth } from "@/hooks/use-auth";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Sparkles, LayoutGrid, LogIn, AlertCircle, Film } from "lucide-react";
+import { ArrowRight, Sparkles, LayoutGrid, LogIn, AlertCircle } from "lucide-react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useLocale } from "@/hooks/use-locale";
@@ -14,12 +14,12 @@ import { useLocale } from "@/hooks/use-locale";
 import { CategorySelector } from "../components/category-selector";
 
 // Types & Libs
-import type { Category, PostFormData, PosterResult, PosterGenStep } from "@/lib/types";
+import type { Category, PostFormData, PosterResult, PosterGenStep, MarketingContentHub as MarketingContentHubType, MarketingContentStatus } from "@/lib/types";
 import type { BrandKitPromptData } from "@/lib/prompts";
 import type { GenerationUsage } from "@/lib/generate-designs";
-import { CATEGORY_LABELS, FORMAT_CONFIGS, REEL_CONFIG } from "@/lib/constants";
+import { CATEGORY_LABELS, FORMAT_CONFIGS } from "@/lib/constants";
 import { CATEGORY_THEMES } from "@/lib/category-themes";
-import { generatePosters } from "../actions-v2";
+import { generatePosters, generateMarketingContentAction } from "../actions-v2";
 import { TAP_SCALE } from "@/lib/animation";
 
 const fetcher = (url: string) => fetch(url).then(r => {
@@ -29,6 +29,10 @@ const fetcher = (url: string) => fetch(url).then(r => {
 
 const PosterGrid = dynamic(
   () => import("../components/poster-grid").then((mod) => mod.PosterGrid)
+);
+
+const MarketingContentHub = dynamic(
+  () => import("../components/marketing-content-hub").then((mod) => mod.MarketingContentHub)
 );
 
 const RestaurantForm = dynamic(
@@ -56,15 +60,6 @@ const BeautyForm = dynamic(
   { loading: () => <FormLoadingFallback /> }
 );
 
-const ReelGenerationModal = dynamic(
-  () => import("../components/reel-generation-modal").then((mod) => mod.ReelGenerationModal),
-  { ssr: false }
-);
-
-const ReelUpgradePrompt = dynamic(
-  () => import("../components/reel-upgrade-prompt").then((mod) => mod.ReelUpgradePrompt),
-  { ssr: false }
-);
 
 const ALL_CATEGORIES: Category[] = ["restaurant", "supermarket", "ecommerce", "services", "fashion", "beauty"];
 const CATEGORY_LABELS_EN: Record<Category, string> = {
@@ -128,17 +123,6 @@ function getProductName(data: PostFormData): string {
   }
 }
 
-function getProductImage(data: PostFormData): string | undefined {
-  switch (data.category) {
-    case "restaurant": return data.mealImage || undefined;
-    case "supermarket": return data.productImages?.[0] || undefined;
-    case "ecommerce": return data.productImage || undefined;
-    case "services": return data.serviceImage || undefined;
-    case "fashion": return data.productImage || undefined;
-    case "beauty": return data.serviceImage || undefined;
-  }
-}
-
 export default function CreatePage() {
   return (
     <Suspense fallback={
@@ -196,16 +180,14 @@ function CreatePageContent() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [genStep, setGenStep] = useState<PosterGenStep>("idle");
   const [results, setResults] = useState<PosterResult[]>([]);
-  const [giftResult, setGiftResult] = useState<PosterResult | null>(null);
   const [error, setError] = useState<string>();
   const [lastSubmittedData, setLastSubmittedData] = useState<PostFormData | null>(null);
+  const [marketingContent, setMarketingContent] = useState<MarketingContentHubType | null>(null);
+  const [marketingContentStatus, setMarketingContentStatus] = useState<MarketingContentStatus>("idle");
+  const [marketingContentError, setMarketingContentError] = useState<string>();
+  const [marketingLanguage, setMarketingLanguage] = useState<"ar" | "en">("ar");
   const [defaultLogo, setDefaultLogo] = useState<string | null>(null);
   const generatingRef = useRef(false);
-
-  // Reel state
-  const [reelModalOpen, setReelModalOpen] = useState(false);
-  const [reelUpgradeOpen, setReelUpgradeOpen] = useState(false);
-  const [reelSourceResult, setReelSourceResult] = useState<PosterResult | null>(null);
 
   // Get category theme
   const theme = category ? CATEGORY_THEMES[category] : null;
@@ -316,6 +298,41 @@ function CreatePageContent() {
     }
   };
 
+  // Marketing content generation (called after poster completes)
+  const fetchMarketingContent = async (data: PostFormData, lang: "ar" | "en") => {
+    setMarketingContentStatus("loading");
+    setMarketingContentError(undefined);
+    try {
+      const result = await generateMarketingContentAction(data, lang);
+      if ("error" in result) {
+        setMarketingContentStatus("error");
+        setMarketingContentError(result.error);
+      } else {
+        setMarketingContent(result.content);
+        setMarketingContentStatus("complete");
+        void persistUsageEvents([result.usage]);
+      }
+    } catch (err) {
+      setMarketingContentStatus("error");
+      setMarketingContentError(
+        err instanceof Error ? err.message : t("فشل إنشاء المحتوى التسويقي", "Failed to generate marketing content")
+      );
+    }
+  };
+
+  const handleMarketingLanguageToggle = (lang: "ar" | "en") => {
+    if (lang === marketingLanguage) return;
+    setMarketingLanguage(lang);
+    if (lastSubmittedData && marketingContentStatus !== "idle") {
+      fetchMarketingContent(lastSubmittedData, lang);
+    }
+  };
+
+  const handleGenerateMarketingContent = () => {
+    if (!lastSubmittedData || marketingContentStatus === "loading") return;
+    fetchMarketingContent(lastSubmittedData, marketingLanguage);
+  };
+
   // Handlers
   const handleCategorySelect = (cat: Category) => {
     setCategory(cat);
@@ -327,7 +344,9 @@ function CreatePageContent() {
   const handleBack = () => {
     if (results.length > 0) {
       setResults([]);
-      setGiftResult(null);
+      setMarketingContent(null);
+      setMarketingContentStatus("idle");
+      setMarketingContentError(undefined);
       setGenStep("idle");
     } else if (category) {
       setCategory(null);
@@ -354,7 +373,9 @@ function CreatePageContent() {
     setError(undefined);
     setIsGenerating(true);
     setResults([]);
-    setGiftResult(null);
+    setMarketingContent(null);
+    setMarketingContentStatus("idle");
+    setMarketingContentError(undefined);
 
     const startTime = getNowMs();
     const idempotencyKey = `gen_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
@@ -381,16 +402,15 @@ function CreatePageContent() {
     }
 
     generatePosters(data, brandKitPromptData)
-      .then(({ main: posterResult, gift, usages }) => {
+      .then(({ main: posterResult, usages }) => {
         void persistUsageEvents(usages);
         setResults([posterResult]);
-        if (gift) setGiftResult(gift);
         setGenStep("complete");
         setIsGenerating(false);
         generatingRef.current = false;
 
         if (posterResult.status === "complete" && posterResult.imageBase64) {
-          saveToSupabase(data, posterResult, gift ?? null, startTime);
+          saveToSupabase(data, posterResult, startTime);
         }
       })
       .catch((err) => {
@@ -429,16 +449,13 @@ function CreatePageContent() {
   const saveToSupabase = async (
     data: PostFormData,
     posterResult: PosterResult,
-    giftPosterResult: PosterResult | null,
     startTime: number
   ) => {
     try {
       const format = data.format;
       const formatConfig = FORMAT_CONFIGS[format];
-      const hasGift = giftPosterResult?.status === "complete" && giftPosterResult.imageBase64;
 
-      // Create generation record
-      const createRes = await fetch('/api/generations', {
+      const createGenerationPromise = fetch('/api/generations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -454,50 +471,31 @@ function CreatePageContent() {
             productImages: undefined,
             serviceImage: undefined,
           }),
-          formats: hasGift ? [format, "gift"] : [format],
+          formats: [format],
           creditsCharged: 1,
         }),
       });
+
+      const uploadPromise = uploadImageToStorage(posterResult.imageBase64!);
+      const [createRes, uploadResult] = await Promise.all([createGenerationPromise, uploadPromise]);
       if (!createRes.ok) throw new Error('Failed to create generation');
       const { id: generationId } = await createRes.json();
-
-      // Upload main poster
-      const { publicUrl } = await uploadImageToStorage(posterResult.imageBase64!);
-      await fetch(`/api/generations/${generationId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          action: 'updateOutput',
-          format,
-          imageUrl: publicUrl,
-          width: formatConfig.width,
-          height: formatConfig.height,
-        }),
-      });
-
-      // Upload gift image if available
-      if (hasGift) {
-        const { publicUrl: giftPublicUrl } = await uploadImageToStorage(giftPosterResult.imageBase64!);
-        await fetch(`/api/generations/${generationId}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            action: 'updateOutput',
-            format: 'gift',
-            imageUrl: giftPublicUrl,
-            width: formatConfig.width,
-            height: formatConfig.height,
-          }),
-        });
-      }
+      const { publicUrl } = uploadResult;
 
       await fetch(`/api/generations/${generationId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'updateStatus',
+          outputs: [
+            {
+              format,
+              url: publicUrl,
+              width: formatConfig.width,
+              height: formatConfig.height,
+            },
+          ],
           status: 'complete',
-          durationMs: getNowMs() - startTime,
+          duration_ms: getNowMs() - startTime,
         }),
       });
     } catch (saveErr) {
@@ -529,22 +527,6 @@ function CreatePageContent() {
     } catch (err) {
       console.error("Failed to save template:", err);
     }
-  };
-
-  const handleTurnIntoReel = (result: PosterResult) => {
-    if (!creditState || creditState.planKey === "none" || creditState.planKey === "free") {
-      setReelUpgradeOpen(true);
-      return;
-    }
-    if ((creditState.totalRemaining ?? 0) < REEL_CONFIG.creditsPerReel) {
-      setError(t(
-        `تحتاج ${REEL_CONFIG.creditsPerReel} رصيد على الأقل لإنشاء ريلز`,
-        `You need at least ${REEL_CONFIG.creditsPerReel} credits to create a reel`
-      ));
-      return;
-    }
-    setReelSourceResult(result);
-    setReelModalOpen(true);
   };
 
   if (!isAuthLoaded) {
@@ -659,14 +641,26 @@ function CreatePageContent() {
                 <div className="bg-surface-1 rounded-3xl p-1 shadow-sm border border-card-border">
                     <PosterGrid
                         results={results}
-                        giftResult={giftResult}
                         genStep={genStep}
                         error={error}
                         totalExpected={1}
                         onSaveAsTemplate={handleSaveAsTemplate}
-                        onTurnIntoReel={handleTurnIntoReel}
                     />
                 </div>
+
+                {/* Marketing Content Hub (replaces Gift) */}
+                {genStep === "complete" && results.length > 0 && results[0].status === "complete" && (
+                  <MarketingContentHub
+                    content={marketingContent}
+                    status={marketingContentStatus}
+                    posterImageBase64={results[0].imageBase64}
+                    businessName={lastSubmittedData ? getBusinessName(lastSubmittedData) : undefined}
+                    onGenerate={handleGenerateMarketingContent}
+                    onLanguageToggle={handleMarketingLanguageToggle}
+                    onRetry={handleGenerateMarketingContent}
+                    error={marketingContentError}
+                  />
+                )}
 
                 <div className="flex flex-wrap justify-center gap-3">
                     <motion.button
@@ -727,24 +721,6 @@ function CreatePageContent() {
         </AnimatePresence>
       </main>
 
-      {/* Reel Modals */}
-      <ReelGenerationModal
-        isOpen={reelModalOpen}
-        onClose={() => setReelModalOpen(false)}
-        posterResult={reelSourceResult}
-        generationId={undefined}
-        sourceImageUrl={undefined}
-        businessName={lastSubmittedData ? getBusinessName(lastSubmittedData) : undefined}
-        productName={lastSubmittedData ? getProductName(lastSubmittedData) : undefined}
-        category={category ?? undefined}
-        onCreditsChanged={() => mutateCreditState()}
-        logoBase64={lastSubmittedData?.logo || undefined}
-        productImageBase64={lastSubmittedData ? getProductImage(lastSubmittedData) : undefined}
-      />
-      <ReelUpgradePrompt
-        isOpen={reelUpgradeOpen}
-        onClose={() => setReelUpgradeOpen(false)}
-      />
     </div>
   );
 }

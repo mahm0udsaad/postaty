@@ -20,13 +20,8 @@ import {
   Sparkles,
   Palette,
   Brain,
-  Gift,
-  PartyPopper,
-  Gem,
   Maximize2,
-  Film,
 } from "lucide-react";
-import confetti from "canvas-confetti";
 import type { PosterResult, PosterGenStep } from "@/lib/types";
 import { LoadingSlideshow } from "./loading-slideshow";
 import { PosterModal } from "./poster-modal";
@@ -36,12 +31,10 @@ import { useLocale } from "@/hooks/use-locale";
 
 interface PosterGridProps {
   results: PosterResult[];
-  giftResult?: PosterResult | null;
   genStep: PosterGenStep;
   error?: string;
   totalExpected?: number;
   onSaveAsTemplate?: (designIndex: number) => void;
-  onTurnIntoReel?: (result: PosterResult) => void;
 }
 
 // ── Poster Skeleton (Advanced Generative Visualization) ───────────
@@ -397,46 +390,12 @@ function Card3DHover({
 
 // ── Main Component ────────────────────────────────────────────────
 
-const GIFT_THEMES = [
-  {
-    frame: "from-amber-400 via-orange-400 to-rose-500",
-    ribbon: "from-amber-500 to-orange-500",
-    chip: "from-amber-500 to-orange-500",
-    glow: "shadow-amber-500/20",
-  },
-  {
-    frame: "from-emerald-400 via-teal-400 to-cyan-500",
-    ribbon: "from-emerald-500 to-teal-500",
-    chip: "from-emerald-500 to-teal-500",
-    glow: "shadow-emerald-500/20",
-  },
-  {
-    frame: "from-fuchsia-500 via-pink-500 to-rose-500",
-    ribbon: "from-fuchsia-500 to-pink-500",
-    chip: "from-fuchsia-500 to-pink-500",
-    glow: "shadow-fuchsia-500/20",
-  },
-] as const;
-
-const GIFT_ICONS = [Gift, PartyPopper, Gem] as const;
-
-function hashString(value: string): number {
-  let hash = 0;
-  for (let i = 0; i < value.length; i += 1) {
-    hash = (hash << 5) - hash + value.charCodeAt(i);
-    hash |= 0;
-  }
-  return Math.abs(hash);
-}
-
 export function PosterGrid({
   results,
-  giftResult,
   genStep,
   error,
   totalExpected = results.length || 3,
   onSaveAsTemplate,
-  onTurnIntoReel,
 }: PosterGridProps) {
   const { t } = useLocale();
   const shouldReduceMotion = useReducedMotion();
@@ -461,11 +420,6 @@ export function PosterGrid({
 
   const lowMotionMode = Boolean(shouldReduceMotion) || isCoarsePointer;
   const successResults = results.filter((r) => r.status === "complete");
-  const hasCompleteGift =
-    Boolean(giftResult) &&
-    giftResult?.status === "complete" &&
-    genStep === "complete";
-  const showInlineGiftRow = hasCompleteGift && successResults.length === 1;
 
   const handleExportAll = async () => {
     setExportingAll(true);
@@ -482,20 +436,6 @@ export function PosterGrid({
     setSelectedResult(result);
     setIsModalOpen(true);
   };
-
-  useEffect(() => {
-    if (!hasCompleteGift || lowMotionMode) return;
-    const timer = setTimeout(() => {
-      confetti({
-        particleCount: 80,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ["#4f46e5", "#8b5cf6", "#f59e0b", "#10b981", "#ec4899"],
-        disableForReducedMotion: true,
-      });
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [giftResult?.imageBase64, hasCompleteGift, lowMotionMode]);
 
   // Create grid items for all expected indices
   // If we have results, use that count, otherwise default to totalExpected (usually 3)
@@ -526,7 +466,9 @@ export function PosterGrid({
       <div className="space-y-8">
       
       {genStep === "complete" && (
-        <div className="flex flex-col md:flex-row items-center justify-between gap-4 py-6 px-6 bg-success/5 border border-success/20 rounded-2xl animate-in fade-in slide-in-from-bottom-4 duration-700">
+        <div className={`flex flex-col md:flex-row items-center justify-between gap-4 py-6 px-6 bg-success/5 border border-success/20 rounded-2xl animate-in fade-in slide-in-from-bottom-4 duration-700 ${
+          displayCount === 1 ? "max-w-2xl mx-auto w-full" : ""
+        }`}>
           <div className="flex items-center gap-4">
             <div className="p-3 bg-success/10 rounded-full">
               <CheckCircle2 size={24} className="text-success" />
@@ -543,7 +485,8 @@ export function PosterGrid({
 
           {successResults.length > 0 && (
             <div className="flex items-center gap-3">
-              {onTurnIntoReel && (
+              {/* Reel generation button temporarily disabled */}
+              {/* {onTurnIntoReel && (
                 <button
                   type="button"
                   onClick={() => onTurnIntoReel(successResults[0])}
@@ -552,7 +495,7 @@ export function PosterGrid({
                   <Film size={18} />
                   {t("تحويل إلى ريلز", "Turn into Reel")}
                 </button>
-              )}
+              )} */}
               <button
                 type="button"
                 onClick={handleExportAll}
@@ -586,32 +529,18 @@ export function PosterGrid({
       )}
 
       {/* Grid Layout */}
-      {showInlineGiftRow && giftResult && successResults[0] && (
-        <motion.div
-          initial={lowMotionMode ? false : { opacity: 0, y: 20 }}
-          animate={lowMotionMode ? undefined : { opacity: 1, y: 0 }}
-          transition={{ duration: 0.35 }}
-          className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch"
-        >
-          <div className="w-full">
-            <PosterCard
-              result={successResults[0]}
-              onSaveAsTemplate={onSaveAsTemplate}
-              onTurnIntoReel={onTurnIntoReel}
-              lowMotion={lowMotionMode}
-              onClick={() => handleCardClick(successResults[0])}
-            />
-          </div>
-          <GiftCard result={giftResult} onClick={() => handleCardClick(giftResult)} />
-        </motion.div>
-      )}
-
-      {!showInlineGiftRow && (results.length > 0 || isLoading) && (
+      {(results.length > 0 || isLoading) && (
         <motion.div
           variants={lowMotionMode ? undefined : containerVariants}
           initial={lowMotionMode ? false : "hidden"}
           animate={lowMotionMode ? undefined : "show"}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          className={`grid gap-6 ${
+            displayCount === 1 
+              ? "max-w-2xl mx-auto grid-cols-1" 
+              : displayCount === 2 
+                ? "max-w-4xl mx-auto grid-cols-1 md:grid-cols-2" 
+                : "grid-cols-1 md:grid-cols-2 lg:grid-cols-3"
+          }`}
         >
           {gridItems.map((index) => {
             const result = results.find((r) => r.designIndex === index);
@@ -621,7 +550,6 @@ export function PosterGrid({
                   <PosterCard
                     result={result}
                     onSaveAsTemplate={onSaveAsTemplate}
-                    onTurnIntoReel={onTurnIntoReel}
                     lowMotion={lowMotionMode}
                     onClick={() => handleCardClick(result)}
                   />
@@ -644,290 +572,13 @@ export function PosterGrid({
         </motion.div>
       )}
 
-      {/* Gift Image Reveal */}
-      <AnimatePresence>
-        {!showInlineGiftRow &&
-          giftResult &&
-          giftResult.status === "complete" &&
-          genStep === "complete" && (
-          <GiftReveal
-            result={giftResult}
-            lowMotion={lowMotionMode}
-            onPreview={() => handleCardClick(giftResult)}
-          />
-        )}
-      </AnimatePresence>
-      
       {/* Full Screen Modal */}
       <PosterModal
         isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         result={selectedResult}
         onSaveAsTemplate={onSaveAsTemplate}
-        onTurnIntoReel={onTurnIntoReel}
       />
-    </div>
-  );
-}
-
-// ── Gift Reveal Component ─────────────────────────────────────────
-
-function GiftReveal({
-  result,
-  lowMotion,
-  onPreview,
-}: {
-  result: PosterResult;
-  lowMotion: boolean;
-  onPreview: () => void;
-}) {
-  const { t } = useLocale();
-  const [isExporting, setIsExporting] = useState(false);
-
-  const handleExport = useCallback(async (event: React.MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    setIsExporting(true);
-    try {
-      await exportPoster(result);
-    } catch (err) {
-      console.error("Gift export failed:", err);
-    } finally {
-      setIsExporting(false);
-    }
-  }, [result]);
-
-  const handleShare = async (event: React.MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    if (!("share" in navigator) || !result.imageBase64) return;
-    try {
-      const base64Data = result.imageBase64.includes(",")
-        ? result.imageBase64.split(",")[1]
-        : result.imageBase64;
-      const mimeType = result.imageBase64.includes(",")
-        ? result.imageBase64.split(",")[0].split(":")[1].split(";")[0]
-        : "image/png";
-
-      const binaryStr = atob(base64Data);
-      const bytes = new Uint8Array(binaryStr.length);
-      for (let i = 0; i < binaryStr.length; i++) {
-        bytes[i] = binaryStr.charCodeAt(i);
-      }
-      const blob = new Blob([bytes], { type: mimeType });
-      const file = new File([blob], `gift-poster.png`, { type: "image/png" });
-      await navigator.share({ files: [file] });
-    } catch {
-      // User cancelled or share failed
-    }
-  };
-
-  return (
-    <motion.div
-      initial={lowMotion ? { opacity: 0 } : { opacity: 0, y: 40, scale: 0.85 }}
-      animate={lowMotion ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, scale: 0.9 }}
-      transition={
-        lowMotion
-          ? { duration: 0.3 }
-          : { type: "spring" as const, damping: 18, stiffness: 120, delay: 0.2 }
-      }
-      className="flex justify-center max-w-lg mx-auto py-8"
-    >
-      <div className="w-full space-y-3">
-        {/* Gift Header */}
-        <motion.div
-          initial={lowMotion ? false : { opacity: 0, y: -10 }}
-          animate={lowMotion ? undefined : { opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="flex items-center justify-center gap-2.5 py-3"
-        >
-          <div className="p-2 bg-gradient-to-br from-amber-400 to-orange-500 rounded-full shadow-lg shadow-amber-500/30">
-            <Gift size={18} className="text-white" />
-          </div>
-          <span className="text-lg font-bold bg-clip-text text-transparent bg-gradient-to-r from-amber-400 via-orange-500 to-pink-500">
-            {t("هدية مجانية لك!", "A free gift for you!")}
-          </span>
-        </motion.div>
-
-        {/* Gift Card */}
-        <div className="relative rounded-3xl overflow-hidden border-2 border-amber-400/40 shadow-xl shadow-amber-500/10 bg-surface-1">
-          {/* Gradient border glow */}
-          <div className="absolute -inset-px rounded-3xl bg-gradient-to-br from-amber-400/20 via-transparent to-pink-500/20 pointer-events-none z-10" />
-
-          {/* Image */}
-          <div
-            className="relative aspect-square overflow-hidden group cursor-pointer"
-            onClick={onPreview}
-          >
-            {result.imageBase64 && (
-              <img
-                src={result.imageBase64}
-                alt={t("هدية مجانية", "Free gift")}
-                className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-              />
-            )}
-
-            {/* Gift badge */}
-            <div className="absolute top-3 left-3 flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold shadow-lg z-20">
-              <Gift size={12} />
-              {t("هدية", "Gift")}
-            </div>
-            
-             {/* Hover overlay with action */}
-             <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-all duration-300 z-10 flex items-center justify-center opacity-0 group-hover:opacity-100">
-                  <div className="bg-white/90 backdrop-blur-md text-amber-600 px-4 py-2 rounded-full font-bold shadow-lg transform translate-y-4 group-hover:translate-y-0 transition-all duration-300">
-                      {t("معاينة الهدية", "Preview gift")}
-                  </div>
-             </div>
-          </div>
-
-          {/* Footer */}
-          <div className="p-3 flex items-center justify-between">
-            <span className="text-sm font-medium text-foreground/80">
-              {result.designNameAr}
-            </span>
-            <div className="flex items-center gap-1.5">
-              {typeof navigator !== "undefined" && "share" in navigator && (
-                <button
-                  type="button"
-                  onClick={handleShare}
-                  className="p-2 rounded-lg text-muted hover:text-primary hover:bg-primary/10 transition-colors"
-                  title={t("مشاركة", "Share")}
-                >
-                  <Share2 size={16} />
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={handleExport}
-                disabled={isExporting}
-                className="p-2 rounded-lg text-muted hover:text-success hover:bg-success/10 transition-colors"
-                title={t("تصدير PNG", "Export PNG")}
-              >
-                {isExporting ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <Download size={16} />
-                )}
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-function GiftCard({ result, onClick }: { result: PosterResult; onClick: () => void }) {
-  const { t } = useLocale();
-  const [isExporting, setIsExporting] = useState(false);
-  const seed = hashString(result.imageBase64 || result.designNameAr || "gift");
-  const theme = GIFT_THEMES[seed % GIFT_THEMES.length];
-  const GiftIcon = GIFT_ICONS[seed % GIFT_ICONS.length];
-
-  const handleExport = useCallback(async (event: React.MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    setIsExporting(true);
-    try {
-      await exportPoster(result);
-    } catch (err) {
-      console.error("Gift export failed:", err);
-    } finally {
-      setIsExporting(false);
-    }
-  }, [result]);
-
-  const handleShare = async (event: React.MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-    if (!("share" in navigator) || !result.imageBase64) return;
-    try {
-      const base64Data = result.imageBase64.includes(",")
-        ? result.imageBase64.split(",")[1]
-        : result.imageBase64;
-      const mimeType = result.imageBase64.includes(",")
-        ? result.imageBase64.split(",")[0].split(":")[1].split(";")[0]
-        : "image/png";
-
-      const binaryStr = atob(base64Data);
-      const bytes = new Uint8Array(binaryStr.length);
-      for (let i = 0; i < binaryStr.length; i++) {
-        bytes[i] = binaryStr.charCodeAt(i);
-      }
-      const blob = new Blob([bytes], { type: mimeType });
-      const file = new File([blob], "gift-poster.png", { type: "image/png" });
-      await navigator.share({ files: [file] });
-    } catch {
-      // User cancelled or share failed
-    }
-  };
-
-  return (
-    <div className="relative rounded-3xl p-[1.5px] bg-gradient-to-br shadow-xl h-full">
-      <div className={`absolute inset-0 rounded-3xl bg-gradient-to-br ${theme.frame}`} />
-      <div className={`absolute inset-0 rounded-3xl blur-xl opacity-20 bg-gradient-to-br ${theme.frame} ${theme.glow}`} />
-      <div className="relative rounded-[calc(1.5rem-1px)] overflow-hidden bg-surface-1 h-full flex flex-col border border-white/10">
-        <div className={`relative h-14 bg-gradient-to-r ${theme.ribbon}`}>
-          <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-5 bg-white/25" />
-          <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 w-12 h-12 rounded-full bg-white/95 shadow-lg flex items-center justify-center border-2 border-white">
-            <GiftIcon size={18} className="text-foreground" />
-          </div>
-          <div className="absolute top-3 right-3 px-2.5 py-1 rounded-full text-white text-xs font-bold bg-black/25 backdrop-blur-sm">
-            {t("هدية", "Gift")}
-          </div>
-        </div>
-
-        <div className="p-4 pt-7 flex-1 flex flex-col">
-          <div
-            className="relative rounded-2xl overflow-hidden border border-card-border/70 bg-surface-2 cursor-pointer"
-            onClick={onClick}
-          >
-            {result.imageBase64 && (
-              <img
-                src={result.imageBase64}
-                alt={t("هدية مجانية", "Free gift")}
-                className="w-full aspect-square object-cover"
-              />
-            )}
-          </div>
-
-          <div className="pt-3 flex items-center justify-between">
-            <span className="text-sm font-semibold text-foreground/85">
-              {result.designNameAr}
-            </span>
-            <div className="flex items-center gap-1.5">
-              {typeof navigator !== "undefined" && "share" in navigator && (
-                <button
-                  type="button"
-                  onClick={handleShare}
-                  className="p-2 rounded-lg text-muted hover:text-primary hover:bg-primary/10 transition-colors"
-                  title={t("مشاركة", "Share")}
-                >
-                  <Share2 size={16} />
-                </button>
-              )}
-              <button
-                type="button"
-                onClick={handleExport}
-                disabled={isExporting}
-                className="p-2 rounded-lg text-muted hover:text-success hover:bg-success/10 transition-colors"
-                title={t("تصدير PNG", "Export PNG")}
-              >
-                {isExporting ? (
-                  <Loader2 size={16} className="animate-spin" />
-                ) : (
-                  <Download size={16} />
-                )}
-              </button>
-            </div>
-          </div>
-
-          <div className="pt-3">
-            <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full text-xs text-white bg-gradient-to-r ${theme.chip}`}>
-              <GiftIcon size={12} />
-              {t("هدية مجانية", "Free gift")}
-            </div>
-          </div>
-        </div>
-      </div>
     </div>
   );
 }
@@ -969,13 +620,11 @@ async function exportPoster(result: PosterResult): Promise<void> {
 function PosterCard({
   result,
   onSaveAsTemplate,
-  onTurnIntoReel,
   lowMotion,
   onClick,
 }: {
   result: PosterResult;
   onSaveAsTemplate?: (designIndex: number) => void;
-  onTurnIntoReel?: (result: PosterResult) => void;
   lowMotion: boolean;
   onClick: () => void;
 }) {
@@ -1099,7 +748,8 @@ function PosterCard({
             {result.designNameAr || `${t("تصميم", "Design")} ${result.designIndex + 1}`}
           </span>
           <div className="flex items-center gap-1.5">
-            {onTurnIntoReel && (
+            {/* Reel generation button temporarily disabled */}
+            {/* {onTurnIntoReel && (
               <button
                 type="button"
                 onClick={(e) => { e.stopPropagation(); onTurnIntoReel(result); }}
@@ -1108,7 +758,7 @@ function PosterCard({
               >
                 <Film size={18} />
               </button>
-            )}
+            )} */}
             {onSaveAsTemplate && (
               <button
                 type="button"
