@@ -418,7 +418,7 @@ export function LoadingSlideshow() {
   const overallProgress = Math.min((activeSlide + 1) / SLIDES.length, 1);
 
   return (
-    <div className="w-full max-w-lg mx-auto">
+    <div className="w-full max-w-lg mx-auto" role="status" aria-live="polite">
       <div className="bg-surface-1 rounded-3xl border border-card-border shadow-xl shadow-card-border overflow-hidden">
         {/* Header */}
         <div className="px-6 pt-6 pb-4 flex items-center justify-between">

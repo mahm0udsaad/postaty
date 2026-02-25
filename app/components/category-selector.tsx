@@ -92,7 +92,7 @@ export function CategorySelector({ onSelect }: CategorySelectorProps) {
   ];
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
+    <div role="group" aria-label={t("اختر نوع النشاط التجاري", "Choose business type")} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-8">
       {categories.map((cat) => {
         const Icon = cat.icon;
         return (
@@ -101,7 +101,8 @@ export function CategorySelector({ onSelect }: CategorySelectorProps) {
             variants={STAGGER_ITEM}
             whileTap={TAP_SCALE}
             onClick={() => onSelect(cat.id)}
-            className={`group relative bg-surface-1 border ${cat.border} rounded-[2rem] p-8 ${locale === "ar" ? "text-right" : "text-left"} transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${cat.glow} overflow-hidden`}
+            aria-label={cat.label}
+            className={`group relative bg-surface-1 border ${cat.border} rounded-[2rem] p-8 ${locale === "ar" ? "text-right" : "text-left"} transition-all duration-300 hover:-translate-y-1 hover:shadow-xl ${cat.glow} overflow-hidden focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2`}
           >
             <div className={`absolute inset-0 bg-gradient-to-br ${cat.gradient} opacity-0 group-hover:opacity-5 transition-opacity duration-500`} />
 

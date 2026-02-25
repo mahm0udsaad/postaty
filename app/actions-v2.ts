@@ -158,6 +158,24 @@ export async function generateMarketingContentAction(
 }
 
 
+/** Retry marketing content generation using poster base64 directly (for when posterRef has expired). */
+export async function retryMarketingContentAction(
+  posterBase64: string,
+  data: PostFormData
+): Promise<{ content: MarketingContent; usage: GenerationUsage }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.id) {
+    throw new Error("يجب تسجيل الدخول");
+  }
+
+  if (!posterBase64 || typeof posterBase64 !== "string") {
+    throw new Error("Poster image is required for retry.");
+  }
+
+  return generateMarketingContent(posterBase64, data);
+}
+
 export async function removeOverlayBackground(
   base64: string
 ): Promise<{ imageBase64: string; method: "ai" | "fallback"; warning?: string }> {

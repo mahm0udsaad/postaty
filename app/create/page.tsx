@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, Suspense } from "react";
+import { useState, useEffect, useRef, useCallback, Suspense } from "react";
 import useSWR from "swr";
 import { useAuth } from "@/hooks/use-auth";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -12,6 +12,7 @@ import { useLocale } from "@/hooks/use-locale";
 
 // Components
 import { CategorySelector } from "../components/category-selector";
+import { ErrorBoundary } from "../components/error-boundary";
 
 // Types & Libs
 import type { Category, PostFormData, PosterResult, PosterGenStep, MarketingContent, MarketingContentStatus } from "@/lib/types";
@@ -19,7 +20,7 @@ import type { BrandKitPromptData } from "@/lib/prompts";
 import type { GenerationUsage } from "@/lib/generate-designs";
 import { CATEGORY_LABELS, FORMAT_CONFIGS } from "@/lib/constants";
 import { CATEGORY_THEMES } from "@/lib/category-themes";
-import { generatePosters, generateMarketingContentAction } from "../actions-v2";
+import { generatePosters, generateMarketingContentAction, retryMarketingContentAction } from "../actions-v2";
 import { TAP_SCALE } from "@/lib/animation";
 
 const fetcher = (url: string) => fetch(url).then(r => {
@@ -125,16 +126,21 @@ function getProductName(data: PostFormData): string {
 
 export default function CreatePage() {
   return (
-    <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-pulse flex flex-col items-center">
-          <div className="h-12 w-12 bg-surface-2 rounded-full mb-4"></div>
-          <div className="h-4 w-32 bg-surface-2 rounded"></div>
+    <ErrorBoundary
+      fallbackTitle="Something went wrong"
+      fallbackMessage="An unexpected error occurred while loading the create page. Please try again."
+    >
+      <Suspense fallback={
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="animate-pulse flex flex-col items-center">
+            <div className="h-12 w-12 bg-surface-2 rounded-full mb-4"></div>
+            <div className="h-4 w-32 bg-surface-2 rounded"></div>
+          </div>
         </div>
-      </div>
-    }>
-      <CreatePageContent />
-    </Suspense>
+      }>
+        <CreatePageContent />
+      </Suspense>
+    </ErrorBoundary>
   );
 }
 
@@ -184,11 +190,20 @@ function CreatePageContent() {
   const [marketingStatus, setMarketingStatus] = useState<MarketingContentStatus>("idle");
   const [error, setError] = useState<string>();
   const [lastSubmittedData, setLastSubmittedData] = useState<PostFormData | null>(null);
+  const [lastPosterRef, setLastPosterRef] = useState<string | null>(null);
   const [defaultLogo, setDefaultLogo] = useState<string | null>(null);
   const generatingRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Get category theme
   const theme = category ? CATEGORY_THEMES[category] : null;
+
+  // Cleanup: abort in-flight generation on unmount
+  useEffect(() => {
+    return () => {
+      abortControllerRef.current?.abort();
+    };
+  }, []);
 
   // Initialize category from URL if present
   useEffect(() => {
@@ -201,14 +216,16 @@ function CreatePageContent() {
   // Billing
   const { data: creditState, mutate: mutateCreditState } = useSWR(
     isSignedIn ? '/api/billing' : null,
-    fetcher
+    fetcher,
+    { revalidateOnFocus: false, revalidateOnReconnect: false }
   );
   const canGenerate = creditState?.canGenerate ?? false;
 
   // Brand kit
   const { data: brandKitsData } = useSWR(
     isSignedIn && userId ? '/api/brand-kits' : null,
-    fetcher
+    fetcher,
+    { revalidateOnFocus: false, revalidateOnReconnect: false }
   );
   const brandKits = brandKitsData?.brandKits as any[] | undefined;
   const defaultBrandKit = brandKits?.[0];
@@ -320,7 +337,7 @@ function CreatePageContent() {
     }
   };
 
-  const runGeneration = async (data: PostFormData) => {
+  const runGeneration = useCallback(async (data: PostFormData) => {
     if (generatingRef.current) return;
 
     // Gate: must have credits
@@ -329,7 +346,14 @@ function CreatePageContent() {
       return;
     }
 
+    // Immediately lock to prevent double-submission
     generatingRef.current = true;
+
+    // Abort any in-flight generation
+    abortControllerRef.current?.abort();
+    const abortController = new AbortController();
+    abortControllerRef.current = abortController;
+
     setLastSubmittedData(data);
     setGenStep("generating-designs");
     setError(undefined);
@@ -339,7 +363,7 @@ function CreatePageContent() {
     setMarketingStatus("idle");
 
     const startTime = getNowMs();
-    const idempotencyKey = `gen_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    const idempotencyKey = `gen_${Date.now()}_${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2, 10)}`;
 
     // Consume credit BEFORE calling the expensive AI generation
     try {
@@ -347,6 +371,7 @@ function CreatePageContent() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idempotencyKey }),
+        signal: abortController.signal,
       });
       const creditResult = await creditRes.json();
       if (!creditRes.ok || !creditResult.ok) {
@@ -354,6 +379,7 @@ function CreatePageContent() {
       }
       mutateCreditState(); // Revalidate credit state
     } catch (err) {
+      if (abortController.signal.aborted) return;
       const msg = toLocalizedErrorMessage(err);
       setError(msg);
       setGenStep("error");
@@ -364,6 +390,7 @@ function CreatePageContent() {
 
     generatePosters(data, brandKitPromptData)
       .then(({ main: posterResult, usages, posterRef }) => {
+        if (abortController.signal.aborted) return;
         void persistUsageEvents(usages);
         setResults([posterResult]);
         setGenStep("complete");
@@ -375,14 +402,17 @@ function CreatePageContent() {
 
           // Phase 2: poster is visible — now fetch marketing content in background
           if (posterRef) {
+            setLastPosterRef(posterRef);
             setMarketingStatus("generating");
             generateMarketingContentAction(posterRef, data)
               .then(({ content, usage }) => {
+                if (abortController.signal.aborted) return;
                 void persistUsageEvents([usage]);
                 setMarketingContent(content);
                 setMarketingStatus("complete");
               })
               .catch((err) => {
+                if (abortController.signal.aborted) return;
                 console.error("Marketing content generation failed:", err);
                 setMarketingStatus("error");
               });
@@ -390,6 +420,7 @@ function CreatePageContent() {
         }
       })
       .catch((err) => {
+        if (abortController.signal.aborted) return;
         const localizedMessage = toLocalizedErrorMessage(err);
         const errorResult: PosterResult = {
           designIndex: 0,
@@ -406,7 +437,7 @@ function CreatePageContent() {
         setIsGenerating(false);
         generatingRef.current = false;
       });
-  };
+  }, [canGenerate, brandKitPromptData, locale, t, mutateCreditState]);
 
   const uploadImageToStorage = async (imageBase64: string): Promise<{ storagePath: string; publicUrl: string }> => {
     const res = await fetch('/api/storage/upload', {
@@ -509,6 +540,23 @@ function CreatePageContent() {
       console.error("Failed to save template:", err);
     }
   };
+
+  const handleRetryMarketingContent = useCallback(async () => {
+    const posterBase64 = results.find((r) => r.status === "complete")?.imageBase64;
+    if (!posterBase64 || !lastSubmittedData) return;
+
+    setMarketingStatus("generating");
+    setMarketingContent(null);
+    try {
+      const { content, usage } = await retryMarketingContentAction(posterBase64, lastSubmittedData);
+      void persistUsageEvents([usage]);
+      setMarketingContent(content);
+      setMarketingStatus("complete");
+    } catch (err) {
+      console.error("Marketing content retry failed:", err);
+      setMarketingStatus("error");
+    }
+  }, [results, lastSubmittedData]);
 
   if (!isAuthLoaded) {
     return <div className="min-h-screen flex items-center justify-center">
@@ -628,6 +676,7 @@ function CreatePageContent() {
                         onSaveAsTemplate={handleSaveAsTemplate}
                         marketingContent={marketingContent}
                         marketingStatus={marketingStatus}
+                        onRetryMarketingContent={handleRetryMarketingContent}
                         businessName={lastSubmittedData ? getBusinessName(lastSubmittedData) : undefined}
                         businessLogo={lastSubmittedData?.logo ?? defaultLogo ?? undefined}
                     />
@@ -666,7 +715,7 @@ function CreatePageContent() {
             >
                 {/* No credits banner */}
                 {creditState && !canGenerate && (
-                  <div className="flex items-center gap-3 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400">
+                  <div role="alert" className="flex items-center gap-3 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400">
                     <AlertCircle size={20} className="shrink-0" />
                     <div className="flex-1">
                       <p className="font-bold text-sm">{t("لا يوجد لديك رصيد كافٍ", "You don't have enough credits")}</p>

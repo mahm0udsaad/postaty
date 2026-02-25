@@ -285,7 +285,7 @@ export function PosterModal({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6">
+        <div role="dialog" aria-modal="true" aria-label={t("معاينة التصميم", "Design preview")} className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6" onKeyDown={(e) => { if (e.key === "Escape") onClose(); }}>
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -303,6 +303,7 @@ export function PosterModal({
           >
             <button
               onClick={onClose}
+              aria-label={t("إغلاق", "Close")}
               className="absolute top-4 right-4 z-30 p-2 bg-black/20 text-white rounded-full backdrop-blur-md md:hidden"
             >
               <X size={20} />
@@ -358,6 +359,7 @@ export function PosterModal({
                 </h2>
                 <button
                   onClick={onClose}
+                  aria-label={t("إغلاق", "Close")}
                   className="hidden md:flex p-2 hover:bg-surface-2 rounded-full text-muted transition-colors"
                 >
                   <X size={20} />

@@ -220,6 +220,7 @@ export function PosterCard({
                 onClick={handleSave}
                 className="p-2 rounded-lg text-muted hover:text-accent hover:bg-accent/10 transition-colors"
                 title={t("حفظ كقالب", "Save as template")}
+                aria-label={t("حفظ كقالب", "Save as template")}
               >
                 <Save size={18} />
               </button>
@@ -230,6 +231,7 @@ export function PosterCard({
                 onClick={handleShare}
                 className="p-2 rounded-lg text-muted hover:text-primary hover:bg-primary/10 transition-colors"
                 title={t("مشاركة", "Share")}
+                aria-label={t("مشاركة", "Share")}
               >
                 <Share2 size={18} />
               </button>
@@ -240,6 +242,7 @@ export function PosterCard({
               disabled={isExporting}
               className="p-2 rounded-lg text-muted hover:text-success hover:bg-success/10 transition-colors"
               title={t("تصدير PNG", "Export PNG")}
+              aria-label={t("تصدير PNG", "Export PNG")}
             >
               {isExporting ? (
                 <Loader2 size={18} className="animate-spin" />

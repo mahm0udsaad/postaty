@@ -28,6 +28,7 @@ interface PosterGridProps {
   onSaveAsTemplate?: (designIndex: number) => void;
   marketingContent?: MarketingContent | null;
   marketingStatus?: MarketingContentStatus;
+  onRetryMarketingContent?: () => void;
   businessName?: string;
   businessLogo?: string;
 }
@@ -42,6 +43,7 @@ export function PosterGrid({
   onSaveAsTemplate,
   marketingContent,
   marketingStatus = "idle",
+  onRetryMarketingContent,
   businessName,
   businessLogo,
 }: PosterGridProps) {
@@ -147,7 +149,7 @@ export function PosterGrid({
       )}
 
       {genStep === "error" && (
-        <div className="flex flex-col items-center justify-center py-12 text-center space-y-4 animate-in fade-in zoom-in-95 duration-300">
+        <div role="alert" className="flex flex-col items-center justify-center py-12 text-center space-y-4 animate-in fade-in zoom-in-95 duration-300">
           <div className="p-4 bg-danger/10 rounded-full">
             <XCircle size={40} className="text-danger" />
           </div>
@@ -205,6 +207,7 @@ export function PosterGrid({
         posterImage={successResults[0]?.imageBase64}
         businessName={businessName}
         businessLogo={businessLogo}
+        onRetry={onRetryMarketingContent}
         t={t}
       />
 

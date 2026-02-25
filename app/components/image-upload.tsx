@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { ImagePlus, X } from "lucide-react";
+import { ImagePlus, X, AlertTriangle, Loader2 } from "lucide-react";
 import { compressImage } from "@/lib/image-compression";
 import { useLocale } from "@/hooks/use-locale";
 
@@ -21,6 +21,8 @@ export function ImageUpload({
 }: ImageUploadProps) {
   const { t } = useLocale();
   const [preview, setPreview] = useState<string | null>(value);
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [compressionWarning, setCompressionWarning] = useState<string | null>(null);
 
   useEffect(() => {
     setPreview(value);
@@ -31,22 +33,33 @@ export function ImageUpload({
       const file = acceptedFiles[0];
       if (!file) return;
 
+      setIsCompressing(true);
+      setCompressionWarning(null);
+
       try {
         const compressedBase64 = await compressImage(file, 2, 1920);
         setPreview(compressedBase64);
         onChange(compressedBase64);
       } catch (error) {
         console.error("Error compressing image:", error);
+        // Fall back to uncompressed, but warn if file is large
         const reader = new FileReader();
         reader.onload = () => {
           const base64 = reader.result as string;
+          if (file.size > 2 * 1024 * 1024) {
+            setCompressionWarning(
+              t("لم نتمكن من ضغط الصورة. قد يكون حجمها كبيراً.", "Could not compress image. It may be large and slow to upload.")
+            );
+          }
           setPreview(base64);
           onChange(base64);
         };
         reader.readAsDataURL(file);
+      } finally {
+        setIsCompressing(false);
       }
     },
-    [onChange]
+    [onChange, t]
   );
 
   const { getRootProps, getInputProps, isDragActive } = useDropzone({
@@ -74,7 +87,12 @@ export function ImageUpload({
           ${preview ? "p-2 border-solid border-card-border" : "p-8"}`}
       >
         <input {...getInputProps()} />
-        {preview ? (
+        {isCompressing ? (
+          <div className="flex flex-col items-center gap-3 py-6 text-muted">
+            <Loader2 size={28} className="animate-spin text-primary" />
+            <p className="text-sm font-medium">{t("جاري ضغط الصورة...", "Compressing image...")}</p>
+          </div>
+        ) : preview ? (
           <div className="relative group">
             <img
               src={preview}
@@ -86,6 +104,7 @@ export function ImageUpload({
             </div>
             <button
               onClick={handleRemove}
+              aria-label={t("إزالة الصورة", "Remove image")}
               className="absolute top-2 left-2 bg-surface-1 text-danger rounded-full p-1.5 shadow-md hover:bg-danger hover:text-white transition-all transform hover:scale-110"
             >
               <X size={18} />
@@ -106,6 +125,12 @@ export function ImageUpload({
           </div>
         )}
       </div>
+      {compressionWarning && (
+        <div className="flex items-center gap-2 mt-2 px-3 py-2 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-600 text-xs">
+          <AlertTriangle size={14} className="shrink-0" />
+          <span>{compressionWarning}</span>
+        </div>
+      )}
     </div>
   );
 }

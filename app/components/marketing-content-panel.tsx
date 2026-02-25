@@ -1,6 +1,6 @@
 "use client";
 
-import { Megaphone, XCircle } from "lucide-react";
+import { Megaphone, XCircle, RotateCcw } from "lucide-react";
 import type { MarketingContent, MarketingContentStatus } from "@/lib/types";
 import { PLATFORMS } from "./platform-cards/platform-config";
 import { PlatformCard } from "./platform-cards/platform-card";
@@ -12,6 +12,7 @@ export function MarketingContentPanel({
   posterImage,
   businessName,
   businessLogo,
+  onRetry,
   t,
 }: {
   content: MarketingContent | null;
@@ -19,6 +20,7 @@ export function MarketingContentPanel({
   posterImage?: string;
   businessName?: string;
   businessLogo?: string;
+  onRetry?: () => void;
   t: (ar: string, en: string) => string;
 }) {
   if (status === "idle") return null;
@@ -79,9 +81,21 @@ export function MarketingContentPanel({
       )}
 
       {status === "error" && (
-        <div className="flex items-center justify-center gap-2 py-6 text-muted text-sm bg-surface-1 rounded-2xl border border-card-border">
-          <XCircle size={16} className="text-danger" />
-          <span>{t("تعذر إنشاء المحتوى التسويقي. حاول مرة أخرى.", "Failed to generate marketing content. Try again.")}</span>
+        <div role="alert" className="flex flex-col items-center justify-center gap-3 py-6 text-muted text-sm bg-surface-1 rounded-2xl border border-card-border">
+          <div className="flex items-center gap-2">
+            <XCircle size={16} className="text-danger" />
+            <span>{t("تعذر إنشاء المحتوى التسويقي.", "Failed to generate marketing content.")}</span>
+          </div>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="flex items-center gap-2 px-4 py-2 bg-primary/10 text-primary rounded-xl text-sm font-medium hover:bg-primary/20 transition-colors"
+            >
+              <RotateCcw size={14} />
+              {t("إعادة المحاولة", "Retry")}
+            </button>
+          )}
         </div>
       )}
     </div>
