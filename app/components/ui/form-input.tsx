@@ -12,6 +12,7 @@ export const FormInput = forwardRef<HTMLInputElement, FormInputProps>(
       <div className="group space-y-2">
         <label className="text-sm font-semibold text-foreground transition-colors group-focus-within:text-primary">
           {label}
+          {props.required && <span className="text-danger ms-0.5">*</span>}
         </label>
         <div className="relative transition-all duration-300 transform group-focus-within:-translate-y-0.5">
           {Icon && (
@@ -37,14 +38,16 @@ interface FormSelectProps extends React.SelectHTMLAttributes<HTMLSelectElement> 
   label: string;
   icon?: LucideIcon;
   options: readonly string[] | string[];
+  placeholder?: string;
 }
 
 export const FormSelect = forwardRef<HTMLSelectElement, FormSelectProps>(
-  ({ label, icon: Icon, options, className, ...props }, ref) => {
+  ({ label, icon: Icon, options, placeholder, className, ...props }, ref) => {
     return (
       <div className="group space-y-2">
         <label className="text-sm font-semibold text-foreground transition-colors group-focus-within:text-primary">
           {label}
+          {props.required && <span className="text-danger ms-0.5">*</span>}
         </label>
         <div className="relative transition-all duration-300 transform group-focus-within:-translate-y-0.5">
           {Icon && (
@@ -54,11 +57,17 @@ export const FormSelect = forwardRef<HTMLSelectElement, FormSelectProps>(
           )}
           <select
             ref={ref}
+            defaultValue={placeholder ? "" : undefined}
             {...props}
             className={`w-full ${
               Icon ? "pr-11 pl-4" : "px-4"
             } py-3.5 bg-surface-1 border border-card-border rounded-xl outline-none text-foreground font-medium transition-all duration-300 focus:bg-surface-2 focus:border-primary focus:ring-4 focus:ring-primary/10 hover:border-primary/30 appearance-none cursor-pointer ${className}`}
           >
+            {placeholder && (
+              <option value="" disabled>
+                {placeholder}
+              </option>
+            )}
             {options.map((opt) => (
               <option key={opt} value={opt}>
                 {opt}

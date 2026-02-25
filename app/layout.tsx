@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { cookies } from "next/headers";
 import localFont from "next/font/local";
 import { SupabaseProvider } from "./components/supabase-provider";
@@ -52,6 +52,12 @@ const metadataTitle = "مولد منشورات السوشيال ميديا | Pos
 const metadataDescription =
   "أنشئ منشورات احترافية لعروضك على السوشيال ميديا خلال دقائق";
 const ogImageUrl = `${SITE_URL}/opengraph-image.png`;
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   metadataBase,

@@ -29,6 +29,7 @@ interface PosterGridProps {
   marketingContent?: MarketingContent | null;
   marketingStatus?: MarketingContentStatus;
   onRetryMarketingContent?: () => void;
+  templateSaveStatus?: "idle" | "saving" | "saved" | "error";
   businessName?: string;
   businessLogo?: string;
 }
@@ -44,6 +45,7 @@ export function PosterGrid({
   marketingContent,
   marketingStatus = "idle",
   onRetryMarketingContent,
+  templateSaveStatus = "idle",
   businessName,
   businessLogo,
 }: PosterGridProps) {
@@ -145,6 +147,23 @@ export function PosterGrid({
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {templateSaveStatus !== "idle" && (
+        <div className={`flex items-center gap-3 py-3 px-5 rounded-xl text-sm font-medium animate-in fade-in slide-in-from-top-2 duration-300 ${
+          templateSaveStatus === "saving" ? "bg-primary/5 border border-primary/20 text-primary" :
+          templateSaveStatus === "saved" ? "bg-success/5 border border-success/20 text-success" :
+          "bg-danger/5 border border-danger/20 text-danger"
+        }`}>
+          {templateSaveStatus === "saving" && <Loader2 size={16} className="animate-spin" />}
+          {templateSaveStatus === "saved" && <CheckCircle2 size={16} />}
+          {templateSaveStatus === "error" && <XCircle size={16} />}
+          <span>
+            {templateSaveStatus === "saving" && t("جاري حفظ القالب...", "Saving template...")}
+            {templateSaveStatus === "saved" && t("تم حفظ القالب بنجاح!", "Template saved successfully!")}
+            {templateSaveStatus === "error" && t("فشل حفظ القالب. حاول مرة أخرى.", "Failed to save template. Try again.")}
+          </span>
         </div>
       )}
 

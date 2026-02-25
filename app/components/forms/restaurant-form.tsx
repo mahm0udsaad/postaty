@@ -94,7 +94,7 @@ export function RestaurantForm({ onSubmit, isLoading, defaultValues }: Restauran
 
           <div className="space-y-5">
             <FormInput label={t("اسم المطعم", "Restaurant name")} name="restaurantName" placeholder={t("مثال: مطعم الشام", "Example: Al Sham Restaurant")} required icon={Store} defaultValue={defaultValues?.businessName} />
-            <FormSelect label={t("نوع البوست", "Post type")} name="postType" options={postTypes} required icon={FileText} />
+            <FormSelect label={t("نوع البوست", "Post type")} name="postType" options={postTypes} required icon={FileText} placeholder={t("اختر نوع البوست", "Select post type")} />
             <FormInput label={t("اسم الوجبة", "Meal name")} name="mealName" placeholder={t("مثال: شاورما دجاج", "Example: Chicken Shawarma")} required icon={Utensils} />
             <FormInput label={t("وصف سريع (اختياري)", "Quick description (optional)")} name="description" placeholder={t("مثال: برجر + بطاطس + مشروب", "Example: Burger + Fries + Drink")} icon={FileText} />
             <div className="grid grid-cols-2 gap-4">
@@ -109,7 +109,7 @@ export function RestaurantForm({ onSubmit, isLoading, defaultValues }: Restauran
             <FormInput label={t("المناطق التي يغطيها (اختياري)", "Coverage areas (optional)")} name="coverageAreas" placeholder={t("مثال: دبي - أبوظبي", "Example: Dubai - Abu Dhabi")} icon={MapPin} />
             <FormInput label={t("مدة العرض (اختياري)", "Offer duration (optional)")} name="offerDuration" placeholder={t("مثال: لفترة محدودة", "Example: Limited time")} icon={Clock} />
             <FormInput label={t("رقم الواتساب", "WhatsApp number")} name="whatsapp" type="tel" dir="ltr" placeholder="+971xxxxxxxxx" required icon={Phone} className="text-left" />
-            <FormSelect label={t("نص الزر (CTA)", "CTA text")} name="cta" options={ctaOptions} required icon={MousePointerClick} />
+            <FormSelect label={t("نص الزر (CTA)", "CTA text")} name="cta" options={ctaOptions} required icon={MousePointerClick} placeholder={t("اختر نص الزر", "Select CTA")} />
           </div>
         </div>
 
@@ -125,7 +125,7 @@ export function RestaurantForm({ onSubmit, isLoading, defaultValues }: Restauran
         </div>
       </div>
 
-      <div className="sticky bottom-24 z-30 bg-gradient-to-t from-background via-background/95 to-transparent pb-4 pt-8 -mx-6 px-6 md:static md:bg-none md:p-0 md:m-0 transition-all">
+      <div className="sticky bottom-[calc(6rem+env(safe-area-inset-bottom,0px))] z-30 bg-gradient-to-t from-background via-background/95 to-transparent pb-4 pt-8 -mx-6 px-6 md:static md:bg-none md:p-0 md:m-0 transition-all">
         <button
           type="submit"
           disabled={isLoading || !logo || !mealImage}

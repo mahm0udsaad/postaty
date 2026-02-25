@@ -5,7 +5,7 @@ import useSWR from "swr";
 import { useAuth } from "@/hooks/use-auth";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Sparkles, LayoutGrid, LogIn, AlertCircle } from "lucide-react";
+import { ArrowRight, Sparkles, LayoutGrid, LogIn, AlertCircle, Coins } from "lucide-react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useLocale } from "@/hooks/use-locale";
@@ -323,10 +323,13 @@ function CreatePageContent() {
 
   const handleBack = () => {
     if (results.length > 0) {
+      // Back from results → form (keep category so user can tweak and regenerate)
       setResults([]);
       setMarketingContent(null);
       setMarketingStatus("idle");
       setGenStep("idle");
+      setError(undefined);
+      setTemplateSaveStatus("idle");
     } else if (category) {
       setCategory(null);
       const url = new URL(window.location.href);
@@ -515,12 +518,15 @@ function CreatePageContent() {
     }
   };
 
+  const [templateSaveStatus, setTemplateSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+
   const handleSaveAsTemplate = async (designIndex: number) => {
     const result = results.find((item) => item.designIndex === designIndex);
     if (!result || result.status !== "complete") return;
 
+    setTemplateSaveStatus("saving");
     try {
-      await fetch('/api/templates', {
+      const res = await fetch('/api/templates', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -536,8 +542,14 @@ function CreatePageContent() {
           }),
         }),
       });
+      if (!res.ok) throw new Error("Save failed");
+      setTemplateSaveStatus("saved");
+      // Reset after 3s
+      setTimeout(() => setTemplateSaveStatus("idle"), 3000);
     } catch (err) {
       console.error("Failed to save template:", err);
+      setTemplateSaveStatus("error");
+      setTimeout(() => setTemplateSaveStatus("idle"), 3000);
     }
   };
 
@@ -677,6 +689,7 @@ function CreatePageContent() {
                         marketingContent={marketingContent}
                         marketingStatus={marketingStatus}
                         onRetryMarketingContent={handleRetryMarketingContent}
+                        templateSaveStatus={templateSaveStatus}
                         businessName={lastSubmittedData ? getBusinessName(lastSubmittedData) : undefined}
                         businessLogo={lastSubmittedData?.logo ?? defaultLogo ?? undefined}
                     />
@@ -713,8 +726,8 @@ function CreatePageContent() {
                 exit={{ opacity: 0, x: -20 }}
                 className="max-w-3xl mx-auto space-y-4"
             >
-                {/* No credits banner */}
-                {creditState && !canGenerate && (
+                {/* Credit status */}
+                {creditState && !canGenerate ? (
                   <div role="alert" className="flex items-center gap-3 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400">
                     <AlertCircle size={20} className="shrink-0" />
                     <div className="flex-1">
@@ -727,6 +740,20 @@ function CreatePageContent() {
                     >
                       {t("ترقية الاشتراك", "Upgrade plan")}
                     </Link>
+                  </div>
+                ) : creditState?.totalRemaining != null && (
+                  <div className="flex items-center justify-between px-4 py-2.5 rounded-2xl bg-surface-1 border border-card-border">
+                    <div className="flex items-center gap-2 text-sm text-muted">
+                      <Coins size={16} />
+                      <span>
+                        {t("رصيدك المتبقي:", "Credits remaining:")}
+                        {" "}
+                        <span className="font-bold text-foreground">{creditState.totalRemaining}</span>
+                      </span>
+                    </div>
+                    <span className="text-xs text-muted bg-surface-2 px-2 py-1 rounded-lg">
+                      {t("يتطلب ١ رصيد", "Requires 1 credit")}
+                    </span>
                   </div>
                 )}
 

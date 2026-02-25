@@ -82,7 +82,7 @@ export function EcommerceForm({ onSubmit, isLoading, defaultValues }: EcommerceF
 
           <div className="space-y-5">
             <FormInput label={t("اسم المتجر", "Store name")} name="shopName" placeholder={t("مثال: متجر نون", "Example: Noon Store")} required icon={Store} defaultValue={defaultValues?.businessName} />
-            <FormSelect label={t("نوع البوست", "Post type")} name="postType" options={postTypes} required icon={FileText} />
+            <FormSelect label={t("نوع البوست", "Post type")} name="postType" options={postTypes} required icon={FileText} placeholder={t("اختر نوع البوست", "Select post type")} />
             <FormInput label={t("اسم المنتج", "Product name")} name="productName" placeholder={t("مثال: سماعات أيربودز", "Example: AirPods")} required icon={ShoppingBag} />
             <FormInput label={t("المميزات (اختياري)", "Features (optional)")} name="features" placeholder={t("مثال: بلوتوث 5.0 - عزل ضوضاء - شحن لاسلكي", "Example: Bluetooth 5.0 - Noise cancelling - Wireless charging")} icon={FileText} />
             <div className="grid grid-cols-2 gap-4">
@@ -90,11 +90,11 @@ export function EcommerceForm({ onSubmit, isLoading, defaultValues }: EcommerceF
                 <FormInput label={t("السعر القديم", "Old price")} name="oldPrice" placeholder={t("350 ر.س", "$350")} required icon={Tag} />
             </div>
             <FormInput label={t("اللون / المقاس (اختياري)", "Color / size (optional)")} name="colorSize" placeholder={t("مثال: أبيض - أسود / مقاس M", "Example: White - Black / Size M")} icon={Palette} />
-            <FormSelect label={t("التوفر", "Availability")} name="availability" options={availabilityOptions} required icon={Package} />
+            <FormSelect label={t("التوفر", "Availability")} name="availability" options={availabilityOptions} required icon={Package} placeholder={t("اختر حالة التوفر", "Select availability")} />
             <FormInput label={t("مدة الشحن (اختياري)", "Shipping duration (optional)")} name="shippingDuration" placeholder={t("مثال: 2-3 أيام عمل", "Example: 2-3 business days")} icon={Truck} />
             <FormInput label={t("رابط الشراء (اختياري)", "Purchase link (optional)")} name="purchaseLink" dir="ltr" placeholder="https://..." icon={Link} className="text-left" />
             <FormInput label={t("رقم الواتساب", "WhatsApp number")} name="whatsapp" type="tel" dir="ltr" placeholder="+971xxxxxxxxx" required icon={Phone} className="text-left" />
-            <FormSelect label={t("نص الزر (CTA)", "CTA text")} name="cta" options={ctaOptions} required icon={MousePointerClick} />
+            <FormSelect label={t("نص الزر (CTA)", "CTA text")} name="cta" options={ctaOptions} required icon={MousePointerClick} placeholder={t("اختر نص الزر", "Select CTA")} />
           </div>
         </div>
 
@@ -110,7 +110,7 @@ export function EcommerceForm({ onSubmit, isLoading, defaultValues }: EcommerceF
         </div>
       </div>
 
-      <div className="sticky bottom-24 z-30 bg-gradient-to-t from-background via-background/95 to-transparent pb-4 pt-8 -mx-6 px-6 md:static md:bg-none md:p-0 md:m-0 transition-all">
+      <div className="sticky bottom-[calc(6rem+env(safe-area-inset-bottom,0px))] z-30 bg-gradient-to-t from-background via-background/95 to-transparent pb-4 pt-8 -mx-6 px-6 md:static md:bg-none md:p-0 md:m-0 transition-all">
         <button
           type="submit"
           disabled={isLoading || !logo || !productImage}

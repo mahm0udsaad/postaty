@@ -74,7 +74,7 @@ export function SupermarketForm({ onSubmit, isLoading, defaultValues }: Supermar
 
           <div className="space-y-5">
             <FormInput label={t("اسم السوبر ماركت", "Supermarket name")} name="supermarketName" placeholder={t("مثال: كارفور", "Example: Carrefour")} required icon={Store} defaultValue={defaultValues?.businessName} />
-            <FormSelect label={t("نوع البوست", "Post type")} name="postType" options={postTypeOptions} required icon={FileText} />
+            <FormSelect label={t("نوع البوست", "Post type")} name="postType" options={postTypeOptions} required icon={FileText} placeholder={t("اختر نوع البوست", "Select post type")} />
             <FormInput label={t("اسم المنتج", "Product name")} name="productName" placeholder={t("مثال: شيبسي ليز", "Example: Chips")} required icon={ShoppingBasket} />
             <FormInput label={t("الكمية / الوزن (اختياري)", "Quantity / weight (optional)")} name="quantity" placeholder={t("مثال: 200 جرام أو 6 حبات", "Example: 200g or 6 pieces")} icon={Scale} />
             <div className="grid grid-cols-2 gap-4">
@@ -88,7 +88,7 @@ export function SupermarketForm({ onSubmit, isLoading, defaultValues }: Supermar
                 <FormInput label={t("تاريخ الانتهاء (اختياري)", "Expiry date (optional)")} name="expiryDate" placeholder={t("مثال: 2025/03/15", "Example: 2025/03/15")} icon={CalendarDays} />
             </div>
             <FormInput label={t("رقم الواتساب", "WhatsApp number")} name="whatsapp" type="tel" dir="ltr" placeholder="+971xxxxxxxxx" required icon={Phone} className="text-left" />
-            <FormSelect label={t("نص الزر (CTA)", "CTA text")} name="cta" options={ctaOptions} required icon={MousePointerClick} />
+            <FormSelect label={t("نص الزر (CTA)", "CTA text")} name="cta" options={ctaOptions} required icon={MousePointerClick} placeholder={t("اختر نص الزر", "Select CTA")} />
           </div>
         </div>
 
@@ -104,7 +104,7 @@ export function SupermarketForm({ onSubmit, isLoading, defaultValues }: Supermar
         </div>
       </div>
 
-      <div className="sticky bottom-24 z-30 bg-gradient-to-t from-background via-background/95 to-transparent pb-4 pt-8 -mx-6 px-6 md:static md:bg-none md:p-0 md:m-0 transition-all">
+      <div className="sticky bottom-[calc(6rem+env(safe-area-inset-bottom,0px))] z-30 bg-gradient-to-t from-background via-background/95 to-transparent pb-4 pt-8 -mx-6 px-6 md:static md:bg-none md:p-0 md:m-0 transition-all">
         <button
           type="submit"
           disabled={isLoading || !logo || productImages.length === 0}

@@ -97,6 +97,7 @@ export function FashionForm({ onSubmit, isLoading, defaultValues }: FashionFormP
                 options={postTypeOptions}
                 required
                 icon={Tag}
+                placeholder={t("اختر نوع البوست", "Select post type")}
             />
 
             <FormInput
@@ -176,6 +177,7 @@ export function FashionForm({ onSubmit, isLoading, defaultValues }: FashionFormP
                 options={ctaOptions}
                 required
                 icon={MousePointerClick}
+                placeholder={t("اختر نص الزر", "Select CTA")}
             />
           </div>
         </div>
@@ -192,7 +194,7 @@ export function FashionForm({ onSubmit, isLoading, defaultValues }: FashionFormP
         </div>
       </div>
 
-      <div className="sticky bottom-24 z-30 bg-gradient-to-t from-background via-background/95 to-transparent pb-4 pt-8 -mx-6 px-6 md:static md:bg-none md:p-0 md:m-0 transition-all">
+      <div className="sticky bottom-[calc(6rem+env(safe-area-inset-bottom,0px))] z-30 bg-gradient-to-t from-background via-background/95 to-transparent pb-4 pt-8 -mx-6 px-6 md:static md:bg-none md:p-0 md:m-0 transition-all">
         <button
           type="submit"
           disabled={isLoading || !logo || !productImage}
