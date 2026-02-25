@@ -78,6 +78,15 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   beauty: "تجميل وعناية",
 };
 
+export const CATEGORY_LABELS_EN: Record<Category, string> = {
+  restaurant: "Restaurants & Cafes",
+  supermarket: "Supermarkets",
+  ecommerce: "E-commerce",
+  services: "Services",
+  fashion: "Fashion",
+  beauty: "Beauty & Care",
+};
+
 // ── Campaign Types ────────────────────────────────────────────────
 
 export const CAMPAIGN_TYPE_OPTIONS: {

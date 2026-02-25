@@ -22,9 +22,9 @@ const SEASONAL_DIRS: Partial<Record<Category, Partial<Record<CampaignType, strin
 
 const INSPIRATIONS_ROOT = join(process.cwd(), "public", "inspirations");
 const MAX_IMAGES = 1;
-const RESIZE_WIDTH = 540;
-const RESIZE_HEIGHT = 675;
-const JPEG_QUALITY = 70;
+const RESIZE_WIDTH = 400;
+const RESIZE_HEIGHT = 500;
+const JPEG_QUALITY = 60;
 
 export interface InspirationImage {
   type: "image";

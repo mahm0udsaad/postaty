@@ -41,6 +41,14 @@ export type GenerationUsage = {
 const PAID_MODEL_ID = "gemini-3-pro-image-preview";
 const FREE_MODEL_ID = "gemini-2.5-flash-image";
 
+function generationLog(step: string, details?: Record<string, unknown>): void {
+  if (details) {
+    console.info(`[generation] ${step}`, details);
+    return;
+  }
+  console.info(`[generation] ${step}`);
+}
+
 // ── Google provider options for image responses ────────────────────
 
 function buildImageProviderOptions(aspectRatio: string, imageSize?: "1K" | "2K" | "4K") {
@@ -66,6 +74,13 @@ async function compressImageFromDataUrl(
   const match = dataUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
   if (!match) return null;
   const raw = Buffer.from(match[2], "base64");
+
+  // Skip re-compression if already small enough (client pre-compressed)
+  const sizeKB = raw.length / 1024;
+  if (sizeKB < 150 && match[1] === "image/jpeg") {
+    return { image: raw, mediaType: "image/jpeg" };
+  }
+
   const sharp = (await import("sharp")).default;
   const compressed = await sharp(raw)
     .resize(maxWidth, maxHeight, { fit: "inside", withoutEnlargement: true })
@@ -82,6 +97,13 @@ async function compressLogoFromDataUrl(
   const match = dataUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
   if (!match) return null;
   const raw = Buffer.from(match[2], "base64");
+
+  // Skip re-compression if already small enough (client pre-compressed)
+  const sizeKB = raw.length / 1024;
+  if (sizeKB < 100 && match[1] === "image/png") {
+    return { image: raw, mediaType: "image/png" };
+  }
+
   const sharp = (await import("sharp")).default;
   const compressed = await sharp(raw)
     .resize(maxWidth, maxHeight, { fit: "inside", withoutEnlargement: true })
@@ -113,6 +135,7 @@ export async function generatePoster(
   data: PostFormData,
   brandKit?: BrandKitPromptData
 ): Promise<GeneratedDesign & { usage: GenerationUsage }> {
+  const startedAt = Date.now();
   const systemPrompt = getImageDesignSystemPrompt(data, brandKit);
   let userMessage = getImageDesignUserMessage(data);
 
@@ -125,11 +148,25 @@ export async function generatePoster(
 
   userMessage += `\n\nMake this design unique, bold, and visually striking.`;
 
-  // Load inspiration images and extract form images
-  const inspirationImages = await getInspirationImages(data.category, undefined, data.campaignType);
   const formImages = extractFormImages(data);
-
   const formatConfig = FORMAT_CONFIGS[data.format];
+
+  // Load inspirations + compress product/logo in parallel
+  generationLog("poster_prep_started", {
+    category: data.category,
+    campaignType: data.campaignType,
+  });
+  const [inspirationImages, productPart, logoPart] = await Promise.all([
+    getInspirationImages(data.category, undefined, data.campaignType),
+    compressImageFromDataUrl(formImages.product),
+    compressLogoFromDataUrl(formImages.logo),
+  ]);
+  generationLog("poster_prep_done", {
+    inspirationCount: inspirationImages.length,
+    hasProductPart: Boolean(productPart),
+    hasLogoPart: Boolean(logoPart),
+    elapsedMs: Date.now() - startedAt,
+  });
 
   console.info("[generatePoster] start", {
     model: PAID_MODEL_ID,
@@ -154,8 +191,6 @@ export async function generatePoster(
     });
   }
 
-  // Add product image (compressed)
-  const productPart = await compressImageFromDataUrl(formImages.product);
   if (productPart) {
     contentParts.push({
       type: "image" as const,
@@ -163,9 +198,6 @@ export async function generatePoster(
       mediaType: productPart.mediaType,
     });
   }
-
-  // Add logo image (compressed, PNG to preserve transparency)
-  const logoPart = await compressLogoFromDataUrl(formImages.logo);
   if (logoPart) {
     contentParts.push({
       type: "image" as const,
@@ -196,9 +228,13 @@ export async function generatePoster(
   const startTime = Date.now();
   let result;
   try {
+    generationLog("poster_model_call_started", {
+      model: PAID_MODEL_ID,
+      partsCount: contentParts.length,
+    });
     result = await generateText({
       model: paidImageModel,
-      providerOptions: buildImageProviderOptions(formatConfig.aspectRatio, "2K"),
+      providerOptions: buildImageProviderOptions(formatConfig.aspectRatio),
       system: systemPrompt,
       messages: [
         {
@@ -206,6 +242,10 @@ export async function generatePoster(
           content: contentParts,
         },
       ],
+    });
+    generationLog("poster_model_call_done", {
+      elapsedMs: Date.now() - startTime,
+      filesCount: result.files?.length ?? 0,
     });
   } catch (err) {
     const durationMs = Date.now() - startTime;
@@ -249,15 +289,23 @@ export async function generatePoster(
     throw Object.assign(new Error("Image model did not return an image"), { usage });
   }
 
-  // Resize to exact target dimensions for the selected format
+  // Resize to exact target dimensions for the selected format (JPEG for speed + smaller payload)
+  generationLog("poster_resize_started", {
+    width: formatConfig.width,
+    height: formatConfig.height,
+  });
   const sharp = (await import("sharp")).default;
   const resizedBuffer = await sharp(Buffer.from(imageFile.uint8Array))
     .resize(formatConfig.width, formatConfig.height, { fit: "fill" })
-    .png()
+    .jpeg({ quality: 92 })
     .toBuffer();
+  generationLog("poster_resize_done", {
+    elapsedMs: Date.now() - startedAt,
+    sizeKB: Math.round(resizedBuffer.length / 1024),
+  });
 
   const base64 = resizedBuffer.toString("base64");
-  const base64DataUrl = `data:image/png;base64,${base64}`;
+  const base64DataUrl = `data:image/jpeg;base64,${base64}`;
 
   const usage: GenerationUsage = {
     route: "poster",
@@ -379,15 +427,15 @@ export async function generateGiftImage(
     throw Object.assign(new Error("Gift image model did not return an image"), { usage });
   }
 
-  // Resize to exact target dimensions for the selected format
+  // Resize to exact target dimensions for the selected format (JPEG for speed + smaller payload)
   const sharpGift = (await import("sharp")).default;
   const resizedGiftBuffer = await sharpGift(Buffer.from(imageFile.uint8Array))
     .resize(formatConfig.width, formatConfig.height, { fit: "fill" })
-    .png()
+    .jpeg({ quality: 92 })
     .toBuffer();
 
   const base64 = resizedGiftBuffer.toString("base64");
-  const base64DataUrl = `data:image/png;base64,${base64}`;
+  const base64DataUrl = `data:image/jpeg;base64,${base64}`;
 
   const usage: GenerationUsage = {
     route: "gift",
@@ -438,6 +486,10 @@ export async function generateMarketingContent(
   const startTime = Date.now();
   let result;
   try {
+    generationLog("marketing_model_call_started", {
+      model: MARKETING_MODEL_ID,
+      category: data.category,
+    });
     result = await generateText({
       model: textModel,
       system: systemPrompt,
@@ -457,6 +509,9 @@ export async function generateMarketingContent(
           ],
         },
       ],
+    });
+    generationLog("marketing_model_call_done", {
+      elapsedMs: Date.now() - startTime,
     });
   } catch (err) {
     const durationMs = Date.now() - startTime;

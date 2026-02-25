@@ -67,8 +67,49 @@ const CATEGORY_LABELS_EN: Record<Category, string> = {
   beauty: "Beauty & Care",
 };
 
+type BrandKitResponseItem = {
+  id: string;
+  name: string;
+  logoUrl?: string | null;
+  palette?: BrandKitPromptData["palette"] | null;
+  styleAdjectives?: string[];
+  doRules?: string[];
+  dontRules?: string[];
+  styleSeed?: string | null;
+};
+
 function getNowMs(): number {
   return Date.now();
+}
+
+const CREATE_FLOW_TIMEOUT_MS = 210_000;
+const CONSUME_CREDIT_TIMEOUT_MS = 45_000;
+
+function createFlowLog(step: string, details?: Record<string, unknown>): void {
+  if (details) {
+    console.info(`[create-flow] ${step}`, details);
+    return;
+  }
+  console.info(`[create-flow] ${step}`);
+}
+
+async function withTimeout<T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  timeoutMessage: string
+): Promise<T> {
+  let timeoutId: ReturnType<typeof setTimeout> | undefined;
+  const timeoutPromise = new Promise<T>((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(timeoutMessage));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    if (timeoutId) clearTimeout(timeoutId);
+  }
 }
 
 async function urlToDataUrl(url: string): Promise<string> {
@@ -87,6 +128,79 @@ async function urlToDataUrl(url: string): Promise<string> {
     img.onerror = () => reject(new Error("Failed to fetch logo"));
     img.src = url;
   });
+}
+
+/** Pre-compress a data-URL image client-side using canvas before sending to server. */
+function compressDataUrl(
+  dataUrl: string,
+  maxDim: number,
+  format: "image/jpeg" | "image/png" = "image/jpeg",
+  quality = 0.75
+): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      let { naturalWidth: w, naturalHeight: h } = img;
+      if (w > maxDim || h > maxDim) {
+        const scale = maxDim / Math.max(w, h);
+        w = Math.round(w * scale);
+        h = Math.round(h * scale);
+      }
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return reject(new Error("Canvas context failed"));
+      ctx.drawImage(img, 0, 0, w, h);
+      resolve(canvas.toDataURL(format, quality));
+    };
+    img.onerror = () => resolve(dataUrl); // fallback: return original
+    img.src = dataUrl;
+  });
+}
+
+/** Pre-compress all images in form data before sending to the server action. */
+async function preCompressFormImages(data: PostFormData): Promise<PostFormData> {
+  const compressed = { ...data };
+  const tasks: Promise<void>[] = [];
+
+  // Compress product/meal/service image → 800px
+  const productKey = (
+    data.category === "restaurant" ? "mealImage" :
+    data.category === "supermarket" ? "productImages" :
+    data.category === "ecommerce" || data.category === "fashion" ? "productImage" :
+    "serviceImage"
+  ) as string;
+
+  if (productKey === "productImages" && "productImages" in compressed) {
+    tasks.push(
+      Promise.all(
+        (compressed as { productImages: string[] }).productImages.map(
+          (img) => compressDataUrl(img, 800)
+        )
+      ).then((imgs) => {
+        (compressed as { productImages: string[] }).productImages = imgs;
+      })
+    );
+  } else if (productKey in compressed) {
+    tasks.push(
+      compressDataUrl((compressed as Record<string, string>)[productKey], 800).then((img) => {
+        (compressed as Record<string, string>)[productKey] = img;
+      })
+    );
+  }
+
+  // Compress logo → 400px, keep PNG for transparency
+  if (compressed.logo) {
+    tasks.push(
+      compressDataUrl(compressed.logo, 400, "image/png", 0.8).then((img) => {
+        compressed.logo = img;
+      })
+    );
+  }
+
+  await Promise.all(tasks);
+  return compressed;
 }
 
 function FormLoadingFallback() {
@@ -190,7 +304,6 @@ function CreatePageContent() {
   const [marketingStatus, setMarketingStatus] = useState<MarketingContentStatus>("idle");
   const [error, setError] = useState<string>();
   const [lastSubmittedData, setLastSubmittedData] = useState<PostFormData | null>(null);
-  const [lastPosterRef, setLastPosterRef] = useState<string | null>(null);
   const [defaultLogo, setDefaultLogo] = useState<string | null>(null);
   const generatingRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -198,10 +311,14 @@ function CreatePageContent() {
   // Get category theme
   const theme = category ? CATEGORY_THEMES[category] : null;
 
-  // Cleanup: abort in-flight generation on unmount
+  // Cleanup: abort in-flight generation on true unmount (navigation away).
+  // Skip abort when generatingRef is true — this prevents Fast Refresh / HMR
+  // from killing in-flight requests during development.
   useEffect(() => {
     return () => {
-      abortControllerRef.current?.abort();
+      if (!generatingRef.current) {
+        abortControllerRef.current?.abort();
+      }
     };
   }, []);
 
@@ -227,7 +344,7 @@ function CreatePageContent() {
     fetcher,
     { revalidateOnFocus: false, revalidateOnReconnect: false }
   );
-  const brandKits = brandKitsData?.brandKits as any[] | undefined;
+  const brandKits = brandKitsData?.brandKits as BrandKitResponseItem[] | undefined;
   const defaultBrandKit = brandKits?.[0];
 
   const brandKitPromptData: BrandKitPromptData | undefined =
@@ -340,14 +457,29 @@ function CreatePageContent() {
     }
   };
 
-  const runGeneration = useCallback(async (data: PostFormData) => {
+  const runGeneration = useCallback(async (rawData: PostFormData) => {
     if (generatingRef.current) return;
+
+    // Scroll to top so user sees the loading state
+    window.scrollTo({ top: 0, behavior: "smooth" });
+
+    createFlowLog("runGeneration_invoked", {
+      category: rawData.category,
+      format: rawData.format,
+      campaignType: "campaignType" in rawData ? rawData.campaignType : undefined,
+    });
 
     // Gate: must have credits
     if (!canGenerate) {
+      createFlowLog("blocked_no_credits");
       setError(t("لا يوجد لديك رصيد كافٍ. يرجى ترقية اشتراكك أو شراء رصيد إضافي.", "You don't have enough credits. Please upgrade your plan or buy additional credits."));
       return;
     }
+
+    // Pre-compress images client-side to reduce server payload
+    createFlowLog("pre_compress_started");
+    const data = await preCompressFormImages(rawData);
+    createFlowLog("pre_compress_done");
 
     // Immediately lock to prevent double-submission
     generatingRef.current = true;
@@ -367,32 +499,114 @@ function CreatePageContent() {
 
     const startTime = getNowMs();
     const idempotencyKey = `gen_${Date.now()}_${crypto.randomUUID?.() ?? Math.random().toString(36).slice(2, 10)}`;
+    createFlowLog("generation_started", { idempotencyKey });
 
     // Consume credit BEFORE calling the expensive AI generation
-    try {
-      const creditRes = await fetch('/api/billing/consume-credit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idempotencyKey }),
-        signal: abortController.signal,
+    const creditStartTime = getNowMs();
+    const creditHeartbeat = setInterval(() => {
+      createFlowLog("waiting_for_consume_credit", {
+        elapsedMs: getNowMs() - creditStartTime,
       });
-      const creditResult = await creditRes.json();
+    }, 5_000);
+
+    try {
+      createFlowLog("consume_credit_started");
+      let creditRes: Response;
+      try {
+        creditRes = await withTimeout(
+          fetch('/api/billing/consume-credit', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ idempotencyKey }),
+            signal: abortController.signal,
+          }),
+          CONSUME_CREDIT_TIMEOUT_MS,
+          t("انتهت مهلة خصم الرصيد. حاول مرة أخرى.", "Credit check timed out. Please try again.")
+        );
+      } catch (fetchErr) {
+        createFlowLog("consume_credit_fetch_failed", {
+          message: fetchErr instanceof Error ? fetchErr.message : String(fetchErr),
+          aborted: abortController.signal.aborted,
+        });
+        throw fetchErr;
+      }
+      createFlowLog("consume_credit_response_received", {
+        httpStatus: creditRes.status,
+      });
+
+      let creditResult: { ok?: boolean; error?: string };
+      try {
+        creditResult = await withTimeout(
+          creditRes.json(),
+          10_000,
+          t("تعذر قراءة استجابة خصم الرصيد. حاول مرة أخرى.", "Failed to read credit response. Please try again.")
+        );
+      } catch (jsonErr) {
+        createFlowLog("consume_credit_json_parse_failed", {
+          message: jsonErr instanceof Error ? jsonErr.message : String(jsonErr),
+          httpStatus: creditRes.status,
+        });
+        throw jsonErr;
+      }
+      createFlowLog("consume_credit_parsed", { ok: creditResult?.ok });
+
       if (!creditRes.ok || !creditResult.ok) {
+        createFlowLog("consume_credit_failed_response", {
+          httpStatus: creditRes.status,
+          responseOk: creditResult?.ok ?? false,
+          responseError: creditResult?.error ?? null,
+        });
         throw new Error(t("لا يوجد لديك رصيد كافٍ", "You don't have enough credits"));
       }
+      createFlowLog("consume_credit_success");
       mutateCreditState(); // Revalidate credit state
     } catch (err) {
-      if (abortController.signal.aborted) return;
+      if (abortController.signal.aborted) {
+        createFlowLog("consume_credit_aborted");
+        return;
+      }
+      createFlowLog("consume_credit_threw", {
+        message: err instanceof Error ? err.message : String(err),
+      });
       const msg = toLocalizedErrorMessage(err);
       setError(msg);
       setGenStep("error");
       setIsGenerating(false);
       generatingRef.current = false;
       return;
+    } finally {
+      clearInterval(creditHeartbeat);
     }
 
-    generatePosters(data, brandKitPromptData)
+    createFlowLog("generate_posters_starting", {
+      category: data.category,
+      format: data.format,
+      hasBrandKit: Boolean(brandKitPromptData),
+      elapsedMs: getNowMs() - startTime,
+    });
+
+    const generationHeartbeat = setInterval(() => {
+      createFlowLog("waiting_for_generate_posters", {
+        elapsedMs: getNowMs() - startTime,
+      });
+    }, 15_000);
+
+    withTimeout(
+      generatePosters(data, brandKitPromptData),
+      CREATE_FLOW_TIMEOUT_MS,
+      t(
+        "انتهت مهلة إنشاء التصميم. حاول مرة أخرى.",
+        "Generation timed out. Please try again."
+      )
+    )
       .then(({ main: posterResult, usages, posterRef }) => {
+        createFlowLog("generate_posters_resolved", {
+          status: posterResult.status,
+          hasImage: Boolean(posterResult.imageBase64),
+          hasPosterRef: Boolean(posterRef),
+          usages: usages.length,
+          elapsedMs: getNowMs() - startTime,
+        });
         if (abortController.signal.aborted) return;
         void persistUsageEvents(usages);
         setResults([posterResult]);
@@ -401,15 +615,17 @@ function CreatePageContent() {
         generatingRef.current = false;
 
         if (posterResult.status === "complete" && posterResult.imageBase64) {
+          createFlowLog("poster_complete_saving_generation");
           saveToSupabase(data, posterResult, null, startTime);
 
           // Phase 2: poster is visible — now fetch marketing content in background
           if (posterRef) {
-            setLastPosterRef(posterRef);
+            createFlowLog("marketing_generation_started");
             setMarketingStatus("generating");
             generateMarketingContentAction(posterRef, data)
               .then(({ content, usage }) => {
                 if (abortController.signal.aborted) return;
+                createFlowLog("marketing_generation_success");
                 void persistUsageEvents([usage]);
                 setMarketingContent(content);
                 setMarketingStatus("complete");
@@ -417,6 +633,9 @@ function CreatePageContent() {
               .catch((err) => {
                 if (abortController.signal.aborted) return;
                 console.error("Marketing content generation failed:", err);
+                createFlowLog("marketing_generation_failed", {
+                  message: err instanceof Error ? err.message : String(err),
+                });
                 setMarketingStatus("error");
               });
           }
@@ -424,6 +643,10 @@ function CreatePageContent() {
       })
       .catch((err) => {
         if (abortController.signal.aborted) return;
+        createFlowLog("generate_posters_failed", {
+          message: err instanceof Error ? err.message : String(err),
+          elapsedMs: getNowMs() - startTime,
+        });
         const localizedMessage = toLocalizedErrorMessage(err);
         const errorResult: PosterResult = {
           designIndex: 0,
@@ -439,10 +662,17 @@ function CreatePageContent() {
         setError(localizedMessage);
         setIsGenerating(false);
         generatingRef.current = false;
+      })
+      .finally(() => {
+        clearInterval(generationHeartbeat);
+        createFlowLog("runGeneration_finished", {
+          elapsedMs: getNowMs() - startTime,
+        });
       });
   }, [canGenerate, brandKitPromptData, locale, t, mutateCreditState]);
 
   const uploadImageToStorage = async (imageBase64: string): Promise<{ storagePath: string; publicUrl: string }> => {
+    createFlowLog("upload_image_to_storage_started");
     const res = await fetch('/api/storage/upload', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -453,6 +683,7 @@ function CreatePageContent() {
       }),
     });
     if (!res.ok) throw new Error('Failed to upload image');
+    createFlowLog("upload_image_to_storage_success");
     return res.json();
   };
 
@@ -463,6 +694,10 @@ function CreatePageContent() {
     startTime: number
   ) => {
     try {
+      createFlowLog("save_generation_started", {
+        category: data.category,
+        format: data.format,
+      });
       const format = data.format;
       const formatConfig = FORMAT_CONFIGS[format];
 
@@ -489,9 +724,11 @@ function CreatePageContent() {
       });
       if (!createRes.ok) throw new Error('Failed to create generation');
       const { id: generationId } = await createRes.json();
+      createFlowLog("save_generation_created_record", { generationId });
 
       // Upload main poster
       const { publicUrl } = await uploadImageToStorage(posterResult.imageBase64!);
+      createFlowLog("save_generation_uploaded_image", { generationId });
       await fetch(`/api/generations/${generationId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -503,6 +740,7 @@ function CreatePageContent() {
           height: formatConfig.height,
         }),
       });
+      createFlowLog("save_generation_output_updated", { generationId });
 
       await fetch(`/api/generations/${generationId}`, {
         method: 'PATCH',
@@ -513,8 +751,12 @@ function CreatePageContent() {
           durationMs: getNowMs() - startTime,
         }),
       });
+      createFlowLog("save_generation_completed", { generationId });
     } catch (saveErr) {
       console.error("Failed to save generation:", saveErr);
+      createFlowLog("save_generation_failed", {
+        message: saveErr instanceof Error ? saveErr.message : String(saveErr),
+      });
     }
   };
 
@@ -557,6 +799,7 @@ function CreatePageContent() {
     const posterBase64 = results.find((r) => r.status === "complete")?.imageBase64;
     if (!posterBase64 || !lastSubmittedData) return;
 
+    createFlowLog("marketing_retry_started");
     setMarketingStatus("generating");
     setMarketingContent(null);
     try {
@@ -564,9 +807,13 @@ function CreatePageContent() {
       void persistUsageEvents([usage]);
       setMarketingContent(content);
       setMarketingStatus("complete");
+      createFlowLog("marketing_retry_success");
     } catch (err) {
       console.error("Marketing content retry failed:", err);
       setMarketingStatus("error");
+      createFlowLog("marketing_retry_failed", {
+        message: err instanceof Error ? err.message : String(err),
+      });
     }
   }, [results, lastSubmittedData]);
 

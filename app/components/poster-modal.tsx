@@ -133,7 +133,9 @@ export function PosterModal({
   const fileName = useMemo(() => {
     const name = result?.designNameAr || (result ? `${result.designIndex + 1}` : "poster");
     const format = result?.format || "image";
-    return `poster-${name}-${format}.png`;
+    const src = result?.imageBase64 || "";
+    const ext = src.startsWith("data:image/jpeg") ? "jpg" : "png";
+    return `poster-${name}-${format}.${ext}`;
   }, [result]);
 
   useEffect(() => {
@@ -213,7 +215,7 @@ export function PosterModal({
     try {
       const blob = await getExportBlob();
       if (!blob) return;
-      const file = new File([blob], fileName, { type: "image/png" });
+      const file = new File([blob], fileName, { type: blob.type || "image/jpeg" });
       await navigator.share({ files: [file] });
     } catch {
       // user cancelled

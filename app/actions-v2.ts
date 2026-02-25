@@ -18,6 +18,14 @@ const rateLimitMap = new Map<string, number[]>();
 const POSTER_STORE_TTL_MS = 5 * 60_000; // 5 minutes
 const posterStore = new Map<string, { base64: string; createdAt: number }>();
 
+function serverActionLog(step: string, details?: Record<string, unknown>): void {
+  if (details) {
+    console.info(`[actions-v2] ${step}`, details);
+    return;
+  }
+  console.info(`[actions-v2] ${step}`);
+}
+
 function cleanPosterStore(): void {
   const now = Date.now();
   for (const [key, entry] of posterStore) {
@@ -67,19 +75,32 @@ export async function generatePosters(
   data: PostFormData,
   brandKit?: BrandKitPromptData
 ): Promise<GeneratePostersResult & { usages: GenerationUsage[]; posterRef?: string }> {
+  const startedAt = Date.now();
+  serverActionLog("generatePosters_called", {
+    category: data.category,
+    format: data.format,
+    hasBrandKit: Boolean(brandKit),
+  });
+
   // Server-side auth gate — block unauthenticated requests
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   const userId = user?.id;
   if (!userId) {
+    serverActionLog("generatePosters_unauthenticated");
     throw new Error("يجب تسجيل الدخول لإنشاء تصاميم");
   }
 
+  serverActionLog("generatePosters_auth_ok", { userId });
   checkRateLimit(userId);
+  serverActionLog("generatePosters_rate_limit_ok", { userId });
 
   const validation = postFormDataSchema.safeParse(data);
   if (!validation.success) {
     console.error("[generatePosters] validation_failed", {
+      issues: validation.error.issues.map((i) => i.message),
+    });
+    serverActionLog("generatePosters_validation_failed", {
       issues: validation.error.issues.map((i) => i.message),
     });
     throw new Error(
@@ -90,6 +111,7 @@ export async function generatePosters(
   const format: OutputFormat = data.format;
 
   console.info("[generatePosters] start", { category: data.category, userId });
+  serverActionLog("generatePosters_generation_started", { userId });
 
   const usages: GenerationUsage[] = [];
 
@@ -98,6 +120,9 @@ export async function generatePosters(
     const design = await generatePoster(data, brandKit);
     usages.push(design.usage);
     console.info("[generatePosters] main success");
+    serverActionLog("generatePosters_main_success", {
+      durationMs: Date.now() - startedAt,
+    });
 
     const main: GeneratePostersResult["main"] = {
       designIndex: 0,
@@ -113,10 +138,18 @@ export async function generatePosters(
     const posterRef = `pr_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
     posterStore.set(posterRef, { base64: design.imageBase64, createdAt: Date.now() });
     cleanPosterStore();
+    serverActionLog("generatePosters_done", {
+      durationMs: Date.now() - startedAt,
+      posterRef,
+    });
 
     return { main, usages, posterRef };
   } catch (err) {
     console.error("[generatePosters] main failed", err);
+    serverActionLog("generatePosters_main_failed", {
+      durationMs: Date.now() - startedAt,
+      message: err instanceof Error ? err.message : String(err),
+    });
     const errUsage = extractUsageFromUnknown(err);
     if (errUsage) usages.push(errUsage);
 
@@ -139,20 +172,28 @@ export async function generateMarketingContentAction(
   posterRef: string,
   data: PostFormData
 ): Promise<{ content: MarketingContent; usage: GenerationUsage }> {
+  serverActionLog("generateMarketingContentAction_called", {
+    posterRef,
+    category: data.category,
+  });
+
   // Auth gate
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.id) {
+    serverActionLog("generateMarketingContentAction_unauthenticated");
     throw new Error("يجب تسجيل الدخول");
   }
 
   const entry = posterStore.get(posterRef);
   if (!entry) {
+    serverActionLog("generateMarketingContentAction_missing_ref", { posterRef });
     throw new Error("انتهت صلاحية المرجع. يرجى إعادة إنشاء التصميم.");
   }
 
   // Clean up after retrieval (one-time use)
   posterStore.delete(posterRef);
+  serverActionLog("generateMarketingContentAction_ref_consumed", { posterRef });
 
   return generateMarketingContent(entry.base64, data);
 }
@@ -163,9 +204,15 @@ export async function retryMarketingContentAction(
   posterBase64: string,
   data: PostFormData
 ): Promise<{ content: MarketingContent; usage: GenerationUsage }> {
+  serverActionLog("retryMarketingContentAction_called", {
+    category: data.category,
+    hasPoster: Boolean(posterBase64),
+  });
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user?.id) {
+    serverActionLog("retryMarketingContentAction_unauthenticated");
     throw new Error("يجب تسجيل الدخول");
   }
 

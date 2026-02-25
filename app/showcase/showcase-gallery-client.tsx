@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import Image from "next/image";
 import useSWR from "swr";
-import { CATEGORY_LABELS } from "@/lib/constants";
+import { CATEGORY_LABELS, CATEGORY_LABELS_EN } from "@/lib/constants";
 import { Loader2 } from "lucide-react";
 import { useLocale } from "@/hooks/use-locale";
 
@@ -13,15 +13,6 @@ const fetcher = (url: string) => fetch(url).then(r => {
 });
 
 const ASPECTS = ["aspect-square", "aspect-[4/5]", "aspect-[3/4]", "aspect-[5/6]"] as const;
-
-const CATEGORY_LABELS_EN: Record<string, string> = {
-  restaurant: "Restaurants & Cafes",
-  supermarket: "Supermarkets",
-  ecommerce: "E-commerce",
-  services: "Services",
-  fashion: "Fashion",
-  beauty: "Beauty & Care",
-};
 
 export function ShowcaseGalleryClient() {
   const { locale, t } = useLocale();
@@ -41,7 +32,7 @@ export function ShowcaseGalleryClient() {
   }, [selectedCategory, showcaseImages]);
 
   const getCategoryLabel = (cat: string) => {
-    if (locale === "en") return CATEGORY_LABELS_EN[cat] ?? cat;
+    if (locale === "en") return (CATEGORY_LABELS_EN as Record<string, string>)[cat] ?? cat;
     return (CATEGORY_LABELS as Record<string, string>)[cat] ?? cat;
   };
 

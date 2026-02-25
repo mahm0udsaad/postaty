@@ -4,10 +4,12 @@ import { useState, useCallback } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { mutate } from "swr";
+import { toast } from "sonner";
 import type { BrandPalette, StyleAdjective } from "@/lib/types";
 import { STYLE_ADJECTIVE_OPTIONS } from "@/lib/constants";
 import { extractColorsFromImage } from "@/lib/brand-extraction";
 import { useLocale } from "@/hooks/use-locale";
+import { scrollToTop } from "@/lib/utils";
 import {
   X,
   Plus,
@@ -86,10 +88,6 @@ export function BrandKitForm({ existingKit, redirectTo }: BrandKitFormProps) {
   );
   const [isSaving, setIsSaving] = useState(false);
   const [isExtracting, setIsExtracting] = useState(false);
-  const [saveMessage, setSaveMessage] = useState<{
-    type: "success" | "error";
-    text: string;
-  } | null>(null);
 
   const handleLogoUpload = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -98,10 +96,7 @@ export function BrandKitForm({ existingKit, redirectTo }: BrandKitFormProps) {
 
       if (!file.type.startsWith("image/")) return;
       if (file.size > 5 * 1024 * 1024) {
-        setSaveMessage({
-          type: "error",
-          text: t("حجم الصورة يجب أن لا يتجاوز 5 ميجابايت", "Image size must not exceed 5MB"),
-        });
+        toast.error(t("حجم الصورة يجب أن لا يتجاوز 5 ميجابايت", "Image size must not exceed 5MB"));
         return;
       }
 
@@ -177,12 +172,11 @@ export function BrandKitForm({ existingKit, redirectTo }: BrandKitFormProps) {
 
   const handleSave = async () => {
     if (!name.trim()) {
-      setSaveMessage({ type: "error", text: t("يرجى إدخال اسم العلامة التجارية", "Please enter your brand name") });
+      toast.error(t("يرجى إدخال اسم العلامة التجارية", "Please enter your brand name"));
       return;
     }
 
     setIsSaving(true);
-    setSaveMessage(null);
 
     try {
       // Upload logo if new
@@ -231,15 +225,15 @@ export function BrandKitForm({ existingKit, redirectTo }: BrandKitFormProps) {
       // Revalidate SWR cache
       mutate('/api/brand-kits');
 
-      setSaveMessage({ type: "success", text: t("تم حفظ هوية العلامة التجارية بنجاح", "Brand identity saved successfully") });
+      toast.success(t("تم حفظ هوية العلامة التجارية بنجاح", "Brand identity saved successfully"));
+      scrollToTop();
       if (redirectTo) {
         router.push(redirectTo);
       }
     } catch (err) {
-      setSaveMessage({
-        type: "error",
-        text: err instanceof Error ? err.message : t("حدث خطأ أثناء الحفظ", "An error occurred while saving"),
-      });
+      toast.error(
+        err instanceof Error ? err.message : t("حدث خطأ أثناء الحفظ", "An error occurred while saving"),
+      );
     }
 
     setIsSaving(false);
@@ -490,19 +484,6 @@ export function BrandKitForm({ existingKit, redirectTo }: BrandKitFormProps) {
           )}
         </div>
       </section>
-
-      {/* Save Message */}
-      {saveMessage && (
-        <div
-          className={`p-4 rounded-xl text-sm font-medium ${
-            saveMessage.type === "success"
-              ? "bg-success/10 text-success border border-success/30"
-              : "bg-danger/10 text-danger border border-danger/30"
-          }`}
-        >
-          {saveMessage.text}
-        </div>
-      )}
 
       {/* Save Button */}
       <button

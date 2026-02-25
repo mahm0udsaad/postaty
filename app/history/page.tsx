@@ -1,48 +1,71 @@
 "use client";
 
-import { useState } from "react";
+import { Suspense } from "react";
 import useSWR from "swr";
 import { useAuth } from "@/hooks/use-auth";
 import { PosterGallery } from "./poster-gallery";
 import { GenerationCard } from "./generation-card";
-import { Clock, Grid3x3, List, Sparkles, Gift } from "lucide-react";
+import { Clock, Grid3x3, List, Sparkles, Gift, AlertCircle, RotateCcw } from "lucide-react";
 import type { Category } from "@/lib/types";
-import { CATEGORY_LABELS } from "@/lib/constants";
+import { CATEGORY_LABELS, CATEGORY_LABELS_EN } from "@/lib/constants";
 import Link from "next/link";
 import { useLocale } from "@/hooks/use-locale";
+import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { motion, AnimatePresence } from "framer-motion";
+import { FADE_UP } from "@/lib/animation";
+import { HistoryPageSkeleton, ListSkeleton } from "./skeletons";
+import { ErrorBoundary } from "@/app/components/error-boundary";
 
 const fetcher = (url: string) => fetch(url).then(r => {
   if (!r.ok) throw new Error('API error');
   return r.json();
 });
 
-const CATEGORY_LABELS_EN: Record<Category, string> = {
-  restaurant: "Restaurants & Cafes",
-  supermarket: "Supermarkets",
-  ecommerce: "E-commerce",
-  services: "Services",
-  fashion: "Fashion",
-  beauty: "Beauty & Care",
-};
-
 export type ImageTypeFilter = "all" | "pro" | "gift";
 
+const LIST_PAGE_SIZE = 10;
+
 export default function HistoryPage() {
+  return (
+    <ErrorBoundary
+      fallbackTitle="Something went wrong"
+      fallbackMessage="An error occurred loading your history. Please try again."
+    >
+      <Suspense fallback={<HistoryPageSkeleton />}>
+        <HistoryPageContent />
+      </Suspense>
+    </ErrorBoundary>
+  );
+}
+
+function HistoryPageContent() {
   const { isSignedIn, isLoaded } = useAuth();
   const { locale, t } = useLocale();
-  const [viewMode, setViewMode] = useState<"gallery" | "list">("gallery");
-  const [selectedCategory, setSelectedCategory] = useState<"all" | Category>("all");
-  const [imageType, setImageType] = useState<ImageTypeFilter>("all");
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
 
-  // Billing for plan gating
-  const { data: creditState, mutate: mutateCreditState } = useSWR(
-    isSignedIn ? "/api/billing" : null,
-    fetcher
-  );
+  const viewMode = (searchParams.get("view") as "gallery" | "list") || "gallery";
+  const selectedCategory = (searchParams.get("category") as "all" | Category) || "all";
+  const imageType = (searchParams.get("type") as ImageTypeFilter) || "all";
+  const listPage = parseInt(searchParams.get("page") || "1", 10);
+
+  const setParam = (key: string, value: string) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value === "all" || (key === "view" && value === "gallery")) {
+      params.delete(key);
+    } else {
+      params.set(key, value);
+    }
+    if (key === "category" || key === "type" || key === "view") {
+      params.delete("page");
+    }
+    const qs = params.toString();
+    router.replace(`${pathname}${qs ? `?${qs}` : ""}`, { scroll: false });
+  };
 
   const categoryFilter = selectedCategory === "all" ? undefined : selectedCategory;
 
-  // Handler for gallery view (receives PosterImageData)
   const HISTORY_FILTERS: Array<{ value: "all" | Category; label: string }> = [
     { value: "all", label: t("الكل", "All") },
     { value: "restaurant", label: locale === "ar" ? CATEGORY_LABELS.restaurant : CATEGORY_LABELS_EN.restaurant },
@@ -53,15 +76,22 @@ export default function HistoryPage() {
     { value: "beauty", label: locale === "ar" ? CATEGORY_LABELS.beauty : CATEGORY_LABELS_EN.beauty },
   ];
 
-  const listParams = new URLSearchParams({ limit: '50' });
+  const listOffset = (listPage - 1) * LIST_PAGE_SIZE;
+  const listParams = new URLSearchParams({
+    limit: String(LIST_PAGE_SIZE),
+    offset: String(listOffset),
+  });
   if (categoryFilter) listParams.set('category', categoryFilter);
-  const { data: listData, isLoading: isListLoading } = useSWR(
+
+  const { data: listData, error: listError, isLoading: isListLoading, mutate: mutateList } = useSWR(
     isSignedIn && viewMode === "list"
       ? `/api/generations?${listParams.toString()}`
       : null,
     fetcher
   );
   const generations = listData?.generations as any[] | undefined;
+  const totalCount = listData?.total as number | undefined;
+  const totalPages = totalCount ? Math.ceil(totalCount / LIST_PAGE_SIZE) : 0;
 
   return (
     <main className="min-h-screen py-12 px-4 relative overflow-hidden bg-grid-pattern">
@@ -87,7 +117,7 @@ export default function HistoryPage() {
         <div className="flex justify-center mb-8">
           <div className="inline-flex bg-surface-1/80 backdrop-blur-sm rounded-xl border border-card-border shadow-sm p-1">
             <button
-              onClick={() => setViewMode("gallery")}
+              onClick={() => setParam("view", "gallery")}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
                 viewMode === "gallery"
                   ? "bg-primary text-white shadow-sm"
@@ -98,7 +128,7 @@ export default function HistoryPage() {
               {t("معرض", "Gallery")}
             </button>
             <button
-              onClick={() => setViewMode("list")}
+              onClick={() => setParam("view", "list")}
               className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
                 viewMode === "list"
                   ? "bg-primary text-white shadow-sm"
@@ -116,7 +146,7 @@ export default function HistoryPage() {
             {HISTORY_FILTERS.map((filter) => (
               <button
                 key={filter.value}
-                onClick={() => setSelectedCategory(filter.value)}
+                onClick={() => setParam("category", filter.value)}
                 className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${
                   selectedCategory === filter.value
                     ? "bg-primary text-white shadow-sm"
@@ -132,7 +162,7 @@ export default function HistoryPage() {
         <div className="flex justify-center mb-8">
           <div className="inline-flex bg-surface-1/80 backdrop-blur-sm rounded-xl border border-card-border shadow-sm p-1">
             <button
-              onClick={() => setImageType("all")}
+              onClick={() => setParam("type", "all")}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
                 imageType === "all"
                   ? "bg-primary text-white shadow-sm"
@@ -142,7 +172,7 @@ export default function HistoryPage() {
               {t("الكل", "All")}
             </button>
             <button
-              onClick={() => setImageType("pro")}
+              onClick={() => setParam("type", "pro")}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
                 imageType === "pro"
                   ? "bg-primary text-white shadow-sm"
@@ -153,7 +183,7 @@ export default function HistoryPage() {
               {t("التصميم", "Pro")}
             </button>
             <button
-              onClick={() => setImageType("gift")}
+              onClick={() => setParam("type", "gift")}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
                 imageType === "gift"
                   ? "bg-primary text-white shadow-sm"
@@ -166,41 +196,98 @@ export default function HistoryPage() {
           </div>
         </div>
 
-        {!isSignedIn && isLoaded ? (
-          <div className="text-center py-16">
-            <p className="text-muted mb-6">{t("سجّل الدخول لعرض السجل", "Sign in to view your history")}</p>
-            <Link href="/sign-in?redirect_url=/history" className="px-6 py-3 bg-primary text-white rounded-xl font-bold inline-block">
-              {t("تسجيل الدخول", "Sign in")}
-            </Link>
-          </div>
-        ) : viewMode === "gallery" ? (
-          <PosterGallery category={categoryFilter} imageType={imageType} />
-        ) : (
-          <div className="max-w-5xl mx-auto space-y-4">
-            {!isLoaded || isListLoading || generations === undefined ? (
-              <div className="flex justify-center py-20">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
+        <AnimatePresence mode="wait">
+          {!isSignedIn && isLoaded ? (
+            <motion.div key="signin" {...FADE_UP} className="text-center py-16">
+              <p className="text-muted mb-6">{t("سجّل الدخول لعرض السجل", "Sign in to view your history")}</p>
+              <Link href="/sign-in?redirect_url=/history" className="px-6 py-3 bg-primary text-white rounded-xl font-bold inline-block">
+                {t("تسجيل الدخول", "Sign in")}
+              </Link>
+            </motion.div>
+          ) : viewMode === "gallery" ? (
+            <motion.div key="gallery" {...FADE_UP}>
+              <PosterGallery category={categoryFilter} imageType={imageType} />
+            </motion.div>
+          ) : (
+            <motion.div key="list" {...FADE_UP}>
+              <div className="max-w-5xl mx-auto space-y-4">
+                {!isLoaded || isListLoading || generations === undefined ? (
+                  listError ? (
+                    <div className="text-center py-20 space-y-4">
+                      <div className="w-16 h-16 mx-auto rounded-full bg-red-50 flex items-center justify-center border border-red-200">
+                        <AlertCircle size={28} className="text-red-500" />
+                      </div>
+                      <h3 className="text-lg font-bold text-foreground">
+                        {t("حدث خطأ في تحميل البيانات", "Failed to load data")}
+                      </h3>
+                      <p className="text-muted text-sm">
+                        {t("تعذّر تحميل السجل. حاول مرة أخرى.", "Could not load history. Please try again.")}
+                      </p>
+                      <button
+                        onClick={() => mutateList()}
+                        className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-bold hover:opacity-90 transition-opacity"
+                      >
+                        <RotateCcw size={16} />
+                        {t("إعادة المحاولة", "Retry")}
+                      </button>
+                    </div>
+                  ) : (
+                    <ListSkeleton />
+                  )
+                ) : generations.length === 0 ? (
+                  <div className="text-center py-20">
+                    <p className="text-muted mb-6">{t("لا توجد إنشاءات بعد", "No generations yet")}</p>
+                    <Link
+                      href="/create"
+                      className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-bold hover:opacity-90 transition-opacity"
+                    >
+                      <Sparkles size={16} />
+                      {t("إنشاء بوستر جديد", "Create your first poster")}
+                    </Link>
+                  </div>
+                ) : (
+                  <>
+                    {generations
+                      .filter((gen: any) => {
+                        if (imageType === "all") return true;
+                        return gen.outputs.some((o: { format: string }) =>
+                          imageType === "gift" ? o.format === "gift" : o.format !== "gift"
+                        );
+                      })
+                      .map((gen: any) => (
+                        <GenerationCard key={gen.id} generation={gen} imageType={imageType} />
+                      ))
+                    }
+                    {totalPages > 1 && (
+                      <div className="flex items-center justify-center gap-2 mt-8 pt-4">
+                        <button
+                          onClick={() => setParam("page", String(listPage - 1))}
+                          disabled={listPage <= 1}
+                          className="px-4 py-2 rounded-lg border border-card-border text-sm font-bold disabled:opacity-40 hover:bg-surface-2 transition-colors"
+                        >
+                          {t("السابق", "Previous")}
+                        </button>
+                        <span className="text-sm text-muted px-4">
+                          {locale === "ar"
+                            ? `صفحة ${listPage} من ${totalPages}`
+                            : `Page ${listPage} of ${totalPages}`}
+                        </span>
+                        <button
+                          onClick={() => setParam("page", String(listPage + 1))}
+                          disabled={listPage >= totalPages}
+                          className="px-4 py-2 rounded-lg border border-card-border text-sm font-bold disabled:opacity-40 hover:bg-surface-2 transition-colors"
+                        >
+                          {t("التالي", "Next")}
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
               </div>
-            ) : generations.length === 0 ? (
-              <div className="text-center py-20">
-                <p className="text-muted">{t("لا توجد إنشاءات بعد", "No generations yet")}</p>
-              </div>
-            ) : (
-              generations
-                .filter((gen: any) => {
-                  if (imageType === "all") return true;
-                  return gen.outputs.some((o: { format: string }) =>
-                    imageType === "gift" ? o.format === "gift" : o.format !== "gift"
-                  );
-                })
-                .map((gen: any) => (
-                  <GenerationCard key={gen.id} generation={gen} imageType={imageType} />
-                ))
-            )}
-          </div>
-        )}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
-
     </main>
   );
 }

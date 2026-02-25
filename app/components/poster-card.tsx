@@ -40,7 +40,8 @@ export async function exportPoster(result: PosterResult): Promise<void> {
   const url = URL.createObjectURL(blob);
   const link = document.createElement("a");
   link.href = url;
-  link.download = `poster-${result.designNameAr || result.designIndex + 1}-${result.format}.png`;
+  const ext = mimeType === "image/jpeg" ? "jpg" : "png";
+  link.download = `poster-${result.designNameAr || result.designIndex + 1}-${result.format}.${ext}`;
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
@@ -140,8 +141,8 @@ export function PosterCard({
       }
       const blob = new Blob([bytes], { type: mimeType });
 
-      const file = new File([blob], `poster-${result.format}.png`, {
-        type: "image/png",
+      const file = new File([blob], `poster-${result.format}.${mimeType === "image/jpeg" ? "jpg" : "png"}`, {
+        type: mimeType,
       });
       await navigator.share({ files: [file] });
     } catch {
@@ -241,8 +242,8 @@ export function PosterCard({
               onClick={handleExport}
               disabled={isExporting}
               className="p-2 rounded-lg text-muted hover:text-success hover:bg-success/10 transition-colors"
-              title={t("تصدير PNG", "Export PNG")}
-              aria-label={t("تصدير PNG", "Export PNG")}
+              title={t("تصدير", "Export")}
+              aria-label={t("تصدير", "Export")}
             >
               {isExporting ? (
                 <Loader2 size={18} className="animate-spin" />

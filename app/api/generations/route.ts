@@ -11,6 +11,7 @@ export async function GET(request: Request) {
     const limit = Math.min(parseInt(searchParams.get("limit") || "20", 10), 100);
     const offset = parseInt(searchParams.get("offset") || "0", 10);
     const status = searchParams.get("status");
+    const category = searchParams.get("category");
 
     let query = admin
       .from("generations")
@@ -21,6 +22,9 @@ export async function GET(request: Request) {
 
     if (status) {
       query = query.eq("status", status);
+    }
+    if (category) {
+      query = query.eq("category", category);
     }
 
     const { data: generations, error, count } = await query;

@@ -2,10 +2,27 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import useSWR from "swr";
-import { Download, Calendar, Tag, Loader2, Image as ImageIcon, Gift } from "lucide-react";
-import { CATEGORY_LABELS, FORMAT_CONFIGS } from "@/lib/constants";
+import Image from "next/image";
+import Link from "next/link";
+import {
+  Download,
+  Calendar,
+  Tag,
+  Loader2,
+  Image as ImageIcon,
+  Gift,
+  Sparkles,
+  AlertCircle,
+  RotateCcw,
+  ChevronLeft,
+  ChevronRight,
+} from "lucide-react";
+import { CATEGORY_LABELS, CATEGORY_LABELS_EN, FORMAT_CONFIGS } from "@/lib/constants";
 import type { Category, OutputFormat } from "@/lib/types";
 import { useLocale } from "@/hooks/use-locale";
+import { motion } from "framer-motion";
+import { STAGGER_CONTAINER, STAGGER_ITEM } from "@/lib/animation";
+import { GallerySkeleton } from "./skeletons";
 
 const fetcher = (url: string) => fetch(url).then(r => {
   if (!r.ok) throw new Error('API error');
@@ -29,15 +46,6 @@ interface PosterGalleryProps {
   imageType?: "all" | "pro" | "gift";
 }
 
-const CATEGORY_LABELS_EN: Record<Category, string> = {
-  restaurant: "Restaurants & Cafes",
-  supermarket: "Supermarkets",
-  ecommerce: "E-commerce",
-  services: "Services",
-  fashion: "Fashion",
-  beauty: "Beauty & Care",
-};
-
 export function PosterGallery({ category, imageType = "all" }: PosterGalleryProps) {
   const { locale, t } = useLocale();
   const [offset, setOffset] = useState(0);
@@ -51,7 +59,7 @@ export function PosterGallery({ category, imageType = "all" }: PosterGalleryProp
   });
   if (category) params.set('category', category);
 
-  const { data, isLoading } = useSWR(
+  const { data, error, isLoading, mutate } = useSWR(
     `/api/generations?${params.toString()}`,
     fetcher
   );
@@ -77,7 +85,7 @@ export function PosterGallery({ category, imageType = "all" }: PosterGalleryProp
   }, [data, offset]);
 
   const observerTarget = useRef<HTMLDivElement>(null);
-  const [selectedImage, setSelectedImage] = useState<PosterImageData | null>(null);
+  const [selectedIndex, setSelectedIndex] = useState<number | null>(null);
 
   const loadMore = useCallback(() => {
     if (hasMore && !isLoading) {
@@ -112,6 +120,8 @@ export function PosterGallery({ category, imageType = "all" }: PosterGalleryProp
     }
   }
 
+  const selectedImage = selectedIndex !== null ? allImages[selectedIndex] ?? null : null;
+
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -129,6 +139,26 @@ export function PosterGallery({ category, imageType = "all" }: PosterGalleryProp
     return () => observer.disconnect();
   }, [hasMore, isLoading, loadMore]);
 
+  // Keyboard navigation for lightbox
+  useEffect(() => {
+    if (selectedIndex === null) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+        e.preventDefault();
+        setSelectedIndex((prev) => {
+          if (prev === null) return null;
+          if (e.key === "ArrowLeft") return Math.max(0, prev - 1);
+          return Math.min(allImages.length - 1, prev + 1);
+        });
+      }
+      if (e.key === "Escape") {
+        setSelectedIndex(null);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [selectedIndex, allImages.length]);
+
   const formatDate = (timestamp: number) => {
     return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA" : "en-US", {
       dateStyle: "medium",
@@ -139,10 +169,27 @@ export function PosterGallery({ category, imageType = "all" }: PosterGalleryProp
 
   return (
     <div>
-      {isFirstLoad ? (
-        <div className="flex justify-center py-20">
-          <Loader2 size={32} className="animate-spin text-primary" />
+      {error && !data ? (
+        <div className="text-center py-20 space-y-4">
+          <div className="w-16 h-16 mx-auto rounded-full bg-red-50 flex items-center justify-center border border-red-200">
+            <AlertCircle size={28} className="text-red-500" />
+          </div>
+          <h3 className="text-lg font-bold text-foreground">
+            {t("حدث خطأ في تحميل البيانات", "Failed to load data")}
+          </h3>
+          <p className="text-muted text-sm">
+            {t("تعذّر تحميل السجل. حاول مرة أخرى.", "Could not load history. Please try again.")}
+          </p>
+          <button
+            onClick={() => mutate()}
+            className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-bold hover:opacity-90 transition-opacity"
+          >
+            <RotateCcw size={16} />
+            {t("إعادة المحاولة", "Retry")}
+          </button>
         </div>
+      ) : isFirstLoad ? (
+        <GallerySkeleton />
       ) : allImages.length === 0 ? (
         <div className="text-center py-20">
           <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-surface-2 flex items-center justify-center border border-card-border">
@@ -151,13 +198,25 @@ export function PosterGallery({ category, imageType = "all" }: PosterGalleryProp
           <h3 className="text-lg font-bold text-foreground mb-2">
             {t("لا توجد صور بعد", "No images yet")}
           </h3>
-          <p className="text-muted">
+          <p className="text-muted mb-6">
             {t("ابدأ بإنشاء أول بوستر من صفحة الإنشاء", "Create your first poster from the create page")}
           </p>
+          <Link
+            href="/create"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-primary text-white rounded-xl font-bold hover:opacity-90 transition-opacity"
+          >
+            <Sparkles size={16} />
+            {t("إنشاء بوستر جديد", "Create your first poster")}
+          </Link>
         </div>
       ) : (
         <>
-          <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4 space-y-4">
+          <motion.div
+            variants={STAGGER_CONTAINER}
+            initial="initial"
+            animate="animate"
+            className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4 space-y-4"
+          >
             {allImages.map((image, index) => {
               const formatConfig = FORMAT_CONFIGS[image.format as OutputFormat];
               const categoryLabel = locale === "ar"
@@ -165,20 +224,23 @@ export function PosterGallery({ category, imageType = "all" }: PosterGalleryProp
                 : CATEGORY_LABELS_EN[image.category as Category] ?? image.category;
 
               return (
-                <div
+                <motion.div
                   key={`${image.generationId}-${image.format}-${index}`}
+                  variants={STAGGER_ITEM}
                   className="break-inside-avoid group relative"
                 >
                   <div className="bg-surface-1 rounded-2xl overflow-hidden border border-card-border shadow-sm hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
                     <button
-                      onClick={() => setSelectedImage(image)}
+                      onClick={() => setSelectedIndex(index)}
                       className="w-full block overflow-hidden bg-surface-2/30"
                     >
-                      <img
+                      <Image
                         src={image.url}
                         alt={`${image.businessName} - ${formatConfig?.label ?? image.format}`}
+                        width={image.width || 1080}
+                        height={image.height || 1080}
                         className="w-full h-auto object-cover"
-                        loading="lazy"
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
                       />
                     </button>
 
@@ -220,10 +282,10 @@ export function PosterGallery({ category, imageType = "all" }: PosterGalleryProp
                       </div>
                     </div>
                   </div>
-                </div>
+                </motion.div>
               );
             })}
-          </div>
+          </motion.div>
 
           <div ref={observerTarget} className="py-8">
             {isLoading && offset > 0 && (
@@ -235,14 +297,15 @@ export function PosterGallery({ category, imageType = "all" }: PosterGalleryProp
         </>
       )}
 
-      {selectedImage && (
+      {/* Lightbox Modal */}
+      {selectedImage && selectedIndex !== null && (
         <div
           className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
-          onClick={() => setSelectedImage(null)}
+          onClick={() => setSelectedIndex(null)}
         >
           <div className="relative max-w-5xl max-h-[90vh] w-full">
             <div className="absolute -top-12 left-0 right-0 flex items-center justify-between">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
                 <DownloadBtn
                   url={selectedImage.url}
                   fileName={`${selectedImage.businessName}-${selectedImage.format}`}
@@ -250,18 +313,48 @@ export function PosterGallery({ category, imageType = "all" }: PosterGalleryProp
                   className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-bold transition-all backdrop-blur-sm disabled:opacity-50"
                   onClick={(e) => e.stopPropagation()}
                 />
+                <span className="text-white/70 text-sm">
+                  {selectedIndex + 1} / {allImages.length}
+                </span>
               </div>
               <button
-                onClick={() => setSelectedImage(null)}
+                onClick={() => setSelectedIndex(null)}
                 className="text-white hover:text-muted text-sm font-bold px-4 py-2"
               >
                 {t("إغلاق", "Close")} ✕
               </button>
             </div>
-            <img
+
+            {/* Previous button */}
+            {selectedIndex > 0 && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setSelectedIndex(selectedIndex - 1); }}
+                className="absolute left-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors"
+                aria-label={locale === "ar" ? "السابق" : "Previous"}
+              >
+                <ChevronLeft size={24} />
+              </button>
+            )}
+
+            {/* Next button */}
+            {selectedIndex < allImages.length - 1 && (
+              <button
+                onClick={(e) => { e.stopPropagation(); setSelectedIndex(selectedIndex + 1); }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 z-10 w-10 h-10 flex items-center justify-center rounded-full bg-black/50 hover:bg-black/70 text-white transition-colors"
+                aria-label={locale === "ar" ? "التالي" : "Next"}
+              >
+                <ChevronRight size={24} />
+              </button>
+            )}
+
+            <Image
               src={selectedImage.url}
               alt={selectedImage.businessName}
-              className="w-full h-full object-contain rounded-lg"
+              width={selectedImage.width || 1080}
+              height={selectedImage.height || 1080}
+              className="w-full h-auto object-contain rounded-lg"
+              sizes="100vw"
+              priority
               onClick={(e) => e.stopPropagation()}
             />
             <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 rounded-b-lg">
@@ -299,7 +392,8 @@ function DownloadBtn({
       const blob = await response.blob();
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
-      link.download = `${fileName}.png`;
+      const ext = blob.type === "image/jpeg" ? "jpg" : "png";
+      link.download = `${fileName}.${ext}`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);

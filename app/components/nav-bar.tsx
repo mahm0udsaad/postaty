@@ -67,13 +67,8 @@ function NavBarContent({ locale }: NavBarProps) {
   const nextLocale = locale === "ar" ? "en" : "ar";
 
   const handleGenerateClick = () => {
-    if (!isLoaded) return;
-
-    if (!isSignedIn) {
-      router.push("/sign-in");
-    } else {
-      router.push("/create");
-    }
+    // Always route to /create, regardless of auth status
+    router.push("/create");
   };
 
   const handleLogoClick = (e: MouseEvent<HTMLAnchorElement>) => {

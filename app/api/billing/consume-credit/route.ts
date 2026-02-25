@@ -23,13 +23,46 @@ const CREDIT_THRESHOLDS = [
   },
 ];
 
+function consumeCreditLog(step: string, details?: Record<string, unknown>): void {
+  if (details) {
+    console.info(`[consume-credit] ${step}`, details);
+    return;
+  }
+  console.info(`[consume-credit] ${step}`);
+}
+
 export async function POST(request: Request) {
+  const startedAt = Date.now();
+  const requestId = `cc_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
   try {
+    consumeCreditLog("request_started", { requestId });
+    consumeCreditLog("auth_started", { requestId });
     const user = await requireAuth();
+    consumeCreditLog("auth_done", { requestId, userId: user.id });
     const admin = createAdminClient();
-    const { idempotencyKey, amount: rawAmount } = await request.json();
+
+    let body: unknown;
+    try {
+      consumeCreditLog("parse_body_started", { requestId });
+      body = await request.json();
+      consumeCreditLog("parse_body_done", { requestId });
+    } catch {
+      consumeCreditLog("parse_body_failed", { requestId });
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
+
+    if (!body || typeof body !== "object") {
+      consumeCreditLog("invalid_body_shape", { requestId });
+      return NextResponse.json({ error: "Invalid request body" }, { status: 400 });
+    }
+
+    const parsedBody = body as { idempotencyKey?: unknown; amount?: unknown };
+    const idempotencyKey = parsedBody.idempotencyKey;
+    const rawAmount = parsedBody.amount;
 
     if (!idempotencyKey || typeof idempotencyKey !== "string") {
+      consumeCreditLog("missing_idempotency_key", { requestId });
       return NextResponse.json(
         { error: "idempotencyKey is required" },
         { status: 400 }
@@ -40,26 +73,45 @@ export async function POST(request: Request) {
     const amount = typeof rawAmount === "number" && Number.isInteger(rawAmount) && rawAmount >= 1 && rawAmount <= 10
       ? rawAmount
       : 1;
+    consumeCreditLog("validated_input", { requestId, amount, idempotencyKey });
 
     // Check if already consumed (idempotency)
-    const { data: existingLedger } = await admin
+    consumeCreditLog("idempotency_check_started", { requestId });
+    const { data: existingLedger, error: idempotencyError } = await admin
       .from("credit_ledger")
       .select("id")
       .eq("idempotency_key", idempotencyKey)
-      .single();
+      .maybeSingle();
+    consumeCreditLog("idempotency_check_done", {
+      requestId,
+      alreadyConsumed: Boolean(existingLedger),
+      hasError: Boolean(idempotencyError),
+    });
 
     if (existingLedger) {
+      consumeCreditLog("request_completed", {
+        requestId,
+        alreadyConsumed: true,
+        durationMs: Date.now() - startedAt,
+      });
       return NextResponse.json({ ok: true, alreadyConsumed: true });
     }
 
     // Get billing record
+    consumeCreditLog("billing_fetch_started", { requestId });
     const { data: billing, error: billingError } = await admin
       .from("billing")
       .select("*")
       .eq("user_auth_id", user.id)
       .single();
+    consumeCreditLog("billing_fetch_done", {
+      requestId,
+      hasBilling: Boolean(billing),
+      hasError: Boolean(billingError),
+    });
 
     if (billingError || !billing) {
+      consumeCreditLog("billing_not_found", { requestId });
       return NextResponse.json(
         { error: "Billing record not found" },
         { status: 404 }
@@ -72,6 +124,10 @@ export async function POST(request: Request) {
         billing.status
       )
     ) {
+      consumeCreditLog("subscription_ineligible", {
+        requestId,
+        status: billing.status,
+      });
       return NextResponse.json(
         { error: "Subscription is not active" },
         { status: 403 }
@@ -85,6 +141,12 @@ export async function POST(request: Request) {
     const addonRemaining = billing.addon_credits_balance;
 
     if (monthlyRemaining + addonRemaining < amount) {
+      consumeCreditLog("insufficient_credits", {
+        requestId,
+        monthlyRemaining,
+        addonRemaining,
+        amount,
+      });
       return NextResponse.json(
         { error: "No credits remaining" },
         { status: 403 }
@@ -115,6 +177,11 @@ export async function POST(request: Request) {
     const now = Date.now();
 
     // Update billing record
+    consumeCreditLog("billing_update_started", {
+      requestId,
+      monthlyCreditsUsed,
+      addonCreditsBalance,
+    });
     const { error: updateError } = await admin
       .from("billing")
       .update({
@@ -126,13 +193,16 @@ export async function POST(request: Request) {
 
     if (updateError) {
       console.error("Failed to update billing:", updateError);
+      consumeCreditLog("billing_update_failed", { requestId });
       return NextResponse.json(
         { error: "Failed to consume credit" },
         { status: 500 }
       );
     }
+    consumeCreditLog("billing_update_done", { requestId });
 
     // Insert ledger entry
+    consumeCreditLog("ledger_insert_started", { requestId });
     await admin.from("credit_ledger").insert({
       user_auth_id: user.id,
       billing_id: billing.id,
@@ -144,6 +214,7 @@ export async function POST(request: Request) {
       addon_credits_balance_after: addonCreditsBalance,
       created_at: now,
     });
+    consumeCreditLog("ledger_insert_done", { requestId });
 
     // Check low-credit thresholds and insert notification if needed
     const newMonthlyRemaining = Math.max(
@@ -157,15 +228,25 @@ export async function POST(request: Request) {
     );
 
     if (matchedThreshold) {
+      consumeCreditLog("threshold_matched", {
+        requestId,
+        threshold: matchedThreshold.key,
+        newTotalRemaining,
+      });
       const periodStart = billing.current_period_start ?? 0;
 
       // Check if this threshold notification was already sent this period
+      consumeCreditLog("notification_lookup_started", { requestId });
       const { data: existingNotifications } = await admin
         .from("notifications")
         .select("id, metadata")
         .eq("user_auth_id", user.id)
         .eq("type", "credit")
         .gte("created_at", periodStart);
+      consumeCreditLog("notification_lookup_done", {
+        requestId,
+        existingNotifications: existingNotifications?.length ?? 0,
+      });
 
       const alreadySent = (existingNotifications ?? []).some((n) => {
         if (!n.metadata) return false;
@@ -178,6 +259,7 @@ export async function POST(request: Request) {
       });
 
       if (!alreadySent) {
+        consumeCreditLog("notification_insert_started", { requestId });
         await admin.from("notifications").insert({
           user_auth_id: user.id,
           title: matchedThreshold.title,
@@ -190,9 +272,16 @@ export async function POST(request: Request) {
           }),
           created_at: now,
         });
+        consumeCreditLog("notification_insert_done", { requestId });
       }
     }
 
+    consumeCreditLog("request_completed", {
+      requestId,
+      alreadyConsumed: false,
+      source,
+      durationMs: Date.now() - startedAt,
+    });
     return NextResponse.json({
       ok: true,
       alreadyConsumed: false,
@@ -202,9 +291,15 @@ export async function POST(request: Request) {
     });
   } catch (error) {
     if (error instanceof Error && error.message === "Not authenticated") {
+      consumeCreditLog("request_failed_unauthenticated", { requestId });
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
     console.error("POST /api/billing/consume-credit error:", error);
+    consumeCreditLog("request_failed", {
+      requestId,
+      durationMs: Date.now() - startedAt,
+      message: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

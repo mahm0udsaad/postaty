@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import {
   ChevronDown,
   ChevronUp,
@@ -10,7 +11,7 @@ import {
   Image as ImageIcon,
   Gift,
 } from "lucide-react";
-import { CATEGORY_LABELS, FORMAT_CONFIGS } from "@/lib/constants";
+import { CATEGORY_LABELS, CATEGORY_LABELS_EN, FORMAT_CONFIGS } from "@/lib/constants";
 import type { Category, OutputFormat } from "@/lib/types";
 import { useLocale } from "@/hooks/use-locale";
 
@@ -37,15 +38,6 @@ interface GenerationCardProps {
   generation: GenerationData;
   imageType?: "all" | "pro" | "gift";
 }
-
-const CATEGORY_LABELS_EN: Record<Category, string> = {
-  restaurant: "Restaurants & Cafes",
-  supermarket: "Supermarkets",
-  ecommerce: "E-commerce",
-  services: "Services",
-  fashion: "Fashion",
-  beauty: "Beauty & Care",
-};
 
 export function GenerationCard({ generation, imageType = "all" }: GenerationCardProps) {
   const { locale, t } = useLocale();
@@ -102,7 +94,8 @@ export function GenerationCard({ generation, imageType = "all" }: GenerationCard
       const blob = await response.blob();
       const link = document.createElement("a");
       link.href = URL.createObjectURL(blob);
-      link.download = `poster-${format}.png`;
+      const ext = blob.type === "image/jpeg" ? "jpg" : "png";
+      link.download = `poster-${format}.${ext}`;
       link.click();
       URL.revokeObjectURL(link.href);
     } catch {
@@ -137,10 +130,12 @@ export function GenerationCard({ generation, imageType = "all" }: GenerationCard
         <div className="flex gap-1.5 mr-auto">
           {outputsWithUrls.slice(0, 3).map((output, i) =>
             output.url ? (
-              <img
+              <Image
                 key={i}
                 src={output.url}
                 alt=""
+                width={32}
+                height={32}
                 className="w-8 h-8 rounded-lg object-cover border border-card-border bg-surface-1"
               />
             ) : (
@@ -193,10 +188,13 @@ export function GenerationCard({ generation, imageType = "all" }: GenerationCard
                     </div>
                     <div className="p-4 flex justify-center items-center min-h-[160px] bg-surface-2/30">
                       {output.url ? (
-                        <img
+                        <Image
                           src={output.url}
                           alt={label}
-                          className="max-w-full max-h-[200px] object-contain rounded-lg shadow-sm"
+                          width={output.width || 1080}
+                          height={output.height || 1080}
+                          className="max-w-full max-h-[200px] w-auto h-auto object-contain rounded-lg shadow-sm"
+                          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
                         />
                       ) : (
                         <div className="flex flex-col items-center gap-2 text-muted-foreground">

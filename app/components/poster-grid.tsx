@@ -187,13 +187,17 @@ export function PosterGrid({
           variants={lowMotionMode ? undefined : containerVariants}
           initial={lowMotionMode ? false : "hidden"}
           animate={lowMotionMode ? undefined : "show"}
-          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          className={
+            displayCount === 1
+              ? "flex justify-center"
+              : "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
+          }
         >
           {gridItems.map((index) => {
             const result = results.find((r) => r.designIndex === index);
             if (result) {
               return (
-                <div key={result.designIndex} className="w-full">
+                <div key={result.designIndex} className={displayCount === 1 ? "w-full max-w-md" : "w-full"}>
                   <PosterCard
                     result={result}
                     onSaveAsTemplate={onSaveAsTemplate}
@@ -206,7 +210,7 @@ export function PosterGrid({
 
             if (isLoading) {
               return (
-                <div key={`skeleton-${index}`} className="w-full">
+                <div key={`skeleton-${index}`} className={displayCount === 1 ? "w-full max-w-md" : "w-full"}>
                   <PosterSkeleton
                     index={index}
                     lowMotion={lowMotionMode}
