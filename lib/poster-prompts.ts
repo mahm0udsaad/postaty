@@ -57,7 +57,7 @@ export function getImageDesignSystemPrompt(
   const fmt = FORMAT_CONFIGS[data.format];
   const orientation = fmt.height > fmt.width ? "vertical (portrait)" : fmt.height < fmt.width ? "horizontal (landscape)" : "square";
 
-  let prompt = `You are an expert Arabic graphic designer creating a professional social media marketing poster for MENA audiences.
+  let prompt = `You are an expert graphic designer creating a professional social media marketing poster.
 
 Generate a SINGLE high-quality poster IMAGE (${fmt.width}x${fmt.height} pixels, ${fmt.aspectRatio} ${orientation} format).
 
@@ -77,9 +77,14 @@ ${CAMPAIGN_STYLE_GUIDANCE[data.campaignType] ? `\n${CAMPAIGN_STYLE_GUIDANCE[data
 - Keep the design modern, commercial, and seasonally neutral
 - If reference images contain seasonal motifs, IGNORE those motifs and match only their general layout quality and composition
 `}
+## Language & Text Direction (CRITICAL)
+- Detect the language of the user-provided text (business name, product name, description, CTA, etc.)
+- ALL text on the poster MUST be in the SAME language as the user's input — including CTA buttons, labels, currency text, WhatsApp label, and any other UI text
+- Do NOT mix languages: if the user writes in Hebrew, ALL poster text must be in Hebrew; if in French, ALL in French; if in Arabic, ALL in Arabic; etc.
+- For RTL languages (Arabic, Hebrew): use RTL text direction
+- For LTR languages (English, French, Turkish, etc.): use LTR text direction
+
 ## Design Requirements
-- ALL text in the poster MUST be in Arabic
-- RTL direction for all Arabic text
 - Headlines and prices: LARGE and bold (think billboard)
 - Limit palette to 3-4 colors (plus white/black)
 - Strong visual hierarchy: hero element > price > CTA > details
@@ -136,7 +141,7 @@ ${data.description ? `- Description: ${data.description}` : ""}
 - New Price: ${data.newPrice}
 - Old Price: ${data.oldPrice}
 ${data.offerBadge ? `- Offer Badge: ${data.offerBadge}` : ""}
-${data.deliveryType ? `- Delivery Type: ${data.deliveryType === "free" ? "مجاني (Free)" : "مدفوع (Paid)"}` : ""}
+${data.deliveryType ? `- Delivery Type: ${data.deliveryType === "free" ? "Free" : "Paid"}` : ""}
 ${data.deliveryTime ? `- Delivery Time: ${data.deliveryTime}` : ""}
 ${data.coverageAreas ? `- Coverage Areas: ${data.coverageAreas}` : ""}
 ${data.offerDuration ? `- Offer Duration: ${data.offerDuration}` : ""}
@@ -189,7 +194,7 @@ The product photo and shop logo are provided as images in this message.`;
 - Service Name: ${data.serviceName}
 ${data.serviceDetails ? `- Service Details: ${data.serviceDetails}` : ""}
 - Price: ${data.price}
-- Price Type: ${data.priceType === "fixed" ? "سعر ثابت (Fixed)" : "يبدأ من (Starting from)"}
+- Price Type: ${data.priceType === "fixed" ? "Fixed price" : "Starting from"}
 ${data.executionTime ? `- Execution Time: ${data.executionTime}` : ""}
 ${data.coverageArea ? `- Coverage Area: ${data.coverageArea}` : ""}
 ${data.warranty ? `- Warranty: ${data.warranty}` : ""}
@@ -229,7 +234,7 @@ ${data.benefit ? `- Benefit: ${data.benefit}` : ""}
 - Old Price: ${data.oldPrice}
 ${data.sessionDuration ? `- Session Duration: ${data.sessionDuration}` : ""}
 ${data.suitableFor ? `- Suitable For: ${data.suitableFor}` : ""}
-- Booking: ${data.bookingCondition === "advance" ? "حجز مسبق (Advance booking)" : "متاح الآن (Available now)"}
+- Booking: ${data.bookingCondition === "advance" ? "Advance booking" : "Available now"}
 ${data.offerDuration ? `- Offer Duration: ${data.offerDuration}` : ""}
 - WhatsApp: ${data.whatsapp}
 - CTA: ${data.cta}
@@ -323,11 +328,15 @@ const CATEGORY_LABELS_MAP: Record<Category, { ar: string; en: string }> = {
 
 export function buildMarketingContentSystemPrompt(
   data: PostFormData,
-  language: "ar" | "en"
+  language: string
 ): string {
-  const langInstruction = language === "ar"
+  const langInstruction = language === "auto"
+    ? "CRITICAL: Detect the language of the user's input (business name, product name, description, CTA, etc.) and generate ALL output text in that SAME language. Do NOT default to Arabic or English — match the user's input language exactly. Hashtags can mix the detected language with English."
+    : language === "ar"
     ? "CRITICAL: ALL output text MUST be in Arabic. Hashtags can mix Arabic and English."
-    : "CRITICAL: ALL output text MUST be in English. Hashtags should be in English.";
+    : language === "en"
+    ? "CRITICAL: ALL output text MUST be in English. Hashtags should be in English."
+    : `CRITICAL: ALL output text MUST be in the same language as the user's input. Hashtags can mix with English.`;
 
   return `You are an expert social media marketing strategist specializing in MENA region businesses.
 
@@ -374,7 +383,7 @@ For contentTip: give ONE actionable tip specific to this platform and this busin
 
 export function buildMarketingContentUserMessage(
   data: PostFormData,
-  language: "ar" | "en"
+  language: string
 ): string {
   const businessName = getBusinessNameFromForm(data);
   const productName = getProductNameFromForm(data);
@@ -401,7 +410,7 @@ Product/Service: ${productName}`;
     details += `\nFeatures: ${data.features}`;
   }
 
-  const lang = language === "ar" ? "Arabic" : "English";
+  const lang = language === "auto" ? "the same language as the user's input below" : language === "ar" ? "Arabic" : language === "en" ? "English" : "the same language as the user's input below";
 
   return `Generate optimized marketing captions in ${lang} for all 4 platforms for this business:
 

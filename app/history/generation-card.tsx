@@ -9,10 +9,12 @@ import {
   Tag,
   Image as ImageIcon,
   Gift,
+  Megaphone,
 } from "lucide-react";
 import { CATEGORY_LABELS, FORMAT_CONFIGS } from "@/lib/constants";
 import type { Category, OutputFormat } from "@/lib/types";
 import { useLocale } from "@/hooks/use-locale";
+import { MarketingContentModal } from "./marketing-content-modal";
 
 interface GenerationOutput {
   format: string;
@@ -31,6 +33,7 @@ interface GenerationData {
   outputs: GenerationOutput[];
   created_at: number;
   error?: string;
+  inputs?: string;
 }
 
 interface GenerationCardProps {
@@ -50,6 +53,7 @@ const CATEGORY_LABELS_EN: Record<Category, string> = {
 export function GenerationCard({ generation, imageType = "all" }: GenerationCardProps) {
   const { locale, t } = useLocale();
   const [expanded, setExpanded] = useState(false);
+  const [marketingOutput, setMarketingOutput] = useState<{ url: string } | null>(null);
 
   const STATUS_LABELS: Record<string, { label: string; classes: string }> = {
     complete: {
@@ -207,19 +211,18 @@ export function GenerationCard({ generation, imageType = "all" }: GenerationCard
                     </div>
                     {output.url && (
                       <div className="p-3 border-t border-card-border bg-surface-1 flex gap-2">
-                        {/* Reel generation button temporarily disabled */}
-                        {/* {onTurnIntoReel && !isGiftOutput && (
+                        {generation.inputs && !isGiftOutput && (
                           <button
-                            onClick={() => onTurnIntoReel(output.url!, generation.business_name, generation.product_name, generation.category)}
-                            className="flex-1 flex items-center justify-center gap-2 py-2 bg-purple-500/10 hover:bg-gradient-to-r hover:from-purple-600 hover:to-pink-600 hover:text-white text-purple-600 rounded-lg text-xs font-bold transition-all"
+                            onClick={() => setMarketingOutput({ url: output.url! })}
+                            className="flex-1 flex items-center justify-center gap-2 py-2 bg-accent/5 hover:bg-accent hover:text-white text-accent rounded-lg text-xs font-bold transition-all"
                           >
-                            <Film size={14} />
-                            {t("ريلز", "Reel")}
+                            <Megaphone size={14} />
+                            {t("تسويق", "Marketing")}
                           </button>
-                        )} */}
+                        )}
                         <button
                           onClick={() => handleDownload(output.url!, output.format)}
-                          className="w-full flex items-center justify-center gap-2 py-2 bg-surface-1 border border-card-border text-foreground rounded-lg text-xs font-bold hover:bg-surface-1 hover:text-primary hover:border-primary/20 transition-all shadow-sm"
+                          className="flex-1 flex items-center justify-center gap-2 py-2 bg-surface-1 border border-card-border text-foreground rounded-lg text-xs font-bold hover:bg-surface-1 hover:text-primary hover:border-primary/20 transition-all shadow-sm"
                         >
                           <Download size={14} />
                           {t("تحميل", "Download")}
@@ -232,6 +235,15 @@ export function GenerationCard({ generation, imageType = "all" }: GenerationCard
             </div>
           )}
         </div>
+      )}
+
+      {marketingOutput && generation.inputs && (
+        <MarketingContentModal
+          inputs={generation.inputs}
+          imageUrl={marketingOutput.url}
+          businessName={generation.business_name}
+          onClose={() => setMarketingOutput(null)}
+        />
       )}
     </div>
   );

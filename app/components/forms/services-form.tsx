@@ -47,29 +47,62 @@ export function ServicesForm({ onSubmit, isLoading, defaultValues }: ServicesFor
   const priceTypes = locale === "ar" ? PRICE_TYPES_AR : PRICE_TYPES_EN;
   const ctaOptions = locale === "ar" ? SERVICES_CTA_OPTIONS : CTA_EN;
 
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const serviceTypeMap = locale === "ar"
+    ? { "صيانة": "maintenance", "تنظيف": "cleaning", "سفر": "travel", "رجال أعمال": "business", "استشارات": "consulting" } as const
+    : { Maintenance: "maintenance", Cleaning: "cleaning", Travel: "travel", Business: "business", Consulting: "consulting" } as const;
+
+  const priceTypeMap = locale === "ar"
+    ? { "سعر ثابت": "fixed", "ابتداءً من": "starting-from" } as const
+    : { "Fixed price": "fixed", "Starting from": "starting-from" } as const;
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
+    const newErrors: Record<string, string> = {};
 
-    if (!logo || !serviceImage) return;
+    const businessName = (fd.get("businessName") as string)?.trim();
+    const serviceName = (fd.get("serviceName") as string)?.trim();
+    const price = (fd.get("price") as string)?.trim();
+    const whatsapp = (fd.get("whatsapp") as string)?.trim();
+    const serviceTypeLabel = fd.get("serviceType") as string;
+    const priceTypeLabel = fd.get("priceType") as string;
+    const serviceTypeValue = serviceTypeMap[serviceTypeLabel as keyof typeof serviceTypeMap];
+    const priceTypeValue = priceTypeMap[priceTypeLabel as keyof typeof priceTypeMap];
+
+    if (!businessName) newErrors.businessName = t("اسم الشركة مطلوب", "Business name is required");
+    if (!serviceTypeValue) newErrors.serviceType = t("نوع الخدمة مطلوب", "Service type is required");
+    if (!serviceName) newErrors.serviceName = t("اسم الخدمة مطلوب", "Service name is required");
+    if (!price) newErrors.price = t("السعر مطلوب", "Price is required");
+    if (!priceTypeValue) newErrors.priceType = t("نوع السعر مطلوب", "Price type is required");
+    if (!whatsapp) newErrors.whatsapp = t("رقم الواتساب مطلوب", "WhatsApp number is required");
+    if (!logo) newErrors.logo = t("اللوجو مطلوب", "Logo is required");
+    if (!serviceImage) newErrors.serviceImage = t("صورة الخدمة مطلوبة", "Service image is required");
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+    setErrors({});
 
     onSubmit({
       category: "services",
       campaignType,
-      businessName: fd.get("businessName") as string,
-      logo,
-      serviceImage,
-      serviceType: fd.get("serviceType") as ServicesFormData["serviceType"],
-      serviceName: fd.get("serviceName") as string,
+      businessName: businessName!,
+      logo: logo!,
+      serviceImage: serviceImage!,
+      serviceType: serviceTypeValue as ServicesFormData["serviceType"],
+      serviceName: serviceName!,
       serviceDetails: (fd.get("serviceDetails") as string) || undefined,
-      price: fd.get("price") as string,
-      priceType: fd.get("priceType") as ServicesFormData["priceType"],
+      price: price!,
+      priceType: priceTypeValue as ServicesFormData["priceType"],
       executionTime: (fd.get("executionTime") as string) || undefined,
       coverageArea: (fd.get("coverageArea") as string) || undefined,
       warranty: (fd.get("warranty") as string) || undefined,
       quickFeatures: (fd.get("quickFeatures") as string) || undefined,
       offerDuration: (fd.get("offerDuration") as string) || undefined,
-      whatsapp: fd.get("whatsapp") as string,
+      whatsapp: whatsapp!,
       cta: fd.get("cta") as string,
       format,
     });
@@ -84,28 +117,34 @@ export function ServicesForm({ onSubmit, isLoading, defaultValues }: ServicesFor
           </div>
 
           <div className="space-y-5">
-            <FormInput label={t("اسم الشركة/مقدم الخدمة", "Business/provider name")} name="businessName" placeholder={t("مثال: شركة النجم للصيانة", "Example: Star Maintenance Co.")} required icon={Building2} defaultValue={defaultValues?.businessName} />
-            <FormSelect label={t("نوع الخدمة", "Service type")} name="serviceType" options={serviceTypes} required icon={Briefcase} />
-            <FormInput label={t("اسم الخدمة", "Service name")} name="serviceName" placeholder={t("مثال: صيانة تكييفات", "Example: AC maintenance")} required icon={Wrench} />
+            <FormInput label={t("اسم الشركة/مقدم الخدمة", "Business/provider name")} name="businessName" placeholder={t("مثال: شركة النجم للصيانة", "Example: Star Maintenance Co.")} required icon={Building2} defaultValue={defaultValues?.businessName} error={errors.businessName} />
+            <FormSelect label={t("نوع الخدمة", "Service type")} name="serviceType" options={serviceTypes} required icon={Briefcase} error={errors.serviceType} />
+            <FormInput label={t("اسم الخدمة", "Service name")} name="serviceName" placeholder={t("مثال: صيانة تكييفات", "Example: AC maintenance")} required icon={Wrench} error={errors.serviceName} />
             <FormInput label={t("تفاصيل الخدمة (اختياري)", "Service details (optional)")} name="serviceDetails" placeholder={t("مثال: فحص شامل + تنظيف + تعبئة فريون", "Example: Inspection + Cleaning + Gas refill")} icon={FileText} />
             <div className="grid grid-cols-2 gap-4">
-                <FormInput label={t("السعر", "Price")} name="price" placeholder={t("150 ر.س", "$150")} required icon={Tag} />
-                <FormSelect label={t("نوع السعر", "Price type")} name="priceType" options={priceTypes} required icon={Tag} />
+                <FormInput label={t("السعر", "Price")} name="price" placeholder={t("150 ر.س", "$150")} required icon={Tag} error={errors.price} />
+                <FormSelect label={t("نوع السعر", "Price type")} name="priceType" options={priceTypes} required icon={Tag} error={errors.priceType} />
             </div>
             <FormInput label={t("مدة التنفيذ (اختياري)", "Execution time (optional)")} name="executionTime" placeholder={t("مثال: خلال 24 ساعة", "Example: Within 24 hours")} icon={Clock} />
             <FormInput label={t("منطقة الخدمة (اختياري)", "Coverage area (optional)")} name="coverageArea" placeholder={t("مثال: دبي وضواحيها", "Example: Dubai and nearby areas")} icon={MapPin} />
             <FormInput label={t("ضمان/اعتماد (اختياري)", "Warranty/Certification (optional)")} name="warranty" placeholder={t("مثال: ضمان 6 أشهر", "Example: 6-month warranty")} icon={Shield} />
             <FormInput label={t("مميزات سريعة - 3 كلمات (اختياري)", "Quick features - 3 words (optional)")} name="quickFeatures" placeholder={t("مثال: سرعة - جودة - ضمان", "Example: Speed - Quality - Warranty")} icon={Zap} />
             <FormInput label={t("مدة العرض (اختياري)", "Offer duration (optional)")} name="offerDuration" placeholder={t("مثال: لفترة محدودة", "Example: Limited time")} icon={Calendar} />
-            <FormInput label={t("رقم الواتساب", "WhatsApp number")} name="whatsapp" type="tel" dir="ltr" placeholder="+971xxxxxxxxx" required icon={Phone} className="text-left" />
+            <FormInput label={t("رقم الواتساب", "WhatsApp number")} name="whatsapp" type="tel" dir="ltr" placeholder="+971xxxxxxxxx" required icon={Phone} className="text-left" error={errors.whatsapp} />
             <FormSelect label={t("نص الزر (CTA)", "CTA text")} name="cta" options={ctaOptions} required icon={MousePointerClick} />
           </div>
         </div>
 
         <div className="space-y-8">
           <div className="space-y-6">
-             <ImageUpload label={t("لوجو الشركة", "Company logo")} value={logo} onChange={setLogoOverride} />
-             <ImageUpload label={t("صورة الخدمة", "Service image")} value={serviceImage} onChange={setServiceImage} />
+             <div>
+               <ImageUpload label={t("لوجو الشركة", "Company logo")} value={logo} onChange={setLogoOverride} />
+               {errors.logo && <p className="text-xs text-red-500 font-medium mt-2">{errors.logo}</p>}
+             </div>
+             <div>
+               <ImageUpload label={t("صورة الخدمة", "Service image")} value={serviceImage} onChange={setServiceImage} />
+               {errors.serviceImage && <p className="text-xs text-red-500 font-medium mt-2">{errors.serviceImage}</p>}
+             </div>
           </div>
 
           <div className="pt-4 border-t border-card-border">
@@ -117,7 +156,7 @@ export function ServicesForm({ onSubmit, isLoading, defaultValues }: ServicesFor
       <div className="sticky bottom-24 z-30 bg-gradient-to-t from-background via-background/95 to-transparent pb-4 pt-8 -mx-6 px-6 md:static md:bg-none md:p-0 md:m-0 transition-all">
         <button
           type="submit"
-          disabled={isLoading || !logo || !serviceImage}
+          disabled={isLoading}
           className="w-full py-4 bg-gradient-to-r from-primary to-primary-hover text-white font-bold rounded-xl shadow-xl shadow-primary/25 hover:shadow-primary/40 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:-translate-y-1 active:translate-y-0 text-lg flex items-center justify-center gap-2 group"
         >
           {isLoading ? (

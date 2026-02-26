@@ -6,6 +6,7 @@ import {
   Coins, Bell, MoreHorizontal, UserCog, X, ChevronLeft, ChevronRight,
 } from "lucide-react";
 import { useState, useMemo, useRef, useEffect } from "react";
+import { createPortal } from "react-dom";
 
 const fetcher = (url: string) => fetch(url).then(r => {
   if (!r.ok) throw new Error('API error');
@@ -483,6 +484,8 @@ function ManageRoleModal({
 function ActionsDropdown({ user, currentUserId, onMutate }: { user: ModalUser; currentUserId?: string; onMutate: () => void }) {
   const [open, setOpen] = useState(false);
   const [openUpward, setOpenUpward] = useState(false);
+  const [menuTop, setMenuTop] = useState<number | null>(null);
+  const [menuLeft, setMenuLeft] = useState<number | null>(null);
   const [modal, setModal] = useState<"suspend" | "ban" | "credits" | "notify" | "role" | null>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
 
@@ -513,7 +516,10 @@ function ActionsDropdown({ user, currentUserId, onMutate }: { user: ModalUser; c
       const estimatedMenuHeight = 280;
       const spaceBelow = window.innerHeight - rect.bottom;
       const spaceAbove = rect.top;
-      setOpenUpward(spaceBelow < estimatedMenuHeight && spaceAbove > spaceBelow);
+      const shouldOpenUpward = spaceBelow < estimatedMenuHeight && spaceAbove > spaceBelow;
+      setOpenUpward(shouldOpenUpward);
+      setMenuLeft(rect.left);
+      setMenuTop(shouldOpenUpward ? rect.top - 4 : rect.bottom + 4);
     }
     setOpen((prev) => !prev);
   };
@@ -529,13 +535,14 @@ function ActionsDropdown({ user, currentUserId, onMutate }: { user: ModalUser; c
           <MoreHorizontal size={16} />
         </button>
 
-        {open && (
+        {open && menuTop !== null && menuLeft !== null && createPortal(
           <>
             <div className="fixed inset-0 z-30" onClick={() => setOpen(false)} />
             <div
-              className={`absolute left-0 w-48 bg-surface-1 border border-card-border rounded-xl shadow-xl z-40 overflow-hidden max-h-[70vh] overflow-y-auto ${
-                openUpward ? "bottom-full mb-1" : "top-full mt-1"
+              className={`fixed w-48 bg-surface-1 border border-card-border rounded-xl shadow-xl z-40 overflow-hidden max-h-[70vh] overflow-y-auto ${
+                openUpward ? "-translate-y-full" : ""
               }`}
+              style={{ top: menuTop, left: menuLeft }}
             >
               {/* Manage Role */}
               {!isSelf && (
@@ -597,7 +604,8 @@ function ActionsDropdown({ user, currentUserId, onMutate }: { user: ModalUser; c
                 إرسال إشعار
               </button>
             </div>
-          </>
+          </>,
+          document.body
         )}
       </div>
 

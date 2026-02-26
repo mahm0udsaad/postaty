@@ -116,7 +116,7 @@ export async function generatePosters(
 /** Generate marketing content for all social platforms (called AFTER poster is ready, no credit cost) */
 export async function generateMarketingContentAction(
   data: PostFormData,
-  language: "ar" | "en" = "ar"
+  language: string = "auto"
 ): Promise<{ content: MarketingContentHub; usage: GenerationUsage } | { error: string }> {
   try {
     const supabase = await createClient();

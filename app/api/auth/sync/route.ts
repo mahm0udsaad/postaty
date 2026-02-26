@@ -69,7 +69,7 @@ export async function POST(request: Request) {
         email: email || user.email,
         name: name || "User",
         org_id: org.id,
-        role: "owner",
+        role: "member",
         onboarded: false,
         detected_country: detectedCountry || null,
         pricing_country: detectedCountry || null,

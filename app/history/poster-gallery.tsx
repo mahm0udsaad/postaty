@@ -2,10 +2,11 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import useSWR from "swr";
-import { Download, Calendar, Tag, Loader2, Image as ImageIcon, Gift } from "lucide-react";
+import { Download, Calendar, Tag, Loader2, Image as ImageIcon, Gift, Megaphone } from "lucide-react";
 import { CATEGORY_LABELS, FORMAT_CONFIGS } from "@/lib/constants";
 import type { Category, OutputFormat } from "@/lib/types";
 import { useLocale } from "@/hooks/use-locale";
+import { MarketingContentModal } from "./marketing-content-modal";
 
 const fetcher = (url: string) => fetch(url).then(r => {
   if (!r.ok) throw new Error('API error');
@@ -22,6 +23,7 @@ export interface PosterImageData {
   productName: string;
   category: string;
   createdAt: number;
+  inputs?: string;
 }
 
 interface PosterGalleryProps {
@@ -78,6 +80,7 @@ export function PosterGallery({ category, imageType = "all" }: PosterGalleryProp
 
   const observerTarget = useRef<HTMLDivElement>(null);
   const [selectedImage, setSelectedImage] = useState<PosterImageData | null>(null);
+  const [marketingImage, setMarketingImage] = useState<PosterImageData | null>(null);
 
   const loadMore = useCallback(() => {
     if (hasMore && !isLoading) {
@@ -106,6 +109,7 @@ export function PosterGallery({ category, imageType = "all" }: PosterGalleryProp
             createdAt: typeof generation.created_at === "number"
               ? generation.created_at
               : new Date(generation.created_at).getTime(),
+            inputs: generation.inputs,
           });
         }
       }
@@ -211,22 +215,21 @@ export function PosterGallery({ category, imageType = "all" }: PosterGalleryProp
                       </div>
 
                       <div className="flex items-center gap-2">
-                        {/* Reel generation button temporarily disabled */}
-                        {/* {onTurnIntoReel && image.format !== "gift" && (
+                        {image.inputs && image.format !== "gift" && (
                           <button
                             type="button"
-                            onClick={(e) => { e.stopPropagation(); onTurnIntoReel(image); }}
-                            className="flex-1 flex items-center justify-center gap-2 py-2 bg-purple-500/10 hover:bg-gradient-to-r hover:from-purple-600 hover:to-pink-600 hover:text-white text-purple-600 rounded-lg text-xs font-bold transition-all"
+                            onClick={() => setMarketingImage(image)}
+                            className="flex-1 flex items-center justify-center gap-2 py-2 bg-accent/5 hover:bg-accent hover:text-white text-accent rounded-lg text-xs font-bold transition-all"
                           >
-                            <Film size={14} />
-                            {t("ريلز", "Reel")}
+                            <Megaphone size={14} />
+                            {t("تسويق", "Marketing")}
                           </button>
-                        )} */}
+                        )}
                         <DownloadBtn
                           url={image.url}
                           fileName={`${image.businessName}-${image.format}`}
                           locale={locale}
-                          className="w-full flex items-center justify-center gap-2 py-2 bg-primary/5 hover:bg-primary hover:text-white text-primary rounded-lg text-xs font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                          className="flex-1 flex items-center justify-center gap-2 py-2 bg-primary/5 hover:bg-primary hover:text-white text-primary rounded-lg text-xs font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                         />
                       </div>
                     </div>
@@ -254,16 +257,15 @@ export function PosterGallery({ category, imageType = "all" }: PosterGalleryProp
           <div className="relative max-w-5xl max-h-[90vh] w-full">
             <div className="absolute -top-12 left-0 right-0 flex items-center justify-between">
               <div className="flex items-center gap-2">
-                {/* Reel generation button temporarily disabled */}
-                {/* {onTurnIntoReel && selectedImage.format !== "gift" && (
+                {selectedImage.inputs && selectedImage.format !== "gift" && (
                   <button
-                    onClick={(e) => { e.stopPropagation(); onTurnIntoReel(selectedImage); setSelectedImage(null); }}
-                    className="flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-lg text-sm font-bold transition-all backdrop-blur-sm shadow-lg shadow-purple-500/25"
+                    onClick={(e) => { e.stopPropagation(); setMarketingImage(selectedImage); setSelectedImage(null); }}
+                    className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-bold transition-all backdrop-blur-sm"
                   >
-                    <Film size={16} />
-                    {t("تحويل إلى ريلز", "Turn into Reel")}
+                    <Megaphone size={16} />
+                    {t("محتوى تسويقي", "Marketing Content")}
                   </button>
-                )} */}
+                )}
                 <DownloadBtn
                   url={selectedImage.url}
                   fileName={`${selectedImage.businessName}-${selectedImage.format}`}
@@ -291,6 +293,15 @@ export function PosterGallery({ category, imageType = "all" }: PosterGalleryProp
             </div>
           </div>
         </div>
+      )}
+
+      {marketingImage && marketingImage.inputs && (
+        <MarketingContentModal
+          inputs={marketingImage.inputs}
+          imageUrl={marketingImage.url}
+          businessName={marketingImage.businessName}
+          onClose={() => setMarketingImage(null)}
+        />
       )}
     </div>
   );

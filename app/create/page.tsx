@@ -185,7 +185,7 @@ function CreatePageContent() {
   const [marketingContent, setMarketingContent] = useState<MarketingContentHubType | null>(null);
   const [marketingContentStatus, setMarketingContentStatus] = useState<MarketingContentStatus>("idle");
   const [marketingContentError, setMarketingContentError] = useState<string>();
-  const [marketingLanguage, setMarketingLanguage] = useState<"ar" | "en">("ar");
+  const [marketingLanguage, setMarketingLanguage] = useState<string>("auto");
   const [defaultLogo, setDefaultLogo] = useState<string | null>(null);
   const generatingRef = useRef(false);
 
@@ -299,7 +299,7 @@ function CreatePageContent() {
   };
 
   // Marketing content generation (called after poster completes)
-  const fetchMarketingContent = async (data: PostFormData, lang: "ar" | "en") => {
+  const fetchMarketingContent = async (data: PostFormData, lang: string) => {
     setMarketingContentStatus("loading");
     setMarketingContentError(undefined);
     try {
@@ -320,7 +320,7 @@ function CreatePageContent() {
     }
   };
 
-  const handleMarketingLanguageToggle = (lang: "ar" | "en") => {
+  const handleMarketingLanguageToggle = (lang: string) => {
     if (lang === marketingLanguage) return;
     setMarketingLanguage(lang);
     if (lastSubmittedData && marketingContentStatus !== "idle") {

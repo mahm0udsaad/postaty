@@ -20,6 +20,7 @@ import {
   ImageIcon,
   Tag,
   Mail,
+  Globe,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -39,6 +40,7 @@ const ADMIN_NAV = [
   { href: "/admin/feedback", label: "التقييمات", icon: ThumbsUp },
   { href: "/admin/showcase", label: "المعرض", icon: ImageIcon },
   { href: "/admin/emails", label: "البريد", icon: Mail },
+  { href: "/admin/regional", label: "الإقليمية", icon: Globe },
 ] as const;
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

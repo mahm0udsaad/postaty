@@ -41,33 +41,55 @@ export function FashionForm({ onSubmit, isLoading, defaultValues }: FashionFormP
   const postTypeOptions = locale === "ar" ? POST_TYPE_AR : POST_TYPE_EN;
   const ctaOptions = locale === "ar" ? FASHION_CTA_OPTIONS : CTA_EN;
 
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const postTypeMap = locale === "ar"
+    ? { "منتج": "product", "خصم": "discount", "كوليكشن": "collection" } as const
+    : { Product: "product", Discount: "discount", Collection: "collection" } as const;
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
+    const newErrors: Record<string, string> = {};
 
-    if (!logo || !productImage) return;
+    const brandName = (fd.get("brandName") as string)?.trim();
+    const itemName = (fd.get("itemName") as string)?.trim();
+    const newPrice = (fd.get("newPrice") as string)?.trim();
+    const oldPrice = (fd.get("oldPrice") as string)?.trim();
+    const whatsapp = (fd.get("whatsapp") as string)?.trim();
+
+    if (!brandName) newErrors.brandName = t("اسم البراند مطلوب", "Brand name is required");
+    if (!itemName) newErrors.itemName = t("اسم القطعة مطلوب", "Item name is required");
+    if (!newPrice) newErrors.newPrice = t("السعر الجديد مطلوب", "New price is required");
+    if (!oldPrice) newErrors.oldPrice = t("السعر القديم مطلوب", "Old price is required");
+    if (!whatsapp) newErrors.whatsapp = t("رقم الواتساب مطلوب", "WhatsApp number is required");
+    if (!logo) newErrors.logo = t("اللوجو مطلوب", "Logo is required");
+    if (!productImage) newErrors.productImage = t("صورة المنتج مطلوبة", "Product image is required");
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+    setErrors({});
 
     const postTypeLabel = fd.get("postType") as string;
-    const postTypeMap = locale === "ar"
-      ? { "منتج": "product", "خصم": "discount", "كوليكشن": "collection" }
-      : { Product: "product", Discount: "discount", Collection: "collection" };
 
     onSubmit({
       category: "fashion",
       campaignType,
-      brandName: fd.get("brandName") as string,
-      logo,
-      productImage,
+      brandName: brandName!,
+      logo: logo!,
+      productImage: productImage!,
       postType: (postTypeMap[postTypeLabel as keyof typeof postTypeMap] as FashionFormData["postType"]) ?? "product",
-      itemName: fd.get("itemName") as string,
+      itemName: itemName!,
       description: (fd.get("description") as string) || undefined,
-      newPrice: fd.get("newPrice") as string,
-      oldPrice: fd.get("oldPrice") as string,
+      newPrice: newPrice!,
+      oldPrice: oldPrice!,
       availableSizes: (fd.get("availableSizes") as string) || undefined,
       availableColors: (fd.get("availableColors") as string) || undefined,
       offerNote: (fd.get("offerNote") as string) || undefined,
       offerDuration: (fd.get("offerDuration") as string) || undefined,
-      whatsapp: fd.get("whatsapp") as string,
+      whatsapp: whatsapp!,
       cta: fd.get("cta") as string,
       format,
     });
@@ -89,6 +111,7 @@ export function FashionForm({ onSubmit, isLoading, defaultValues }: FashionFormP
                 required
                 icon={Store}
                 defaultValue={defaultValues?.businessName}
+                error={errors.brandName}
             />
 
             <FormSelect
@@ -105,6 +128,7 @@ export function FashionForm({ onSubmit, isLoading, defaultValues }: FashionFormP
                 placeholder={t("مثال: فستان سهرة", "Example: Evening dress")}
                 required
                 icon={Shirt}
+                error={errors.itemName}
             />
 
             <FormInput
@@ -121,6 +145,7 @@ export function FashionForm({ onSubmit, isLoading, defaultValues }: FashionFormP
                     placeholder={t("199 ر.س", "$199")}
                     required
                     icon={Tag}
+                    error={errors.newPrice}
                 />
                 <FormInput
                     label={t("السعر القديم", "Old price")}
@@ -128,6 +153,7 @@ export function FashionForm({ onSubmit, isLoading, defaultValues }: FashionFormP
                     placeholder={t("350 ر.س", "$350")}
                     required
                     icon={Tag}
+                    error={errors.oldPrice}
                 />
             </div>
 
@@ -168,6 +194,7 @@ export function FashionForm({ onSubmit, isLoading, defaultValues }: FashionFormP
                 required
                 icon={Phone}
                 className="text-left"
+                error={errors.whatsapp}
             />
 
             <FormSelect
@@ -182,8 +209,14 @@ export function FashionForm({ onSubmit, isLoading, defaultValues }: FashionFormP
 
         <div className="space-y-8">
           <div className="space-y-6">
-             <ImageUpload label={t("لوجو البراند", "Brand logo")} value={logo} onChange={setLogoOverride} />
-             <ImageUpload label={t("صورة المنتج", "Product image")} value={productImage} onChange={setProductImage} />
+             <div>
+               <ImageUpload label={t("لوجو البراند", "Brand logo")} value={logo} onChange={setLogoOverride} />
+               {errors.logo && <p className="text-xs text-red-500 font-medium mt-2">{errors.logo}</p>}
+             </div>
+             <div>
+               <ImageUpload label={t("صورة المنتج", "Product image")} value={productImage} onChange={setProductImage} />
+               {errors.productImage && <p className="text-xs text-red-500 font-medium mt-2">{errors.productImage}</p>}
+             </div>
           </div>
 
           <div className="pt-4 border-t border-card-border">
@@ -195,7 +228,7 @@ export function FashionForm({ onSubmit, isLoading, defaultValues }: FashionFormP
       <div className="sticky bottom-24 z-30 bg-gradient-to-t from-background via-background/95 to-transparent pb-4 pt-8 -mx-6 px-6 md:static md:bg-none md:p-0 md:m-0 transition-all">
         <button
           type="submit"
-          disabled={isLoading || !logo || !productImage}
+          disabled={isLoading}
           className="w-full py-4 bg-gradient-to-r from-primary to-primary-hover text-white font-bold rounded-xl shadow-xl shadow-primary/25 hover:shadow-primary/40 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:-translate-y-1 active:translate-y-0 text-lg flex items-center justify-center gap-2 group"
         >
           {isLoading ? (

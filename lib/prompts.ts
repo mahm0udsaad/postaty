@@ -3,14 +3,18 @@ import { DEFAULT_NEGATIVE_PROMPTS } from "./constants";
 
 // ── Base Instructions ──────────────────────────────────────────────
 
-const BASE_INSTRUCTIONS = `You are an expert graphic designer specializing in social media marketing posters for businesses in the MENA region (Middle East & North Africa).
+const BASE_INSTRUCTIONS = `You are an expert graphic designer specializing in social media marketing posters.
 
 Your task is to create a detailed image generation prompt that will produce a professional, eye-catching social media offer poster.
 
 CRITICAL REQUIREMENTS:
-- All text on the poster MUST be in Arabic (RTL)
+- Detect the language of the user's input (business name, product name, description, CTA, etc.)
+- ALL text on the poster MUST be in the SAME language as the user's input — including CTA buttons, labels, currency text, WhatsApp label, and any other UI text
+- Do NOT mix languages: if the user writes in Hebrew, ALL poster text must be in Hebrew; if in French, ALL in French; if in the user's language, ALL in the user's language; etc.
+- For RTL languages (Arabic, Hebrew): use RTL text direction
+- For LTR languages (English, French, Turkish, etc.): use LTR text direction
 - The poster should look like a professional marketing material
-- Use vibrant, attention-grabbing colors typical of MENA market advertising
+- Use vibrant, attention-grabbing colors
 - The product/meal image provided by the user must be the focal point
 - The business logo must be visible and well-placed
 - Price must be large and prominent with a bold design
@@ -31,9 +35,9 @@ STYLE: Warm, appetizing food photography style. Rich reds, golds, and warm tones
 
 The poster should include:
 1. Restaurant logo (top area)
-2. Restaurant name in bold Arabic
+2. Restaurant name in bold text
 3. Meal image (center, large and appetizing)
-4. Meal name in Arabic
+4. Meal name in the user's language
 5. New price (very large, bold, in a bright circle or badge)
 6. Old price (smaller, with strikethrough)
 7. Offer badge if provided (discount/new/bestseller)
@@ -48,9 +52,9 @@ STYLE: Clean, organized retail aesthetic. Bright yellows, reds, and greens typic
 
 The poster should include:
 1. Supermarket logo (top area)
-2. Supermarket name in bold Arabic
+2. Supermarket name in bold text
 3. Product image(s) (center, well-arranged)
-4. Product name in Arabic
+4. Product name in the user's language
 5. New price (very large, bold, in a price tag style)
 6. Old price (smaller, with strikethrough)
 7. Discount percentage badge
@@ -65,9 +69,9 @@ STYLE: Modern e-commerce aesthetic. Clean whites, brand-colored accents, profess
 
 The poster should include:
 1. Shop logo (top area)
-2. Shop name in Arabic
+2. Shop name in the user's language
 3. Product image (center, clean background)
-4. Product name and key features in Arabic
+4. Product name and key features in the user's language
 5. New price (large, bold) and old price (strikethrough)
 6. Availability status badge
 7. Shipping/delivery duration info
@@ -81,9 +85,9 @@ STYLE: Professional, trust-building aesthetic. Clean blues, navies, whites, and 
 
 The poster should include:
 1. Business logo (top area)
-2. Business name in bold Arabic
+2. Business name in bold text
 3. Service type badge
-4. Service name and details in Arabic
+4. Service name and details in the user's language
 5. Price (with "fixed" or "starting from" indicator)
 6. Execution time/visit duration
 7. Coverage area
@@ -99,9 +103,9 @@ STYLE: Elegant editorial aesthetic. Soft blacks, blush pinks, rose gold accents,
 
 The poster should include:
 1. Brand logo (top area)
-2. Brand name in stylish Arabic typography
+2. Brand name in stylish typography
 3. Product image (center, fashion-forward presentation)
-4. Item name in Arabic
+4. Item name in the user's language
 5. New price (large, bold) and old price (strikethrough)
 6. Available sizes line
 7. Available colors line
@@ -116,9 +120,9 @@ STYLE: Soft, feminine, spa-like aesthetic. Pinks, golds, soft lilacs, creamy whi
 
 The poster should include:
 1. Salon/spa logo (top area)
-2. Salon/spa name in elegant Arabic
+2. Salon/spa name in elegant text
 3. Service/product image (center, glowing presentation)
-4. Service/product name in Arabic
+4. Service/product name in the user's language
 5. Key benefit/result (e.g., moisturizing + glow)
 6. New price (large, bold) and old price (strikethrough)
 7. Session duration or product size
@@ -238,7 +242,7 @@ ${data.description ? `- Description: ${data.description}` : ""}
 - New Price: ${data.newPrice}
 - Old Price: ${data.oldPrice}
 ${data.offerBadge ? `- Offer Badge: ${data.offerBadge}` : ""}
-${data.deliveryType ? `- Delivery: ${data.deliveryType === "free" ? "مجاني" : "مدفوع"}` : ""}
+${data.deliveryType ? `- Delivery: ${data.deliveryType === "free" ? "Free" : "Paid"}` : ""}
 ${data.deliveryTime ? `- Delivery Time: ${data.deliveryTime}` : ""}
 ${data.coverageAreas ? `- Coverage Areas: ${data.coverageAreas}` : ""}
 ${data.offerDuration ? `- Offer Duration: ${data.offerDuration}` : ""}
@@ -290,7 +294,7 @@ The user has uploaded the product image and shop logo. Describe the poster incor
 - Service Type: ${data.serviceType}
 - Service Name: ${data.serviceName}
 ${data.serviceDetails ? `- Details: ${data.serviceDetails}` : ""}
-- Price: ${data.price} (${data.priceType === "fixed" ? "سعر ثابت" : "ابتداءً من"})
+- Price: ${data.price} (${data.priceType === "fixed" ? "Fixed price" : "Starting from"})
 ${data.executionTime ? `- Execution Time: ${data.executionTime}` : ""}
 ${data.coverageArea ? `- Coverage Area: ${data.coverageArea}` : ""}
 ${data.warranty ? `- Warranty: ${data.warranty}` : ""}
@@ -330,7 +334,7 @@ ${data.benefit ? `- Benefit: ${data.benefit}` : ""}
 - Old Price: ${data.oldPrice}
 ${data.sessionDuration ? `- Session Duration: ${data.sessionDuration}` : ""}
 ${data.suitableFor ? `- Suitable For: ${data.suitableFor}` : ""}
-- Booking: ${data.bookingCondition === "advance" ? "حجز مسبق" : "متاح فوراً"}
+- Booking: ${data.bookingCondition === "advance" ? "Advance booking" : "Available now"}
 ${data.offerDuration ? `- Offer Duration: ${data.offerDuration}` : ""}
 - WhatsApp: ${data.whatsapp}
 - CTA: ${data.cta}

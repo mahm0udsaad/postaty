@@ -385,7 +385,7 @@ export interface PlatformContent {
 
 export interface MarketingContentHub {
   contents: Record<SocialPlatform, PlatformContent>;
-  language: "ar" | "en";
+  language: string;
   generatedAt: number;
 }
 

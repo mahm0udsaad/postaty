@@ -32,33 +32,55 @@ export function SupermarketForm({ onSubmit, isLoading, defaultValues }: Supermar
   const postTypeOptions = locale === "ar" ? POST_TYPE_AR : POST_TYPE_EN;
   const ctaOptions = locale === "ar" ? SUPERMARKET_CTA_OPTIONS : CTA_EN;
 
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const postTypeMap = locale === "ar"
+    ? { "منتج": "product", "عروض يومية": "daily-offers", "تخفيضات قسم": "section-sales" } as const
+    : { Product: "product", "Daily Offers": "daily-offers", "Section Sales": "section-sales" } as const;
+
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const fd = new FormData(e.currentTarget);
+    const newErrors: Record<string, string> = {};
 
-    if (!logo || productImages.length === 0) return;
+    const supermarketName = (fd.get("supermarketName") as string)?.trim();
+    const productName = (fd.get("productName") as string)?.trim();
+    const newPrice = (fd.get("newPrice") as string)?.trim();
+    const oldPrice = (fd.get("oldPrice") as string)?.trim();
+    const whatsapp = (fd.get("whatsapp") as string)?.trim();
+
+    if (!supermarketName) newErrors.supermarketName = t("اسم السوبر ماركت مطلوب", "Supermarket name is required");
+    if (!productName) newErrors.productName = t("اسم المنتج مطلوب", "Product name is required");
+    if (!newPrice) newErrors.newPrice = t("السعر الجديد مطلوب", "New price is required");
+    if (!oldPrice) newErrors.oldPrice = t("السعر القديم مطلوب", "Old price is required");
+    if (!whatsapp) newErrors.whatsapp = t("رقم الواتساب مطلوب", "WhatsApp number is required");
+    if (!logo) newErrors.logo = t("اللوجو مطلوب", "Logo is required");
+    if (productImages.length === 0) newErrors.productImages = t("صورة المنتج مطلوبة", "At least one product image is required");
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      return;
+    }
+    setErrors({});
 
     const postTypeLabel = fd.get("postType") as string;
-    const postTypeMap = locale === "ar"
-      ? { "منتج": "product", "عروض يومية": "daily-offers", "تخفيضات قسم": "section-sales" }
-      : { Product: "product", "Daily Offers": "daily-offers", "Section Sales": "section-sales" };
 
     onSubmit({
       category: "supermarket",
       campaignType,
-      supermarketName: fd.get("supermarketName") as string,
-      logo,
+      supermarketName: supermarketName!,
+      logo: logo!,
       productImages,
       postType: (postTypeMap[postTypeLabel as keyof typeof postTypeMap] as SupermarketFormData["postType"]) ?? "product",
-      productName: fd.get("productName") as string,
+      productName: productName!,
       quantity: (fd.get("quantity") as string) || undefined,
-      newPrice: fd.get("newPrice") as string,
-      oldPrice: fd.get("oldPrice") as string,
+      newPrice: newPrice!,
+      oldPrice: oldPrice!,
       discountPercentage: (fd.get("discountPercentage") as string) || undefined,
       offerLimit: (fd.get("offerLimit") as string) || undefined,
       offerDuration: (fd.get("offerDuration") as string) || undefined,
       expiryDate: (fd.get("expiryDate") as string) || undefined,
-      whatsapp: fd.get("whatsapp") as string,
+      whatsapp: whatsapp!,
       cta: fd.get("cta") as string,
       format,
     });
@@ -73,13 +95,13 @@ export function SupermarketForm({ onSubmit, isLoading, defaultValues }: Supermar
           </div>
 
           <div className="space-y-5">
-            <FormInput label={t("اسم السوبر ماركت", "Supermarket name")} name="supermarketName" placeholder={t("مثال: كارفور", "Example: Carrefour")} required icon={Store} defaultValue={defaultValues?.businessName} />
+            <FormInput label={t("اسم السوبر ماركت", "Supermarket name")} name="supermarketName" placeholder={t("مثال: كارفور", "Example: Carrefour")} required icon={Store} defaultValue={defaultValues?.businessName} error={errors.supermarketName} />
             <FormSelect label={t("نوع البوست", "Post type")} name="postType" options={postTypeOptions} required icon={FileText} />
-            <FormInput label={t("اسم المنتج", "Product name")} name="productName" placeholder={t("مثال: شيبسي ليز", "Example: Chips")} required icon={ShoppingBasket} />
+            <FormInput label={t("اسم المنتج", "Product name")} name="productName" placeholder={t("مثال: شيبسي ليز", "Example: Chips")} required icon={ShoppingBasket} error={errors.productName} />
             <FormInput label={t("الكمية / الوزن (اختياري)", "Quantity / weight (optional)")} name="quantity" placeholder={t("مثال: 200 جرام أو 6 حبات", "Example: 200g or 6 pieces")} icon={Scale} />
             <div className="grid grid-cols-2 gap-4">
-                <FormInput label={t("السعر الجديد", "New price")} name="newPrice" placeholder={t("15 ر.س", "$15")} required icon={Tag} />
-                <FormInput label={t("السعر القديم", "Old price")} name="oldPrice" placeholder={t("25 ر.س", "$25")} required icon={Tag} />
+                <FormInput label={t("السعر الجديد", "New price")} name="newPrice" placeholder={t("15 ر.س", "$15")} required icon={Tag} error={errors.newPrice} />
+                <FormInput label={t("السعر القديم", "Old price")} name="oldPrice" placeholder={t("25 ر.س", "$25")} required icon={Tag} error={errors.oldPrice} />
             </div>
             <FormInput label={t("نسبة الخصم (اختياري)", "Discount percentage (optional)")} name="discountPercentage" placeholder={t("مثال: 40", "Example: 40")} icon={Percent} />
             <FormInput label={t("حد العرض (اختياري)", "Offer limit (optional)")} name="offerLimit" placeholder={t("مثال: 3 قطع لكل عميل", "Example: 3 units per customer")} icon={Package} />
@@ -87,15 +109,21 @@ export function SupermarketForm({ onSubmit, isLoading, defaultValues }: Supermar
                 <FormInput label={t("مدة العرض (اختياري)", "Offer duration (optional)")} name="offerDuration" placeholder={t("مثال: حتى نفاذ الكمية", "Example: Until out of stock")} icon={Clock} />
                 <FormInput label={t("تاريخ الانتهاء (اختياري)", "Expiry date (optional)")} name="expiryDate" placeholder={t("مثال: 2025/03/15", "Example: 2025/03/15")} icon={CalendarDays} />
             </div>
-            <FormInput label={t("رقم الواتساب", "WhatsApp number")} name="whatsapp" type="tel" dir="ltr" placeholder="+971xxxxxxxxx" required icon={Phone} className="text-left" />
+            <FormInput label={t("رقم الواتساب", "WhatsApp number")} name="whatsapp" type="tel" dir="ltr" placeholder="+971xxxxxxxxx" required icon={Phone} className="text-left" error={errors.whatsapp} />
             <FormSelect label={t("نص الزر (CTA)", "CTA text")} name="cta" options={ctaOptions} required icon={MousePointerClick} />
           </div>
         </div>
 
         <div className="space-y-8">
           <div className="space-y-6">
-             <ImageUpload label={t("لوجو السوبر ماركت", "Supermarket logo")} value={logo} onChange={setLogoOverride} />
-             <MultiImageUpload label={t("صور المنتج (يمكن رفع أكثر من صورة)", "Product images (multiple allowed)")} values={productImages} onChange={setProductImages} />
+             <div>
+               <ImageUpload label={t("لوجو السوبر ماركت", "Supermarket logo")} value={logo} onChange={setLogoOverride} />
+               {errors.logo && <p className="text-xs text-red-500 font-medium mt-2">{errors.logo}</p>}
+             </div>
+             <div>
+               <MultiImageUpload label={t("صور المنتج (يمكن رفع أكثر من صورة)", "Product images (multiple allowed)")} values={productImages} onChange={setProductImages} />
+               {errors.productImages && <p className="text-xs text-red-500 font-medium mt-2">{errors.productImages}</p>}
+             </div>
           </div>
 
           <div className="pt-4 border-t border-card-border">
@@ -107,7 +135,7 @@ export function SupermarketForm({ onSubmit, isLoading, defaultValues }: Supermar
       <div className="sticky bottom-24 z-30 bg-gradient-to-t from-background via-background/95 to-transparent pb-4 pt-8 -mx-6 px-6 md:static md:bg-none md:p-0 md:m-0 transition-all">
         <button
           type="submit"
-          disabled={isLoading || !logo || productImages.length === 0}
+          disabled={isLoading}
           className="w-full py-4 bg-gradient-to-r from-primary to-primary-hover text-white font-bold rounded-xl shadow-xl shadow-primary/25 hover:shadow-primary/40 disabled:opacity-50 disabled:cursor-not-allowed transition-all transform hover:-translate-y-1 active:translate-y-0 text-lg flex items-center justify-center gap-2 group"
         >
           {isLoading ? (

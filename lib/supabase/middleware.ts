@@ -14,6 +14,7 @@ const PROTECTED_PATHS = [
   "/history",
   "/settings",
   "/admin",
+  "/regional",
   "/checkout",
   "/onboarding",
   "/notifications",

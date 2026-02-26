@@ -318,7 +318,7 @@ export const VOICE_COUNTRIES = [
 export const DEFAULT_NEGATIVE_PROMPTS = [
   "no watermarks",
   "no stock photo badges",
-  "no English text unless specified",
+  "no mixed languages — all text must be in one consistent language matching the user input",
   "no low-resolution elements",
   "no clip art",
   "no cartoonish style",

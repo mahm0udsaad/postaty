@@ -105,6 +105,17 @@ const PLATFORM_CONFIG: Record<SocialPlatform, {
   },
 };
 
+// ── RTL Detection Helper ──────────────────────────────────────────
+
+const RTL_LANGUAGES = ["ar", "he", "fa", "ur"];
+const RTL_CHAR_RE = /[\u0590-\u05FF\u0600-\u06FF\u0750-\u077F\u08A0-\u08FF\uFB50-\uFDFF\uFE70-\uFEFF]/;
+
+function isRtlLanguage(language: string, sampleText?: string): boolean {
+  if (RTL_LANGUAGES.includes(language)) return true;
+  if (language === "auto" && sampleText) return RTL_CHAR_RE.test(sampleText);
+  return false;
+}
+
 // ── Main Component ─────────────────────────────────────────────────
 
 interface MarketingContentHubProps {
@@ -113,7 +124,7 @@ interface MarketingContentHubProps {
   posterImageBase64?: string;
   businessName?: string;
   onGenerate: () => void;
-  onLanguageToggle: (lang: "ar" | "en") => void;
+  onLanguageToggle: (lang: string) => void;
   onRetry: () => void;
   error?: string;
 }
@@ -155,7 +166,7 @@ export function MarketingContentHub({
 
         {/* Language Toggle */}
         <LanguageToggle
-          language={content?.language ?? "ar"}
+          language={content?.language ?? "auto"}
           onToggle={onLanguageToggle}
           disabled={status === "loading"}
         />
@@ -244,7 +255,7 @@ export function MarketingContentHub({
                   platform={platform}
                   posterImageBase64={posterImageBase64}
                   businessName={businessName}
-                  isRtl={content.language === "ar"}
+                  isRtl={isRtlLanguage(content.language, content.contents[platform].caption)}
                 />
               </motion.div>
             ))}
@@ -262,36 +273,34 @@ function LanguageToggle({
   onToggle,
   disabled,
 }: {
-  language: "ar" | "en";
-  onToggle: (lang: "ar" | "en") => void;
+  language: string;
+  onToggle: (lang: string) => void;
   disabled: boolean;
 }) {
+  const { t } = useLocale();
+  const options: { value: string; label: string }[] = [
+    { value: "auto", label: t("تلقائي", "Auto") },
+    { value: "ar", label: "عربي" },
+    { value: "en", label: "English" },
+  ];
+
   return (
     <div className="flex items-center gap-1 p-1 bg-surface-2 rounded-full border border-card-border">
-      <button
-        type="button"
-        onClick={() => onToggle("ar")}
-        disabled={disabled}
-        className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${
-          language === "ar"
-            ? "bg-primary text-primary-foreground shadow-sm"
-            : "text-muted hover:text-foreground"
-        } disabled:opacity-50`}
-      >
-        عربي
-      </button>
-      <button
-        type="button"
-        onClick={() => onToggle("en")}
-        disabled={disabled}
-        className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${
-          language === "en"
-            ? "bg-primary text-primary-foreground shadow-sm"
-            : "text-muted hover:text-foreground"
-        } disabled:opacity-50`}
-      >
-        English
-      </button>
+      {options.map((opt) => (
+        <button
+          key={opt.value}
+          type="button"
+          onClick={() => onToggle(opt.value)}
+          disabled={disabled}
+          className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${
+            language === opt.value
+              ? "bg-primary text-primary-foreground shadow-sm"
+              : "text-muted hover:text-foreground"
+          } disabled:opacity-50`}
+        >
+          {opt.label}
+        </button>
+      ))}
       {disabled && <Loader2 size={14} className="animate-spin text-muted mx-1" />}
     </div>
   );

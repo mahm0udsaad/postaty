@@ -88,13 +88,16 @@ async function loadAndCacheDir(dirName: string): Promise<Buffer[]> {
 /**
  * Select random inspiration images for a category.
  * For seasonal campaigns, loads from the seasonal directory if available.
+ * When a subType is provided (e.g. serviceType or postType), tries the
+ * sub-folder first (e.g. services/travel/) and falls back to the parent.
  * First call reads ALL images from disk and caches them.
  * Subsequent calls shuffle the cached array and pick `count` items — zero I/O.
  */
 export async function getInspirationImages(
   category: Category,
   count: number = MAX_IMAGES,
-  campaignType: CampaignType = "standard"
+  campaignType: CampaignType = "standard",
+  subType?: string
 ): Promise<InspirationImage[]> {
   // Determine which directory to load from
   let dirName = CATEGORY_DIRS[category];
@@ -105,7 +108,14 @@ export async function getInspirationImages(
     }
   }
 
-  const allBuffers = await loadAndCacheDir(dirName);
+  // Try sub-type directory first (e.g. services/travel/), fall back to parent
+  let allBuffers: Buffer[] = [];
+  if (subType) {
+    allBuffers = await loadAndCacheDir(`${dirName}/${subType}`);
+  }
+  if (allBuffers.length === 0) {
+    allBuffers = await loadAndCacheDir(dirName);
+  }
   if (allBuffers.length === 0) return [];
 
   // Fisher-Yates shuffle on indices to avoid mutating the cache

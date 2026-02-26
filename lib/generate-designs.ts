@@ -90,6 +90,17 @@ async function compressLogoFromDataUrl(
   return { image: compressed, mediaType: "image/png" };
 }
 
+function extractSubType(data: PostFormData): string | undefined {
+  switch (data.category) {
+    case "services": return data.serviceType;
+    case "restaurant": return data.postType;
+    case "supermarket": return data.postType;
+    case "ecommerce": return data.postType;
+    case "fashion": return data.postType;
+    case "beauty": return data.postType;
+  }
+}
+
 function extractFormImages(data: PostFormData): { product: string; logo: string } {
   switch (data.category) {
     case "restaurant":
@@ -126,7 +137,8 @@ export async function generatePoster(
   userMessage += `\n\nMake this design unique, bold, and visually striking.`;
 
   // Load inspiration images and extract form images
-  const inspirationImages = await getInspirationImages(data.category, undefined, data.campaignType);
+  const subType = extractSubType(data);
+  const inspirationImages = await getInspirationImages(data.category, undefined, data.campaignType, subType);
   const formImages = extractFormImages(data);
 
   const formatConfig = FORMAT_CONFIGS[data.format];
@@ -453,7 +465,7 @@ function parseMarketingContentJson(text: string): Record<string, { caption: stri
 
 export async function generateMarketingContent(
   data: PostFormData,
-  language: "ar" | "en" = "ar"
+  language: string = "auto"
 ): Promise<MarketingContentHub & { usage: GenerationUsage }> {
   const systemPrompt = buildMarketingContentSystemPrompt(data, language) + MARKETING_JSON_INSTRUCTION;
   const userMessage = buildMarketingContentUserMessage(data, language);
