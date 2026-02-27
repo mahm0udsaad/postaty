@@ -162,7 +162,7 @@ export default function AdminFeedbackPage() {
                         )}
                       </td>
                       <td className="py-3 px-4 text-xs text-muted whitespace-nowrap">
-                        {new Date(createdAt).toLocaleDateString("ar-SA")}
+                        {new Date(createdAt).toLocaleDateString("ar-SA-u-nu-latn")}
                       </td>
                     </tr>
                   );

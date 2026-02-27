@@ -1,6 +1,37 @@
 import { NextResponse } from "next/server";
 import { requireAdmin } from "@/lib/supabase/auth-helpers";
 import { createAdminClient } from "@/lib/supabase/server";
+import { NextRequest } from "next/server";
+
+export async function DELETE(request: NextRequest) {
+  try {
+    await requireAdmin();
+
+    const billingId = request.nextUrl.searchParams.get("billingId");
+    if (!billingId) {
+      return NextResponse.json({ error: "billingId is required" }, { status: 400 });
+    }
+
+    const admin = createAdminClient();
+    const { error } = await admin.from("billing").delete().eq("id", billingId);
+
+    if (error) {
+      console.error("[admin/subscriptions] DELETE error:", error);
+      return NextResponse.json({ error: "Failed to delete record" }, { status: 500 });
+    }
+
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    if (error instanceof Error && error.message === "Not authenticated") {
+      return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
+    }
+    if (error instanceof Error && error.message === "Admin access required") {
+      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    }
+    console.error("[admin/subscriptions] DELETE error:", error);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
+}
 
 export async function GET() {
   try {

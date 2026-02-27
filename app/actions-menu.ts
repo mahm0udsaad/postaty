@@ -2,8 +2,9 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { generateMenu } from "@/lib/generate-menu";
+import { generateMenuMarketingContent } from "@/lib/generate-designs";
 import { menuFormDataSchema } from "@/lib/validation";
-import type { MenuFormData, PosterResult } from "@/lib/types";
+import type { MenuFormData, PosterResult, MarketingContentHub } from "@/lib/types";
 import type { BrandKitPromptData } from "@/lib/prompts";
 import type { GenerationUsage } from "@/lib/generate-designs";
 
@@ -110,5 +111,23 @@ export async function generateMenuAction(
     };
 
     return { main, usages };
+  }
+}
+
+export async function generateMenuMarketingContentAction(
+  data: MenuFormData,
+  language: string = "auto"
+): Promise<{ content: MarketingContentHub; usage: GenerationUsage } | { error: string }> {
+  try {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user?.id) return { error: "Authentication required" };
+
+    const result = await generateMenuMarketingContent(data, language);
+    const { usage, ...content } = result;
+    return { content, usage };
+  } catch (err) {
+    console.warn("[generateMenuMarketingContentAction] failed (non-blocking)", err);
+    return { error: err instanceof Error ? err.message : "Marketing content generation failed" };
   }
 }

@@ -5,16 +5,16 @@ import useSWR from "swr";
 import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Sparkles, LayoutGrid, LogIn, AlertCircle } from "lucide-react";
+import { ArrowRight, Sparkles, LayoutGrid, LogIn, AlertCircle, UtensilsCrossed, ShoppingCart } from "lucide-react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useLocale } from "@/hooks/use-locale";
 
-import type { MenuFormData, PosterResult, PosterGenStep } from "@/lib/types";
+import type { MenuFormData, MenuCategory, PosterResult, PosterGenStep, MarketingContentHub as MarketingContentHubType, MarketingContentStatus } from "@/lib/types";
 import type { BrandKitPromptData } from "@/lib/prompts";
 import type { GenerationUsage } from "@/lib/generate-designs";
 import { MENU_CONFIG, MENU_FORMAT_CONFIG } from "@/lib/constants";
-import { generateMenuAction } from "../../actions-menu";
+import { generateMenuAction, generateMenuMarketingContentAction } from "../../actions-menu";
 import { TAP_SCALE } from "@/lib/animation";
 
 const fetcher = (url: string) => fetch(url).then(r => {
@@ -29,6 +29,10 @@ const PosterGrid = dynamic(
 const MenuForm = dynamic(
   () => import("../../components/forms/menu-form").then((mod) => mod.MenuForm),
   { loading: () => <FormLoadingFallback /> }
+);
+
+const MarketingContentHub = dynamic(
+  () => import("../../components/marketing-content-hub").then((mod) => mod.MarketingContentHub)
 );
 
 function getNowMs(): number {
@@ -101,6 +105,7 @@ function MenuPageContent() {
   };
 
   // State
+  const [menuCategory, setMenuCategory] = useState<MenuCategory | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [genStep, setGenStep] = useState<PosterGenStep>("idle");
   const [results, setResults] = useState<PosterResult[]>([]);
@@ -108,6 +113,10 @@ function MenuPageContent() {
   const [lastSubmittedData, setLastSubmittedData] = useState<MenuFormData | null>(null);
   const [defaultLogo, setDefaultLogo] = useState<string | null>(null);
   const generatingRef = useRef(false);
+  const [marketingContent, setMarketingContent] = useState<MarketingContentHubType | null>(null);
+  const [marketingContentStatus, setMarketingContentStatus] = useState<MarketingContentStatus>("idle");
+  const [marketingContentError, setMarketingContentError] = useState<string>();
+  const [marketingLanguage, setMarketingLanguage] = useState<string>("auto");
 
   // Billing
   const { data: creditState, mutate: mutateCreditState } = useSWR(
@@ -168,10 +177,49 @@ function MenuPageContent() {
     }
   };
 
+  const fetchMenuMarketingContent = async (data: MenuFormData, lang: string) => {
+    setMarketingContentStatus("loading");
+    setMarketingContentError(undefined);
+    try {
+      const result = await generateMenuMarketingContentAction(data, lang);
+      if ("error" in result) {
+        setMarketingContentStatus("error");
+        setMarketingContentError(result.error);
+      } else {
+        setMarketingContent(result.content);
+        setMarketingContentStatus("complete");
+        void persistUsageEvents([result.usage]);
+      }
+    } catch (err) {
+      setMarketingContentStatus("error");
+      setMarketingContentError(
+        err instanceof Error ? err.message : t("فشل إنشاء المحتوى التسويقي", "Failed to generate marketing content")
+      );
+    }
+  };
+
+  const handleGenerateMarketingContent = () => {
+    if (!lastSubmittedData || marketingContentStatus === "loading") return;
+    fetchMenuMarketingContent(lastSubmittedData, marketingLanguage);
+  };
+
+  const handleMarketingLanguageToggle = (lang: string) => {
+    if (lang === marketingLanguage) return;
+    setMarketingLanguage(lang);
+    if (lastSubmittedData && marketingContentStatus !== "idle") {
+      fetchMenuMarketingContent(lastSubmittedData, lang);
+    }
+  };
+
   const handleBack = () => {
     if (results.length > 0) {
       setResults([]);
       setGenStep("idle");
+      setMarketingContent(null);
+      setMarketingContentStatus("idle");
+      setMarketingContentError(undefined);
+    } else if (menuCategory !== null) {
+      setMenuCategory(null);
     } else {
       router.push("/create");
     }
@@ -267,6 +315,9 @@ function MenuPageContent() {
     setError(undefined);
     setIsGenerating(true);
     setResults([]);
+    setMarketingContent(null);
+    setMarketingContentStatus("idle");
+    setMarketingContentError(undefined);
 
     const startTime = getNowMs();
     const idempotencyKey = `menu_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
@@ -374,7 +425,14 @@ function MenuPageContent() {
               <ArrowRight size={20} />
             </motion.button>
             <h1 className="text-lg font-bold text-foreground">
-              {results.length > 0 ? t("نتائج القائمة", "Menu results") : t("تصميم قائمة", "Design menu")}
+              {results.length > 0
+                ? t("نتائج القائمة", "Menu results")
+                : menuCategory === null
+                ? t("تصميم قائمة", "Design menu")
+                : t(
+                    menuCategory === "restaurant" ? "قائمة مطعم / كافيه" : "كتالوج سوبر ماركت",
+                    menuCategory === "restaurant" ? "Restaurant / Cafe menu" : "Supermarket catalog"
+                  )}
             </h1>
           </div>
           <div
@@ -407,12 +465,80 @@ function MenuPageContent() {
                     void runGeneration(lastSubmittedData);
                   }}
                   generateMoreLabel={t("إنشاء قائمة إضافية بنفس المحتوى", "Create another menu with same content")}
-                  onReset={() => { setResults([]); setGenStep("idle"); }}
+                  onReset={() => {
+                    setResults([]);
+                    setGenStep("idle");
+                    setMarketingContent(null);
+                    setMarketingContentStatus("idle");
+                    setMarketingContentError(undefined);
+                  }}
                   canGenerateMore={!!lastSubmittedData && !isGenerating && canGenerate && totalRemaining >= MENU_CONFIG.creditsPerMenu}
                 />
               </div>
+
+              {genStep === "complete" && results.length > 0 && results[0].status === "complete" && (
+                <MarketingContentHub
+                  content={marketingContent}
+                  status={marketingContentStatus}
+                  posterImageBase64={results[0].imageBase64}
+                  businessName={lastSubmittedData?.businessName}
+                  onGenerate={handleGenerateMarketingContent}
+                  onLanguageToggle={handleMarketingLanguageToggle}
+                  onRetry={handleGenerateMarketingContent}
+                  error={marketingContentError}
+                />
+              )}
+            </motion.div>
+          ) : menuCategory === null ? (
+            /* ── Step 1: Business type selection ── */
+            <motion.div
+              key="type-select"
+              initial={{ opacity: 0, y: 16 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -16 }}
+              className="max-w-2xl mx-auto"
+            >
+              <div className="text-center mb-10">
+                <h2 className="text-2xl font-bold text-foreground mb-2">
+                  {t("ما نوع نشاطك التجاري؟", "What type of business do you have?")}
+                </h2>
+                <p className="text-muted text-sm">
+                  {t("اختر نوع النشاط لنصمم قائمة مناسبة لك", "Select your business type so we can design the right menu for you")}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <button
+                  type="button"
+                  onClick={() => setMenuCategory("restaurant")}
+                  className="group flex flex-col items-center gap-5 p-8 rounded-3xl border-2 border-card-border bg-surface-1 hover:border-primary/60 hover:bg-primary/5 transition-all shadow-sm hover:shadow-md"
+                >
+                  <div className="w-20 h-20 rounded-2xl bg-orange-500/10 flex items-center justify-center group-hover:bg-orange-500/20 transition-colors">
+                    <UtensilsCrossed size={36} className="text-orange-500" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-lg font-bold text-foreground">{t("مطعم / كافيه", "Restaurant / Cafe")}</p>
+                    <p className="text-sm text-muted mt-1">{t("وجبات، مشروبات، حلويات...", "Meals, drinks, desserts...")}</p>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setMenuCategory("supermarket")}
+                  className="group flex flex-col items-center gap-5 p-8 rounded-3xl border-2 border-card-border bg-surface-1 hover:border-primary/60 hover:bg-primary/5 transition-all shadow-sm hover:shadow-md"
+                >
+                  <div className="w-20 h-20 rounded-2xl bg-green-500/10 flex items-center justify-center group-hover:bg-green-500/20 transition-colors">
+                    <ShoppingCart size={36} className="text-green-500" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-lg font-bold text-foreground">{t("سوبر ماركت", "Supermarket")}</p>
+                    <p className="text-sm text-muted mt-1">{t("بقالة، منتجات، عروض...", "Groceries, products, offers...")}</p>
+                  </div>
+                </button>
+              </div>
             </motion.div>
           ) : (
+            /* ── Step 2: Fill in form ── */
             <motion.div
               key="form"
               initial={{ opacity: 0, x: 20 }}
@@ -446,6 +572,7 @@ function MenuPageContent() {
 
               <div className="bg-surface-1 rounded-3xl p-6 md:p-10 shadow-xl border border-amber-500/20">
                 <MenuForm
+                  menuCategory={menuCategory}
                   onSubmit={runGeneration}
                   isLoading={formDisabled}
                   defaultValues={sharedDefaultValues}

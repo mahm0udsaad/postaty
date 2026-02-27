@@ -284,7 +284,7 @@ export default function RegionalGenerationsPage() {
                       {gen.credits_charged}
                     </td>
                     <td className="px-6 py-4 text-muted text-xs">
-                      {new Date(gen.created_at).toLocaleDateString("ar-JO")}
+                      {new Date(gen.created_at).toLocaleDateString("ar-JO-u-nu-latn")}
                     </td>
                   </tr>
                 ))}

@@ -40,7 +40,7 @@ function formatRelativeTime(timestamp: number | string, locale: "ar" | "en") {
   if (hours < 24) return locale === "ar" ? `منذ ${hours} س` : `${hours}h ago`;
   const days = Math.floor(hours / 24);
   if (days < 30) return locale === "ar" ? `منذ ${days} ي` : `${days}d ago`;
-  return new Date(ts).toLocaleDateString(locale === "ar" ? "ar-SA" : "en-US");
+  return new Date(ts).toLocaleDateString(locale === "ar" ? "ar-SA-u-nu-latn" : "en-US");
 }
 
 export function NotificationBell() {

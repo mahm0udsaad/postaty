@@ -5,7 +5,7 @@ import useSWR from "swr";
 import { useAuth } from "@/hooks/use-auth";
 import { PosterGallery } from "./poster-gallery";
 import { GenerationCard } from "./generation-card";
-import { Clock, Grid3x3, List, Sparkles, Gift } from "lucide-react";
+import { Clock, Grid3x3, List, Sparkles, Gift, Image as ImageIcon } from "lucide-react";
 import type { Category } from "@/lib/types";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import Link from "next/link";
@@ -27,12 +27,39 @@ const CATEGORY_LABELS_EN: Record<Category, string> = {
 
 export type ImageTypeFilter = "all" | "pro" | "gift";
 
+function SkeletonListCard({ index }: { index: number }) {
+  return (
+    <div
+      className="animate-pulse bg-surface-1/70 backdrop-blur-md rounded-2xl border border-card-border shadow-sm p-4"
+      style={{ animationDelay: `${index * 80}ms` }}
+    >
+      <div className="flex flex-col gap-2">
+        <div className="flex items-center gap-3">
+          <div className="h-3 bg-surface-2 rounded w-24 shrink-0" />
+          <div className="h-5 bg-surface-2 rounded-lg w-16 shrink-0 ml-auto" />
+          <div className="flex gap-1.5">
+            <div className="w-8 h-8 bg-surface-2 rounded-lg" />
+            <div className="w-8 h-8 bg-surface-2 rounded-lg" />
+            <div className="w-8 h-8 bg-surface-2 rounded-lg" />
+          </div>
+          <div className="w-4 h-4 bg-surface-2 rounded shrink-0" />
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="h-5 bg-surface-2 rounded-lg w-28 shrink-0" />
+          <div className="h-4 bg-surface-2 rounded flex-1 max-w-xs" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function HistoryPage() {
   const { isSignedIn, isLoaded } = useAuth();
   const { locale, t } = useLocale();
   const [viewMode, setViewMode] = useState<"gallery" | "list">("gallery");
   const [selectedCategory, setSelectedCategory] = useState<"all" | Category>("all");
   const [imageType, setImageType] = useState<ImageTypeFilter>("all");
+  const [galleryCount, setGalleryCount] = useState<number | null>(null);
 
   const categoryFilter = selectedCategory === "all" ? undefined : selectedCategory;
 
@@ -56,12 +83,25 @@ export default function HistoryPage() {
   );
   const generations = listData?.generations as any[] | undefined;
 
+  const filteredGenerations = generations?.filter((gen: any) => {
+    if (imageType === "all") return true;
+    return gen.outputs.some((o: { format: string }) =>
+      imageType === "gift" ? o.format === "gift" : o.format !== "gift"
+    );
+  });
+
+  const segmentBtn = (active: boolean) =>
+    `flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-bold transition-all whitespace-nowrap ${
+      active ? "bg-primary text-white shadow-sm" : "text-muted hover:text-foreground"
+    }`;
+
   return (
     <main className="min-h-screen py-12 px-4 relative overflow-hidden bg-grid-pattern">
       <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-primary/5 rounded-full blur-[100px] pointer-events-none mix-blend-multiply" />
       <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-accent/5 rounded-full blur-[100px] pointer-events-none mix-blend-multiply" />
 
       <div className="max-w-7xl mx-auto relative z-10">
+        {/* Header */}
         <div className="text-center mb-12">
           <div className="inline-flex items-center justify-center gap-3 mb-4 bg-surface-1/80 backdrop-blur-sm px-6 py-2 rounded-full border border-card-border shadow-sm animate-fade-in-up">
             <Clock size={24} className="text-primary" />
@@ -77,85 +117,66 @@ export default function HistoryPage() {
           </p>
         </div>
 
-        <div className="flex justify-center mb-8">
-          <div className="inline-flex bg-surface-1/80 backdrop-blur-sm rounded-xl border border-card-border shadow-sm p-1">
-            <button
-              onClick={() => setViewMode("gallery")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                viewMode === "gallery"
-                  ? "bg-primary text-white shadow-sm"
-                  : "text-muted hover:text-foreground"
-              }`}
-            >
-              <Grid3x3 size={16} />
-              {t("معرض", "Gallery")}
-            </button>
-            <button
-              onClick={() => setViewMode("list")}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                viewMode === "list"
-                  ? "bg-primary text-white shadow-sm"
-                  : "text-muted hover:text-foreground"
-              }`}
-            >
-              <List size={16} />
-              {t("قائمة", "List")}
-            </button>
-          </div>
-        </div>
+        {/* Unified Toolbar */}
+        <div className="mb-8 bg-surface-1/80 backdrop-blur-sm rounded-2xl border border-card-border shadow-sm p-3 flex flex-col gap-3">
+          {/* Row 1: View toggle + count + image type */}
+          <div className="flex items-center justify-between gap-2 flex-wrap">
+            {/* View toggle */}
+            <div className="inline-flex bg-surface-2 rounded-xl p-1">
+              <button onClick={() => setViewMode("gallery")} className={segmentBtn(viewMode === "gallery")}>
+                <Grid3x3 size={14} />
+                {t("معرض", "Gallery")}
+              </button>
+              <button onClick={() => setViewMode("list")} className={segmentBtn(viewMode === "list")}>
+                <List size={14} />
+                {t("قائمة", "List")}
+              </button>
+            </div>
 
-        <div className="flex justify-center mb-4">
-          <div className="inline-flex flex-wrap justify-center gap-2 bg-surface-1/80 backdrop-blur-sm rounded-xl border border-card-border shadow-sm p-2">
+            <div className="flex items-center gap-2">
+              {/* Results count */}
+              {viewMode === "gallery" && galleryCount !== null && (
+                <span className="text-xs text-muted font-medium px-2 py-1 bg-surface-2 rounded-lg border border-card-border">
+                  {galleryCount} {t("صورة", "images")}
+                </span>
+              )}
+              {viewMode === "list" && filteredGenerations !== undefined && (
+                <span className="text-xs text-muted font-medium px-2 py-1 bg-surface-2 rounded-lg border border-card-border">
+                  {filteredGenerations.length} {t("إنشاء", "results")}
+                </span>
+              )}
+              {/* Image type filter */}
+              <div className="inline-flex bg-surface-2 rounded-xl p-1">
+                <button onClick={() => setImageType("all")} className={segmentBtn(imageType === "all")}>
+                  {t("الكل", "All")}
+                </button>
+                <button onClick={() => setImageType("pro")} className={segmentBtn(imageType === "pro")}>
+                  <Sparkles size={12} />
+                  {t("تصميم", "Pro")}
+                </button>
+                <button onClick={() => setImageType("gift")} className={segmentBtn(imageType === "gift")}>
+                  <Gift size={12} />
+                  {t("هدية", "Gift")}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Row 2: Category chips (horizontal scroll) */}
+          <div className="flex overflow-x-auto gap-2 pb-0.5 no-scrollbar">
             {HISTORY_FILTERS.map((filter) => (
               <button
                 key={filter.value}
                 onClick={() => setSelectedCategory(filter.value)}
-                className={`px-3 py-1.5 rounded-lg text-sm font-bold transition-all ${
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all whitespace-nowrap shrink-0 ${
                   selectedCategory === filter.value
                     ? "bg-primary text-white shadow-sm"
-                    : "text-muted hover:text-foreground hover:bg-surface-2"
+                    : "text-muted hover:text-foreground hover:bg-surface-2 border border-transparent hover:border-card-border"
                 }`}
               >
                 {filter.label}
               </button>
             ))}
-          </div>
-        </div>
-
-        <div className="flex justify-center mb-8">
-          <div className="inline-flex bg-surface-1/80 backdrop-blur-sm rounded-xl border border-card-border shadow-sm p-1">
-            <button
-              onClick={() => setImageType("all")}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                imageType === "all"
-                  ? "bg-primary text-white shadow-sm"
-                  : "text-muted hover:text-foreground"
-              }`}
-            >
-              {t("الكل", "All")}
-            </button>
-            <button
-              onClick={() => setImageType("pro")}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                imageType === "pro"
-                  ? "bg-primary text-white shadow-sm"
-                  : "text-muted hover:text-foreground"
-              }`}
-            >
-              <Sparkles size={14} />
-              {t("التصميم", "Pro")}
-            </button>
-            <button
-              onClick={() => setImageType("gift")}
-              className={`flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-bold transition-all ${
-                imageType === "gift"
-                  ? "bg-primary text-white shadow-sm"
-                  : "text-muted hover:text-foreground"
-              }`}
-            >
-              <Gift size={14} />
-              {t("الهدية", "Gift")}
-            </button>
           </div>
         </div>
 
@@ -167,33 +188,38 @@ export default function HistoryPage() {
             </Link>
           </div>
         ) : viewMode === "gallery" ? (
-          <PosterGallery category={categoryFilter} imageType={imageType} />
+          <PosterGallery category={categoryFilter} imageType={imageType} onCountChange={setGalleryCount} />
         ) : (
           <div className="max-w-5xl mx-auto space-y-4">
             {!isLoaded || isListLoading || generations === undefined ? (
-              <div className="flex justify-center py-20">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary" />
-              </div>
-            ) : generations.length === 0 ? (
+              Array.from({ length: 5 }).map((_, i) => <SkeletonListCard key={i} index={i} />)
+            ) : filteredGenerations!.length === 0 ? (
               <div className="text-center py-20">
-                <p className="text-muted">{t("لا توجد إنشاءات بعد", "No generations yet")}</p>
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-surface-2 flex items-center justify-center border border-card-border">
+                  <ImageIcon size={28} className="text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-bold text-foreground mb-2">
+                  {t("لا توجد إنشاءات بعد", "No generations yet")}
+                </h3>
+                <p className="text-muted text-sm mb-6">
+                  {t("ابدأ بإنشاء أول بوستر لك", "Start by creating your first poster")}
+                </p>
+                <Link
+                  href="/create"
+                  className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl font-bold text-sm hover:bg-primary/90 transition-all"
+                >
+                  <Sparkles size={15} />
+                  {t("إنشاء بوستر", "Create poster")}
+                </Link>
               </div>
             ) : (
-              generations
-                .filter((gen: any) => {
-                  if (imageType === "all") return true;
-                  return gen.outputs.some((o: { format: string }) =>
-                    imageType === "gift" ? o.format === "gift" : o.format !== "gift"
-                  );
-                })
-                .map((gen: any) => (
-                  <GenerationCard key={gen.id} generation={gen} imageType={imageType} />
-                ))
+              filteredGenerations!.map((gen: any) => (
+                <GenerationCard key={gen.id} generation={gen} imageType={imageType} />
+              ))
             )}
           </div>
         )}
       </div>
-
     </main>
   );
 }

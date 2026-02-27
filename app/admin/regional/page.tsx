@@ -223,7 +223,7 @@ export default function AdminRegionalPage() {
                       {grant.granted_by_name}
                     </td>
                     <td className="px-6 py-4 text-muted">
-                      {new Date(grant.created_at).toLocaleDateString("ar-JO")}
+                      {new Date(grant.created_at).toLocaleDateString("ar-JO-u-nu-latn")}
                     </td>
                     <td className="px-6 py-4">
                       <button

@@ -237,6 +237,7 @@ const menuItemSchema = z.object({
   image: base64ImageSchema,
   name: textFieldSchema("Item name"),
   price: priceSchema,
+  oldPrice: z.string().max(50).optional(),
 });
 
 export const menuFormDataSchema = z.object({
@@ -245,6 +246,7 @@ export const menuFormDataSchema = z.object({
   businessName: textFieldSchema("Business name"),
   logo: base64ImageSchema,
   whatsapp: phoneSchema,
+  address: z.string().max(200).optional(),
   items: z
     .array(menuItemSchema)
     .min(2, "At least 2 items required")

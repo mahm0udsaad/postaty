@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Store, ShoppingCart, UtensilsCrossed, Tag, Phone, Plus, Trash2 } from "lucide-react";
+import { Store, ShoppingCart, UtensilsCrossed, Tag, Phone, MapPin, Plus, Trash2, Percent } from "lucide-react";
 import type { MenuFormData, MenuCategory, CampaignType, MenuItemData } from "@/lib/types";
 import { MENU_CONFIG } from "@/lib/constants";
 import { ImageUpload } from "../image-upload";
@@ -10,23 +10,18 @@ import { FormInput } from "../ui/form-input";
 import { useLocale } from "@/hooks/use-locale";
 
 interface MenuFormProps {
+  menuCategory: MenuCategory;
   onSubmit: (data: MenuFormData) => void;
   isLoading: boolean;
   defaultValues?: { businessName?: string; logo?: string | null };
 }
 
-const MENU_CATEGORIES: { id: MenuCategory; labelAr: string; labelEn: string; Icon: typeof UtensilsCrossed }[] = [
-  { id: "restaurant", labelAr: "مطعم / كافيه", labelEn: "Restaurant / Cafe", Icon: UtensilsCrossed },
-  { id: "supermarket", labelAr: "سوبر ماركت", labelEn: "Supermarket", Icon: ShoppingCart },
-];
-
 function createEmptyItem(): MenuItemData {
-  return { image: "", name: "", price: "" };
+  return { image: "", name: "", price: "", oldPrice: "" };
 }
 
-export function MenuForm({ onSubmit, isLoading, defaultValues }: MenuFormProps) {
+export function MenuForm({ menuCategory, onSubmit, isLoading, defaultValues }: MenuFormProps) {
   const { locale, t } = useLocale();
-  const [menuCategory, setMenuCategory] = useState<MenuCategory>("restaurant");
   const [campaignType, setCampaignType] = useState<CampaignType>("standard");
   const [logoOverride, setLogoOverride] = useState<string | null | undefined>(undefined);
   const [items, setItems] = useState<MenuItemData[]>([
@@ -62,12 +57,12 @@ export function MenuForm({ onSubmit, isLoading, defaultValues }: MenuFormProps) 
 
     const businessName = (fd.get("businessName") as string)?.trim();
     const whatsapp = (fd.get("whatsapp") as string)?.trim();
+    const address = (fd.get("address") as string)?.trim() || undefined;
 
     if (!businessName) newErrors.businessName = t("اسم النشاط مطلوب", "Business name is required");
     if (!whatsapp) newErrors.whatsapp = t("رقم الواتساب مطلوب", "WhatsApp number is required");
     if (!logo) newErrors.logo = t("اللوجو مطلوب", "Logo is required");
 
-    // Validate each item
     items.forEach((item, i) => {
       if (!item.image) newErrors[`item_${i}_image`] = t("صورة المنتج مطلوبة", "Product image is required");
       if (!item.name.trim()) newErrors[`item_${i}_name`] = t("اسم المنتج مطلوب", "Product name is required");
@@ -86,49 +81,18 @@ export function MenuForm({ onSubmit, isLoading, defaultValues }: MenuFormProps) 
       businessName: businessName!,
       logo: logo!,
       whatsapp: whatsapp!,
+      address,
       items: items.map((item) => ({
         image: item.image,
         name: item.name.trim(),
         price: item.price.trim(),
+        oldPrice: item.oldPrice?.trim() || undefined,
       })),
     });
   };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Menu Category Toggle */}
-      <div className="space-y-3">
-        <label className="block text-sm font-semibold text-foreground">
-          {t("نوع النشاط", "Business type")}
-        </label>
-        <div className="grid grid-cols-2 gap-3">
-          {MENU_CATEGORIES.map(({ id, labelAr, labelEn, Icon }) => {
-            const isActive = menuCategory === id;
-            return (
-              <button
-                key={id}
-                type="button"
-                onClick={() => setMenuCategory(id)}
-                className={`flex items-center gap-3 p-4 rounded-xl border transition-all ${
-                  isActive
-                    ? "border-primary/60 bg-primary/10 shadow-sm"
-                    : "border-card-border bg-surface-1 hover:border-primary/30"
-                }`}
-              >
-                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                  isActive ? "bg-primary text-white" : "bg-surface-2 text-muted"
-                }`}>
-                  <Icon size={20} />
-                </div>
-                <span className={`font-semibold ${isActive ? "text-primary" : "text-foreground"}`}>
-                  {locale === "ar" ? labelAr : labelEn}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
         {/* Left column: Business details */}
         <div className="space-y-6">
@@ -157,6 +121,12 @@ export function MenuForm({ onSubmit, isLoading, defaultValues }: MenuFormProps) 
               className="text-left"
               error={errors.whatsapp}
             />
+            <FormInput
+              label={t("العنوان (اختياري)", "Address (optional)")}
+              name="address"
+              placeholder={t("مثال: شارع الشيخ زايد، دبي", "Example: Sheikh Zayed Road, Dubai")}
+              icon={MapPin}
+            />
           </div>
         </div>
 
@@ -175,21 +145,9 @@ export function MenuForm({ onSubmit, isLoading, defaultValues }: MenuFormProps) 
 
       {/* Items Section */}
       <div className="space-y-4">
-        <div className="flex items-center justify-between">
-          <label className="text-sm font-semibold text-foreground">
-            {t(`المنتجات (${items.length} من ${MENU_CONFIG.maxItems})`, `Products (${items.length} of ${MENU_CONFIG.maxItems})`)}
-          </label>
-          {items.length < MENU_CONFIG.maxItems && (
-            <button
-              type="button"
-              onClick={addItem}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-primary bg-primary/10 rounded-lg hover:bg-primary/20 transition-colors"
-            >
-              <Plus size={14} />
-              {t("إضافة منتج", "Add item")}
-            </button>
-          )}
-        </div>
+        <label className="text-sm font-semibold text-foreground block">
+          {t(`المنتجات (${items.length} من ${MENU_CONFIG.maxItems})`, `Products (${items.length} of ${MENU_CONFIG.maxItems})`)}
+        </label>
 
         <div className="space-y-4">
           {items.map((item, index) => (
@@ -244,32 +202,63 @@ export function MenuForm({ onSubmit, isLoading, defaultValues }: MenuFormProps) 
                       <p className="text-xs text-red-500 font-medium mt-1">{errors[`item_${index}_name`]}</p>
                     )}
                   </div>
-                  <div>
-                    <label className="text-xs font-semibold text-foreground mb-1 block">
-                      {t("السعر", "Price")}
-                    </label>
-                    <div className="relative">
-                      <div className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                        <Tag size={16} />
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs font-semibold text-foreground mb-1 block">
+                        {t("السعر", "Price")}
+                      </label>
+                      <div className="relative">
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                          <Tag size={16} />
+                        </div>
+                        <input
+                          type="text"
+                          value={item.price}
+                          onChange={(e) => updateItem(index, "price", e.target.value)}
+                          placeholder={t("مثال: 5.99$", "Example: $5.99")}
+                          className={`w-full pr-10 pl-4 py-3 bg-surface-1 border rounded-xl outline-none text-foreground placeholder:text-muted-foreground font-medium transition-all focus:bg-surface-2 focus:border-primary focus:ring-4 focus:ring-primary/10 hover:border-primary/30 ${
+                            errors[`item_${index}_price`] ? "border-red-500 ring-2 ring-red-500/10" : "border-card-border"
+                          }`}
+                        />
                       </div>
-                      <input
-                        type="text"
-                        value={item.price}
-                        onChange={(e) => updateItem(index, "price", e.target.value)}
-                        placeholder={t("مثال: 5.99$", "Example: $5.99")}
-                        className={`w-full pr-10 pl-4 py-3 bg-surface-1 border rounded-xl outline-none text-foreground placeholder:text-muted-foreground font-medium transition-all focus:bg-surface-2 focus:border-primary focus:ring-4 focus:ring-primary/10 hover:border-primary/30 ${
-                          errors[`item_${index}_price`] ? "border-red-500 ring-2 ring-red-500/10" : "border-card-border"
-                        }`}
-                      />
+                      {errors[`item_${index}_price`] && (
+                        <p className="text-xs text-red-500 font-medium mt-1">{errors[`item_${index}_price`]}</p>
+                      )}
                     </div>
-                    {errors[`item_${index}_price`] && (
-                      <p className="text-xs text-red-500 font-medium mt-1">{errors[`item_${index}_price`]}</p>
-                    )}
+
+                    <div>
+                      <label className="text-xs font-semibold text-muted mb-1 block">
+                        {t("السعر القديم (اختياري)", "Old price (optional)")}
+                      </label>
+                      <div className="relative">
+                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                          <Percent size={16} />
+                        </div>
+                        <input
+                          type="text"
+                          value={item.oldPrice ?? ""}
+                          onChange={(e) => updateItem(index, "oldPrice", e.target.value)}
+                          placeholder={t("مثال: 8.99$", "Example: $8.99")}
+                          className="w-full pr-10 pl-4 py-3 bg-surface-1 border border-card-border rounded-xl outline-none text-foreground placeholder:text-muted-foreground font-medium transition-all focus:bg-surface-2 focus:border-primary focus:ring-4 focus:ring-primary/10 hover:border-primary/30"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
           ))}
+
+          {items.length < MENU_CONFIG.maxItems && (
+            <button
+              type="button"
+              onClick={addItem}
+              className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-card-border rounded-2xl text-sm font-medium text-muted hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all"
+            >
+              <Plus size={16} />
+              {t("إضافة منتج", "Add item")}
+            </button>
+          )}
         </div>
       </div>
 

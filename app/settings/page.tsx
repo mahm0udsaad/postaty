@@ -456,13 +456,13 @@ function SettingsPageContent() {
                           {new Date(
                             creditState.currentPeriodStart
                           ).toLocaleDateString(
-                            locale === "ar" ? "ar-SA" : "en-US"
+                            locale === "ar" ? "ar-SA-u-nu-latn" : "en-US"
                           )}
                           {" - "}
                           {new Date(
                             creditState.currentPeriodEnd
                           ).toLocaleDateString(
-                            locale === "ar" ? "ar-SA" : "en-US"
+                            locale === "ar" ? "ar-SA-u-nu-latn" : "en-US"
                           )}
                         </p>
                       </div>

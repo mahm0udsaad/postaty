@@ -19,8 +19,13 @@ export async function GET(request: Request) {
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
 
+    const category = searchParams.get("category");
+
     if (status) {
       query = query.eq("status", status);
+    }
+    if (category) {
+      query = query.eq("category", category);
     }
 
     const { data: generations, error, count } = await query;

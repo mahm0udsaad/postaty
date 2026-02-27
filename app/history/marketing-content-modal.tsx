@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { X, Megaphone } from "lucide-react";
 import { MarketingContentHub } from "@/app/components/marketing-content-hub";
 import { generateMarketingContentAction } from "@/app/actions-v2";
@@ -91,9 +92,13 @@ export function MarketingContentModal({
 
   const handleRetry = () => fetchContent(language);
 
-  return (
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+  if (!mounted) return null;
+
+  return createPortal(
     <div
-      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-start justify-center overflow-y-auto p-4 pt-8 pb-8"
+      className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[9999] flex items-start justify-center overflow-y-auto p-4 pt-8 pb-8"
       onClick={onClose}
     >
       <div
@@ -135,6 +140,7 @@ export function MarketingContentModal({
           />
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

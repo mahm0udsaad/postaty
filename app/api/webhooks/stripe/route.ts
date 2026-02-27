@@ -18,9 +18,10 @@ type StripeSubscriptionShape = {
   id: string;
   status: string;
   customer?: string | Stripe.Customer | Stripe.DeletedCustomer | null;
+  // Deprecated at top-level in Stripe API 2024-06-20+; now lives on items.data[0]
   current_period_start?: number;
   current_period_end?: number;
-  items: { data: Array<{ price?: { id?: string } }> };
+  items: { data: Array<{ price?: { id?: string }; current_period_start?: number; current_period_end?: number }> };
   metadata?: { clerkUserId?: string; userAuthId?: string };
 };
 
@@ -75,6 +76,20 @@ function extractInvoiceSubscriptionId(invoice: StripeInvoiceShape): string | nul
 function estimateStripeFeeCents(amountCents: number): number {
   if (amountCents <= 0) return 0;
   return Math.round(amountCents * 0.06);
+}
+
+// ── Period helpers ────────────────────────────────────────────────────
+
+// Stripe API 2024-06-20+ moved current_period_start/end from the subscription
+// root to the first subscription item. Support both locations.
+function resolvePeriodStart(sub: StripeSubscriptionShape): number | undefined {
+  const fromItem = sub.items?.data?.[0]?.current_period_start;
+  return fromItem ?? sub.current_period_start;
+}
+
+function resolvePeriodEnd(sub: StripeSubscriptionShape): number | undefined {
+  const fromItem = sub.items?.data?.[0]?.current_period_end;
+  return fromItem ?? sub.current_period_end;
 }
 
 // ── Price-to-plan mapping ────────────────────────────────────────────
@@ -518,11 +533,11 @@ export async function POST(request: Request) {
             stripeSubscriptionId: subscription.id,
             planKey,
             status: subscription.status,
-            currentPeriodStart: subscription.current_period_start
-              ? subscription.current_period_start * 1000
+            currentPeriodStart: resolvePeriodStart(subscription)
+              ? resolvePeriodStart(subscription)! * 1000
               : undefined,
-            currentPeriodEnd: subscription.current_period_end
-              ? subscription.current_period_end * 1000
+            currentPeriodEnd: resolvePeriodEnd(subscription)
+              ? resolvePeriodEnd(subscription)! * 1000
               : undefined,
           });
         }
@@ -619,11 +634,11 @@ export async function POST(request: Request) {
           status: event.type === "customer.subscription.deleted"
             ? "canceled"
             : subscription.status,
-          currentPeriodStart: subscription.current_period_start
-            ? subscription.current_period_start * 1000
+          currentPeriodStart: resolvePeriodStart(subscription)
+            ? resolvePeriodStart(subscription)! * 1000
             : undefined,
-          currentPeriodEnd: subscription.current_period_end
-            ? subscription.current_period_end * 1000
+          currentPeriodEnd: resolvePeriodEnd(subscription)
+            ? resolvePeriodEnd(subscription)! * 1000
             : undefined,
         });
         break;
@@ -652,11 +667,11 @@ export async function POST(request: Request) {
           stripeSubscriptionId: subscription.id,
           planKey,
           status: subscription.status,
-          currentPeriodStart: subscription.current_period_start
-            ? subscription.current_period_start * 1000
+          currentPeriodStart: resolvePeriodStart(subscription)
+            ? resolvePeriodStart(subscription)! * 1000
             : undefined,
-          currentPeriodEnd: subscription.current_period_end
-            ? subscription.current_period_end * 1000
+          currentPeriodEnd: resolvePeriodEnd(subscription)
+            ? resolvePeriodEnd(subscription)! * 1000
             : undefined,
         });
 

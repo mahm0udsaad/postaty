@@ -560,3 +560,109 @@ export async function generateMarketingContent(
     );
   }
 }
+
+// ── Menu Marketing Content ──────────────────────────────────────────
+
+export async function generateMenuMarketingContent(
+  data: import("./types").MenuFormData,
+  language: string = "auto"
+): Promise<MarketingContentHub & { usage: GenerationUsage }> {
+  const langInstruction = language === "auto"
+    ? "CRITICAL: Detect the language of the user's input (business name, item names, etc.) and generate ALL output text in that SAME language."
+    : language === "ar"
+    ? "CRITICAL: ALL output text MUST be in Arabic. Hashtags can mix Arabic and English."
+    : "CRITICAL: ALL output text MUST be in English. Hashtags should be in English.";
+
+  const categoryLabel = data.menuCategory === "restaurant" ? "Restaurant / Cafe" : "Supermarket";
+  const itemSummary = data.items
+    .map((item) => item.oldPrice ? `${item.name} (${item.price}, was ${item.oldPrice})` : `${item.name} (${item.price})`)
+    .join(", ");
+
+  const systemPrompt = `You are an expert social media marketing strategist specializing in MENA region businesses.
+
+${langInstruction}
+
+Your task: Generate optimized marketing content for 4 social media platforms (Facebook, Instagram, WhatsApp, TikTok) to promote a menu/catalog post.
+
+Use Google Search to find:
+1. Current best posting times for each platform in the MENA/Arab region (${new Date().getFullYear()})
+2. Trending hashtags for food/grocery businesses in the region
+3. Current engagement best practices per platform
+
+REQUIREMENTS PER PLATFORM:
+
+**Facebook:** 1-3 paragraphs, storytelling, clear CTA, 3-5 hashtags, best posting time (MENA).
+**Instagram:** Hook first line, emoji-rich, 15-25 hashtags, best posting time (MENA).
+**WhatsApp:** Short, direct, conversational, 0-3 hashtags, best broadcast time.
+**TikTok:** Very short, trendy hook, 5-10 hashtags, best posting time.
+
+For bestPostingTime: specific days and time ranges.
+For bestPostingTimeReason: explain WHY (1 sentence).
+For contentTip: ONE actionable tip for this platform and business type.` + MARKETING_JSON_INSTRUCTION;
+
+  const userMessage = `Generate optimized marketing captions for all 4 platforms for this menu/catalog post:
+
+Business: ${data.businessName}
+Type: ${categoryLabel}
+Menu items: ${itemSummary}
+WhatsApp: ${data.whatsapp}${data.address ? `\nAddress: ${data.address}` : ""}
+
+Make the content compelling, platform-native, and optimized for engagement in the MENA/Arab region.`;
+
+  console.info("[generateMenuMarketingContent] start", { model: MARKETING_MODEL_ID, language });
+
+  const startTime = Date.now();
+  try {
+    const result = await generateText({
+      model: marketingContentModel,
+      tools: { google_search: google.tools.googleSearch({}) },
+      system: systemPrompt,
+      prompt: userMessage,
+    });
+
+    const durationMs = Date.now() - startTime;
+    const parsed = parseMarketingContentJson(result.text);
+
+    const PLATFORM_KEYS: SocialPlatform[] = ["facebook", "instagram", "whatsapp", "tiktok"];
+    const contents = {} as Record<SocialPlatform, PlatformContent>;
+    for (const platform of PLATFORM_KEYS) {
+      contents[platform] = {
+        platform,
+        caption: parsed[platform].caption,
+        hashtags: parsed[platform].hashtags,
+        bestPostingTime: parsed[platform].bestPostingTime,
+        bestPostingTimeReason: parsed[platform].bestPostingTimeReason || "",
+        contentTip: parsed[platform].contentTip || "",
+      };
+    }
+
+    const usage: GenerationUsage = {
+      route: "marketing-content",
+      model: MARKETING_MODEL_ID,
+      inputTokens: result.usage?.inputTokens ?? 0,
+      outputTokens: result.usage?.outputTokens ?? 0,
+      imagesGenerated: 0,
+      durationMs,
+      success: true,
+    };
+
+    return { contents, language, generatedAt: Date.now(), usage };
+  } catch (err) {
+    const durationMs = Date.now() - startTime;
+    console.error("[generateMenuMarketingContent] failed", err);
+    const usage: GenerationUsage = {
+      route: "marketing-content",
+      model: MARKETING_MODEL_ID,
+      inputTokens: 0,
+      outputTokens: 0,
+      imagesGenerated: 0,
+      durationMs,
+      success: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
+    throw Object.assign(
+      new Error(`Menu marketing content generation failed: ${err instanceof Error ? err.message : String(err)}`),
+      { usage }
+    );
+  }
+}

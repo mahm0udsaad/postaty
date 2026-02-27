@@ -106,14 +106,19 @@ You will receive reference menu/flyer designs. Match or exceed their professiona
 
 export function getMenuUserMessage(data: MenuFormData): string {
   const itemsList = data.items
-    .map((item, i) => `  ${i + 1}. "${item.name}" — Price: ${item.price}`)
+    .map((item, i) => {
+      const priceStr = item.oldPrice
+        ? `Price: ${item.price} (was ${item.oldPrice} — show as crossed-out original price with discount)`
+        : `Price: ${item.price}`;
+      return `  ${i + 1}. "${item.name}" — ${priceStr}`;
+    })
     .join("\n");
 
   return `Create a professional A4 menu/catalog flyer for this business:
 
 - Business Name: ${data.businessName}
 - Type: ${data.menuCategory === "restaurant" ? "Restaurant / Cafe" : "Supermarket"}
-- WhatsApp: ${data.whatsapp}
+- WhatsApp: ${data.whatsapp}${data.address ? `\n- Address: ${data.address}` : ""}
 
 Items to display (${data.items.length} items total — ALL must appear on the menu):
 ${itemsList}

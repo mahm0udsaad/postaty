@@ -1,12 +1,15 @@
 "use client";
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { createPortal } from "react-dom";
 import useSWR from "swr";
-import { Download, Calendar, Tag, Loader2, Image as ImageIcon, Gift, Megaphone } from "lucide-react";
+import { Download, Calendar, Tag, Loader2, Image as ImageIcon, Gift, Megaphone, X, Maximize2 } from "lucide-react";
 import { CATEGORY_LABELS, FORMAT_CONFIGS } from "@/lib/constants";
 import type { Category, OutputFormat } from "@/lib/types";
 import { useLocale } from "@/hooks/use-locale";
 import { MarketingContentModal } from "./marketing-content-modal";
+import Link from "next/link";
+import { Sparkles } from "lucide-react";
 
 const fetcher = (url: string) => fetch(url).then(r => {
   if (!r.ok) throw new Error('API error');
@@ -29,6 +32,7 @@ export interface PosterImageData {
 interface PosterGalleryProps {
   category?: Category;
   imageType?: "all" | "pro" | "gift";
+  onCountChange?: (count: number) => void;
 }
 
 const CATEGORY_LABELS_EN: Record<Category, string> = {
@@ -40,9 +44,38 @@ const CATEGORY_LABELS_EN: Record<Category, string> = {
   beauty: "Beauty & Care",
 };
 
-export function PosterGallery({ category, imageType = "all" }: PosterGalleryProps) {
+// Vary aspect ratios for a natural masonry feel
+const SKELETON_ASPECTS = ["aspect-[4/5]", "aspect-square", "aspect-[3/4]", "aspect-[4/3]", "aspect-[3/5]", "aspect-[5/4]"];
+
+function SkeletonGalleryCard({ index }: { index: number }) {
+  return (
+    <div
+      className="break-inside-avoid animate-pulse"
+      style={{ animationDelay: `${index * 60}ms` }}
+    >
+      <div className="bg-surface-1 rounded-2xl overflow-hidden border border-card-border">
+        <div className={`w-full bg-surface-2 ${SKELETON_ASPECTS[index % SKELETON_ASPECTS.length]}`} />
+        <div className="p-3 space-y-2">
+          <div className="flex justify-between gap-2">
+            <div className="h-3 bg-surface-2 rounded w-1/2" />
+            <div className="h-3 bg-surface-2 rounded w-1/4" />
+          </div>
+          <div className="flex justify-between gap-2">
+            <div className="h-3 bg-surface-2 rounded w-1/3" />
+            <div className="h-3 bg-surface-2 rounded w-1/5" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function PosterGallery({ category, imageType = "all", onCountChange }: PosterGalleryProps) {
   const { locale, t } = useLocale();
+  const [mounted, setMounted] = useState(false);
   const [offset, setOffset] = useState(0);
+
+  useEffect(() => { setMounted(true); }, []);
   const [allResults, setAllResults] = useState<any[]>([]);
   const [hasMore, setHasMore] = useState(true);
   const pageSize = 12;
@@ -116,6 +149,14 @@ export function PosterGallery({ category, imageType = "all" }: PosterGalleryProp
     }
   }
 
+  // Sort newest first (safety net for mixed pagination)
+  allImages.sort((a, b) => b.createdAt - a.createdAt);
+
+  // Report count to parent
+  useEffect(() => {
+    onCountChange?.(allImages.length);
+  }, [allImages.length, onCountChange]);
+
   useEffect(() => {
     const observer = new IntersectionObserver(
       (entries) => {
@@ -133,8 +174,19 @@ export function PosterGallery({ category, imageType = "all" }: PosterGalleryProp
     return () => observer.disconnect();
   }, [hasMore, isLoading, loadMore]);
 
+  // Escape key to close modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setSelectedImage(null);
+    };
+    if (selectedImage) {
+      document.addEventListener("keydown", handleKeyDown);
+    }
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, [selectedImage]);
+
   const formatDate = (timestamp: number) => {
-    return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA" : "en-US", {
+    return new Intl.DateTimeFormat(locale === "ar" ? "ar-SA-u-nu-latn" : "en-US", {
       dateStyle: "medium",
     }).format(new Date(timestamp));
   };
@@ -144,8 +196,10 @@ export function PosterGallery({ category, imageType = "all" }: PosterGalleryProp
   return (
     <div>
       {isFirstLoad ? (
-        <div className="flex justify-center py-20">
-          <Loader2 size={32} className="animate-spin text-primary" />
+        <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4 space-y-4">
+          {Array.from({ length: 8 }).map((_, i) => (
+            <SkeletonGalleryCard key={i} index={i} />
+          ))}
         </div>
       ) : allImages.length === 0 ? (
         <div className="text-center py-20">
@@ -155,9 +209,16 @@ export function PosterGallery({ category, imageType = "all" }: PosterGalleryProp
           <h3 className="text-lg font-bold text-foreground mb-2">
             {t("لا توجد صور بعد", "No images yet")}
           </h3>
-          <p className="text-muted">
-            {t("ابدأ بإنشاء أول بوستر من صفحة الإنشاء", "Create your first poster from the create page")}
+          <p className="text-muted text-sm mb-6">
+            {t("ابدأ بإنشاء أول بوستر لك", "Start by creating your first poster")}
           </p>
+          <Link
+            href="/create"
+            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl font-bold text-sm hover:bg-primary/90 transition-all"
+          >
+            <Sparkles size={15} />
+            {t("إنشاء بوستر", "Create poster")}
+          </Link>
         </div>
       ) : (
         <>
@@ -171,32 +232,61 @@ export function PosterGallery({ category, imageType = "all" }: PosterGalleryProp
               return (
                 <div
                   key={`${image.generationId}-${image.format}-${index}`}
-                  className="break-inside-avoid group relative"
+                  className="break-inside-avoid group"
                 >
                   <div className="bg-surface-1 rounded-2xl overflow-hidden border border-card-border shadow-sm hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
-                    <button
+                    {/* Image with hover overlay */}
+                    <div
+                      className="relative overflow-hidden bg-surface-2/30 cursor-pointer"
                       onClick={() => setSelectedImage(image)}
-                      className="w-full block overflow-hidden bg-surface-2/30"
                     >
                       <img
                         src={image.url}
                         alt={`${image.businessName} - ${formatConfig?.label ?? image.format}`}
-                        className="w-full h-auto object-cover"
+                        className="w-full h-auto object-cover block"
                         loading="lazy"
                       />
-                    </button>
+                      {/* Hover overlay — pointer-events-none when hidden so image click fires */}
+                      <div
+                        className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity duration-300 flex items-center justify-center gap-2 p-3"
+                      >
+                        {image.inputs && image.format !== "gift" && (
+                          <button
+                            type="button"
+                            onClick={e => { e.stopPropagation(); setMarketingImage(image); }}
+                            className="flex items-center gap-1.5 px-3 py-2 bg-accent text-white rounded-lg text-xs font-bold hover:bg-accent/90 transition-colors shadow-lg"
+                          >
+                            <Megaphone size={13} />
+                            {t("تسويق", "Marketing")}
+                          </button>
+                        )}
+                        <DownloadBtn
+                          url={image.url}
+                          fileName={`${image.businessName}-${image.format}`}
+                          locale={locale}
+                          className="flex items-center gap-1.5 px-3 py-2 bg-white text-gray-900 rounded-lg text-xs font-bold hover:bg-white/90 transition-colors shadow-lg disabled:opacity-50"
+                          onClick={e => e.stopPropagation()}
+                        />
+                      </div>
+                      {/* Expand hint icon */}
+                      <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                        <div className="bg-black/50 text-white rounded-full p-1.5">
+                          <Maximize2 size={11} />
+                        </div>
+                      </div>
+                    </div>
 
-                    <div className="p-3 space-y-2">
+                    {/* Info bar */}
+                    <div className="p-3 space-y-1.5">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-xs font-bold text-foreground truncate">
                           {image.businessName}
                         </span>
                         <span className="text-xs text-muted shrink-0 flex items-center gap-1">
-                          <Calendar size={12} />
+                          <Calendar size={11} />
                           {formatDate(image.createdAt)}
                         </span>
                       </div>
-
                       <div className="flex items-center justify-between gap-2">
                         <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-surface-2 text-foreground rounded-md text-xs">
                           <Tag size={10} />
@@ -212,25 +302,6 @@ export function PosterGallery({ category, imageType = "all" }: PosterGalleryProp
                             {formatConfig?.label ?? image.format}
                           </span>
                         )}
-                      </div>
-
-                      <div className="flex items-center gap-2">
-                        {image.inputs && image.format !== "gift" && (
-                          <button
-                            type="button"
-                            onClick={() => setMarketingImage(image)}
-                            className="flex-1 flex items-center justify-center gap-2 py-2 bg-accent/5 hover:bg-accent hover:text-white text-accent rounded-lg text-xs font-bold transition-all"
-                          >
-                            <Megaphone size={14} />
-                            {t("تسويق", "Marketing")}
-                          </button>
-                        )}
-                        <DownloadBtn
-                          url={image.url}
-                          fileName={`${image.businessName}-${image.format}`}
-                          locale={locale}
-                          className="flex-1 flex items-center justify-center gap-2 py-2 bg-primary/5 hover:bg-primary hover:text-white text-primary rounded-lg text-xs font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                        />
                       </div>
                     </div>
                   </div>
@@ -249,50 +320,70 @@ export function PosterGallery({ category, imageType = "all" }: PosterGalleryProp
         </>
       )}
 
-      {selectedImage && (
+      {/* Full-screen image modal — portaled to body to escape any stacking context */}
+      {selectedImage && mounted && createPortal(
         <div
-          className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          className="fixed inset-0 bg-black/92 backdrop-blur-sm z-[9999] flex flex-col"
           onClick={() => setSelectedImage(null)}
         >
-          <div className="relative max-w-5xl max-h-[90vh] w-full">
-            <div className="absolute -top-12 left-0 right-0 flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                {selectedImage.inputs && selectedImage.format !== "gift" && (
-                  <button
-                    onClick={(e) => { e.stopPropagation(); setMarketingImage(selectedImage); setSelectedImage(null); }}
-                    className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-bold transition-all backdrop-blur-sm"
-                  >
-                    <Megaphone size={16} />
-                    {t("محتوى تسويقي", "Marketing Content")}
-                  </button>
-                )}
-                <DownloadBtn
-                  url={selectedImage.url}
-                  fileName={`${selectedImage.businessName}-${selectedImage.format}`}
-                  locale={locale}
-                  className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-bold transition-all backdrop-blur-sm disabled:opacity-50"
-                  onClick={(e) => e.stopPropagation()}
-                />
-              </div>
-              <button
-                onClick={() => setSelectedImage(null)}
-                className="text-white hover:text-muted text-sm font-bold px-4 py-2"
-              >
-                {t("إغلاق", "Close")} ✕
-              </button>
+          {/* Top bar */}
+          <div
+            className="flex items-center justify-between px-4 py-3 shrink-0"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-center gap-2">
+              {selectedImage.inputs && selectedImage.format !== "gift" && (
+                <button
+                  onClick={() => { setMarketingImage(selectedImage); setSelectedImage(null); }}
+                  className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-bold transition-all"
+                >
+                  <Megaphone size={15} />
+                  {t("محتوى تسويقي", "Marketing Content")}
+                </button>
+              )}
+              <DownloadBtn
+                url={selectedImage.url}
+                fileName={`${selectedImage.businessName}-${selectedImage.format}`}
+                locale={locale}
+                className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-bold transition-all disabled:opacity-50"
+              />
             </div>
+            <button
+              onClick={() => setSelectedImage(null)}
+              className="flex items-center gap-1.5 text-white/80 hover:text-white px-3 py-2 rounded-lg hover:bg-white/10 transition-all text-sm font-bold"
+            >
+              <X size={16} />
+              {t("إغلاق", "Close")}
+            </button>
+          </div>
+
+          {/* Image — centered, fills available space */}
+          <div
+            className="flex-1 flex items-center justify-center px-4 pb-2 min-h-0"
+            onClick={e => e.stopPropagation()}
+          >
             <img
               src={selectedImage.url}
               alt={selectedImage.businessName}
-              className="w-full h-full object-contain rounded-lg"
-              onClick={(e) => e.stopPropagation()}
+              className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
+              style={{ maxHeight: "calc(100vh - 130px)" }}
             />
-            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4 rounded-b-lg">
-              <p className="text-white font-bold">{selectedImage.businessName}</p>
-              <p className="text-white/70 text-sm">{selectedImage.productName}</p>
+          </div>
+
+          {/* Bottom info */}
+          <div
+            className="shrink-0 px-4 py-3 flex items-center gap-3"
+            onClick={e => e.stopPropagation()}
+          >
+            <div>
+              <p className="text-white font-bold text-sm">{selectedImage.businessName}</p>
+              {selectedImage.productName && (
+                <p className="text-white/60 text-xs">{selectedImage.productName}</p>
+              )}
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {marketingImage && marketingImage.inputs && (
@@ -324,7 +415,6 @@ function DownloadBtn({
 
   const handleDownload = async (e: React.MouseEvent) => {
     if (onClick) onClick(e);
-
     setIsDownloading(true);
     try {
       const response = await fetch(url);
@@ -350,7 +440,9 @@ function DownloadBtn({
       className={className}
     >
       {isDownloading ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />}
-      {isDownloading ? (locale === "ar" ? "جاري التحميل..." : "Downloading...") : (locale === "ar" ? "تحميل" : "Download")}
+      {isDownloading
+        ? (locale === "ar" ? "جاري التحميل..." : "Downloading...")
+        : (locale === "ar" ? "تحميل" : "Download")}
     </button>
   );
 }

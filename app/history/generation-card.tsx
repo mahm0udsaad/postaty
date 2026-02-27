@@ -95,7 +95,7 @@ export function GenerationCard({ generation, imageType = "all" }: GenerationCard
   );
 
   const formatDate = (timestamp: number): string =>
-    new Intl.DateTimeFormat(locale === "ar" ? "ar-SA" : "en-US", {
+    new Intl.DateTimeFormat(locale === "ar" ? "ar-SA-u-nu-latn" : "en-US", {
       dateStyle: "medium",
       timeStyle: "short",
     }).format(new Date(timestamp));
@@ -118,48 +118,50 @@ export function GenerationCard({ generation, imageType = "all" }: GenerationCard
     <div className="bg-surface-1/70 backdrop-blur-md rounded-2xl border border-card-border shadow-sm overflow-hidden transition-all hover:bg-surface-1/90 hover:shadow-md">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full p-4 flex items-center gap-4 hover:bg-surface-2/50 transition-colors"
+        className="w-full p-4 flex flex-col gap-2 hover:bg-surface-2/50 transition-colors text-start"
       >
-        <div className="flex items-center gap-1.5 text-xs text-muted shrink-0">
-          <Calendar size={14} />
-          <span>{formatDate(generation.created_at)}</span>
+        {/* Row 1: date · status · thumbnails · chevron */}
+        <div className="flex items-center gap-2 min-w-0">
+          <div className="flex items-center gap-1 text-xs text-muted shrink-0">
+            <Calendar size={12} />
+            <span>{formatDate(generation.created_at)}</span>
+          </div>
+          <span className={`px-2 py-0.5 rounded-lg text-xs font-medium border shrink-0 ${statusInfo.classes}`}>
+            {statusInfo.label}
+          </span>
+          <div className="flex gap-1.5 ml-auto shrink-0">
+            {outputsWithUrls.slice(0, 3).map((output, i) =>
+              output.url ? (
+                <img
+                  key={i}
+                  src={output.url}
+                  alt=""
+                  className="w-7 h-7 rounded-lg object-cover border border-card-border bg-surface-1"
+                />
+              ) : (
+                <div
+                  key={i}
+                  className="w-7 h-7 rounded-lg bg-surface-2 flex items-center justify-center border border-card-border"
+                >
+                  <ImageIcon size={11} className="text-muted-foreground" />
+                </div>
+              )
+            )}
+          </div>
+          <div className="shrink-0 text-muted-foreground">
+            {expanded ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+          </div>
         </div>
 
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-surface-1 text-foreground rounded-lg text-xs font-medium shrink-0 border border-card-border shadow-sm">
-          <Tag size={12} className="text-primary" />
-          {categoryLabel}
-        </span>
-
-        <span className="text-sm font-bold text-foreground truncate">
-          {generation.business_name}
-        </span>
-
-        <span className={`px-2.5 py-1 rounded-lg text-xs font-medium border shrink-0 ${statusInfo.classes}`}>
-          {statusInfo.label}
-        </span>
-
-        <div className="flex gap-1.5 mr-auto">
-          {outputsWithUrls.slice(0, 3).map((output, i) =>
-            output.url ? (
-              <img
-                key={i}
-                src={output.url}
-                alt=""
-                className="w-8 h-8 rounded-lg object-cover border border-card-border bg-surface-1"
-              />
-            ) : (
-              <div
-                key={i}
-                className="w-8 h-8 rounded-lg bg-surface-2 flex items-center justify-center border border-card-border"
-              >
-                <ImageIcon size={12} className="text-muted-foreground" />
-              </div>
-            )
-          )}
-        </div>
-
-        <div className="shrink-0 text-muted-foreground">
-          {expanded ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+        {/* Row 2: category badge · business name */}
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-surface-1 text-foreground rounded-lg text-xs font-medium shrink-0 border border-card-border shadow-sm">
+            <Tag size={11} className="text-primary" />
+            {categoryLabel}
+          </span>
+          <span className="text-sm font-bold text-foreground truncate">
+            {generation.business_name}
+          </span>
         </div>
       </button>
 

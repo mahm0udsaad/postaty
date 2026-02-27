@@ -198,14 +198,14 @@ export default function SupportPage() {
                   <div className="flex items-center gap-3 text-xs text-muted">
                     <span>
                       {new Date(ticket.created_at).toLocaleDateString(
-                        locale === "ar" ? "ar-SA" : "en-US"
+                        locale === "ar" ? "ar-SA-u-nu-latn" : "en-US"
                       )}
                     </span>
                     {ticket.updated_at !== ticket.created_at && (
                       <span>
                         {t("آخر تحديث:", "Updated:")}{" "}
                         {new Date(ticket.updated_at).toLocaleDateString(
-                          locale === "ar" ? "ar-SA" : "en-US"
+                          locale === "ar" ? "ar-SA-u-nu-latn" : "en-US"
                         )}
                       </span>
                     )}

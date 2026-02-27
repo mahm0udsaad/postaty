@@ -163,6 +163,7 @@ export interface MenuItemData {
   image: string;    // base64
   name: string;
   price: string;
+  oldPrice?: string;
 }
 
 export interface MenuFormData {
@@ -171,6 +172,7 @@ export interface MenuFormData {
   businessName: string;
   logo: string;     // base64
   whatsapp: string;
+  address?: string;
   items: MenuItemData[];  // 4-6 items
   brandKitId?: string;
 }

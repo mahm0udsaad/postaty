@@ -72,7 +72,7 @@ const posts = {
 } as const;
 
 function formatDate(dateStr: string, locale: "ar" | "en") {
-  return new Date(dateStr).toLocaleDateString(locale === "ar" ? "ar-SA" : "en-US", {
+  return new Date(dateStr).toLocaleDateString(locale === "ar" ? "ar-SA-u-nu-latn" : "en-US", {
     year: "numeric",
     month: "long",
     day: "numeric",

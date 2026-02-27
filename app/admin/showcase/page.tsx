@@ -181,7 +181,7 @@ export default function AdminShowcasePage() {
                         {(CATEGORY_LABELS as Record<string, string>)[img.category] ?? img.category}
                       </span>
                       <span className="text-xs text-muted">
-                        {new Date(img.createdAt ?? img.created_at).toLocaleDateString("ar-SA")}
+                        {new Date(img.createdAt ?? img.created_at).toLocaleDateString("ar-SA-u-nu-latn")}
                       </span>
                     </div>
                   </div>

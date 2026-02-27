@@ -454,7 +454,7 @@ export function PosterGrid({
   // Show slideshow if loading and NO results yet
   if (isLoading && results.length === 0) {
       return (
-          <div className="py-8 animate-in fade-in duration-700">
+          <div className="py-12 md:py-20 animate-in fade-in duration-700">
               <LoadingSlideshow />
           </div>
       );

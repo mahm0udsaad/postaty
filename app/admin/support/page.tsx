@@ -122,7 +122,7 @@ export default function AdminSupportPage() {
                       </span>
                     </div>
                     <div className="text-[10px] text-muted mt-2">
-                      {new Date(createdAt).toLocaleDateString("ar-SA")}
+                      {new Date(createdAt).toLocaleDateString("ar-SA-u-nu-latn")}
                     </div>
                   </button>
                 );
@@ -290,7 +290,7 @@ function TicketThread({
                     {isAdmin ? "الدعم الفني" : userName}
                   </span>
                   <span className="text-[10px] text-muted">
-                    {new Date(createdAt).toLocaleString("ar-SA")}
+                    {new Date(createdAt).toLocaleString("ar-SA-u-nu-latn")}
                   </span>
                 </div>
                 <p className="text-sm whitespace-pre-wrap">{msg.body}</p>

@@ -27,7 +27,7 @@ const TYPE_COLORS: Record<string, string> = {
 };
 
 function formatDate(timestamp: number, locale: "ar" | "en") {
-  return new Date(timestamp).toLocaleDateString(locale === "ar" ? "ar-SA" : "en-US", {
+  return new Date(timestamp).toLocaleDateString(locale === "ar" ? "ar-SA-u-nu-latn" : "en-US", {
     year: "numeric",
     month: "long",
     day: "numeric",

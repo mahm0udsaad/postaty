@@ -1,7 +1,7 @@
 "use client";
 
 import useSWR from "swr";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
   CreditCard,
   Loader2,
@@ -11,6 +11,8 @@ import {
   XCircle,
   Users,
   Trash2,
+  RefreshCw,
+  Link2,
 } from "lucide-react";
 
 const fetcher = (url: string) => fetch(url).then(r => {
@@ -36,6 +38,9 @@ const STATUS_CONFIG: Record<string, { label: string; icon: typeof CheckCircle2; 
 export default function AdminSubscriptionsPage() {
   const { data, mutate } = useSWR('/api/admin/subscriptions', fetcher);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [syncingId, setSyncingId] = useState<string | null>(null);
+  const [linkingId, setLinkingId] = useState<string | null>(null);
+  const [linkInput, setLinkInput] = useState("");
 
   if (!data) {
     return (
@@ -46,6 +51,32 @@ export default function AdminSubscriptionsPage() {
   }
 
   const { subscriptions, summary } = data;
+
+  const handleSync = async (billingId: string, stripeId?: string) => {
+    setSyncingId(billingId);
+    const isCus = stripeId?.startsWith("cus_");
+    try {
+      const res = await fetch('/api/admin/sync-subscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          billingId,
+          ...(isCus ? { stripeCustomerId: stripeId } : { stripeSubscriptionId: stripeId }),
+        }),
+      });
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || 'فشل المزامنة');
+      }
+      setLinkingId(null);
+      setLinkInput("");
+      mutate();
+    } catch (err: any) {
+      alert(err.message ?? "فشل المزامنة مع Stripe");
+    } finally {
+      setSyncingId(null);
+    }
+  };
 
   const handleDelete = async (billingId: string) => {
     if (!confirm("هل أنت متأكد من حذف هذا السجل؟")) return;
@@ -142,25 +173,78 @@ export default function AdminSubscriptionsPage() {
                       <td className="py-3 px-4 text-xs text-muted">
                         {currentPeriodStart && currentPeriodEnd ? (
                           <>
-                            {new Date(currentPeriodStart).toLocaleDateString("ar-SA")}
+                            {new Date(currentPeriodStart).toLocaleDateString("ar-SA-u-nu-latn")}
                             {" — "}
-                            {new Date(currentPeriodEnd).toLocaleDateString("ar-SA")}
+                            {new Date(currentPeriodEnd).toLocaleDateString("ar-SA-u-nu-latn")}
                           </>
-                        ) : "—"}
+                        ) : (
+                          <span className="text-destructive/70">—</span>
+                        )}
                       </td>
                       <td className="py-3 px-4">
-                        <button
-                          onClick={() => handleDelete(subId)}
-                          disabled={deletingId === subId}
-                          className="p-1.5 text-destructive hover:bg-destructive/10 rounded-lg transition-colors disabled:opacity-50"
-                          title="حذف"
-                        >
-                          {deletingId === subId ? (
-                            <Loader2 size={14} className="animate-spin" />
-                          ) : (
-                            <Trash2 size={14} />
+                        <div className="flex items-center gap-1">
+                          {/* Sync button: has stripe ID but missing period dates */}
+                          {sub.stripe_subscription_id && (!currentPeriodStart || !currentPeriodEnd) && (
+                            <button
+                              onClick={() => handleSync(subId)}
+                              disabled={syncingId === subId}
+                              className="p-1.5 text-primary hover:bg-primary/10 rounded-lg transition-colors disabled:opacity-50"
+                              title="مزامنة من Stripe"
+                            >
+                              {syncingId === subId ? (
+                                <Loader2 size={14} className="animate-spin" />
+                              ) : (
+                                <RefreshCw size={14} />
+                              )}
+                            </button>
                           )}
-                        </button>
+                          {/* Link button: no stripe ID at all */}
+                          {!sub.stripe_subscription_id && (
+                            linkingId === subId ? (
+                              <div className="flex items-center gap-1">
+                                <input
+                                  autoFocus
+                                  value={linkInput}
+                                  onChange={e => setLinkInput(e.target.value)}
+                                  onKeyDown={e => {
+                                    if (e.key === "Enter" && linkInput.trim()) handleSync(subId, linkInput.trim());
+                                    if (e.key === "Escape") { setLinkingId(null); setLinkInput(""); }
+                                  }}
+                                  placeholder="sub_... أو cus_..."
+                                  className="w-32 text-xs px-2 py-1 rounded-lg bg-surface-2 border border-card-border focus:outline-none focus:border-primary"
+                                />
+                                <button
+                                  onClick={() => { if (linkInput.trim()) handleSync(subId, linkInput.trim()); }}
+                                  disabled={!linkInput.trim() || syncingId === subId}
+                                  className="p-1.5 text-success hover:bg-success/10 rounded-lg transition-colors disabled:opacity-50"
+                                  title="تأكيد"
+                                >
+                                  {syncingId === subId ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                                </button>
+                              </div>
+                            ) : (
+                              <button
+                                onClick={() => { setLinkingId(subId); setLinkInput(""); }}
+                                className="p-1.5 text-accent hover:bg-accent/10 rounded-lg transition-colors"
+                                title="ربط بـ Stripe"
+                              >
+                                <Link2 size={14} />
+                              </button>
+                            )
+                          )}
+                          <button
+                            onClick={() => handleDelete(subId)}
+                            disabled={deletingId === subId}
+                            className="p-1.5 text-destructive hover:bg-destructive/10 rounded-lg transition-colors disabled:opacity-50"
+                            title="حذف"
+                          >
+                            {deletingId === subId ? (
+                              <Loader2 size={14} className="animate-spin" />
+                            ) : (
+                              <Trash2 size={14} />
+                            )}
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   );

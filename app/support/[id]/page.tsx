@@ -100,7 +100,7 @@ export default function TicketDetailPage({
           </div>
           <p className="text-xs text-muted">
             {new Date(ticket.created_at).toLocaleDateString(
-              locale === "ar" ? "ar-SA" : "en-US",
+              locale === "ar" ? "ar-SA-u-nu-latn" : "en-US",
               { year: "numeric", month: "long", day: "numeric" }
             )}
           </p>
@@ -135,7 +135,7 @@ export default function TicketDetailPage({
                     </span>
                     <span className="text-[10px] text-muted">
                       {new Date(msg.created_at).toLocaleString(
-                        locale === "ar" ? "ar-SA" : "en-US"
+                        locale === "ar" ? "ar-SA-u-nu-latn" : "en-US"
                       )}
                     </span>
                   </div>

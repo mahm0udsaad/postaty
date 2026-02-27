@@ -212,7 +212,7 @@ export default function RegionalSubscriptionsPage() {
                       {sub.current_period_end
                         ? `حتى ${new Date(
                             sub.current_period_end
-                          ).toLocaleDateString("ar-JO")}`
+                          ).toLocaleDateString("ar-JO-u-nu-latn")}`
                         : "—"}
                     </td>
                   </tr>

@@ -321,7 +321,7 @@ export default function RegionalOverviewPage() {
                         {g.credits_charged}
                       </td>
                       <td className="px-6 py-3 text-muted">
-                        {new Date(g.created_at).toLocaleDateString("ar-JO")}
+                        {new Date(g.created_at).toLocaleDateString("ar-JO-u-nu-latn")}
                       </td>
                     </tr>
                   )

@@ -171,6 +171,10 @@ input::placeholder, textarea::placeholder {
   background: rgba(0, 0, 0, 0.2);
 }
 
+/* Hide scrollbar but keep scroll behavior */
+.no-scrollbar::-webkit-scrollbar { display: none; }
+.no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+
 /* Utility for strikethrough price */
 .price-old {
   text-decoration: line-through;
