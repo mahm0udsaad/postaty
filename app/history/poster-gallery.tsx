@@ -98,14 +98,18 @@ export function PosterGallery({ category, imageType = "all", onCountChange }: Po
     setHasMore(true);
   }, [category]);
 
-  // Accumulate results
+  // Accumulate results — deduplicate by id to guard against SWR revalidation re-appending
   useEffect(() => {
     if (data?.generations) {
       const gens = data.generations as any[];
       if (offset === 0) {
         setAllResults(gens);
       } else {
-        setAllResults(prev => [...prev, ...gens]);
+        setAllResults(prev => {
+          const existingIds = new Set(prev.map((g: any) => g.id));
+          const newOnes = gens.filter((g: any) => !existingIds.has(g.id));
+          return [...prev, ...newOnes];
+        });
       }
       setHasMore(gens.length >= pageSize);
     }

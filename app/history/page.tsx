@@ -5,7 +5,7 @@ import useSWR from "swr";
 import { useAuth } from "@/hooks/use-auth";
 import { PosterGallery } from "./poster-gallery";
 import { GenerationCard } from "./generation-card";
-import { Clock, Grid3x3, List, Sparkles, Gift, Image as ImageIcon } from "lucide-react";
+import { Grid3x3, List, Sparkles, Gift, Image as ImageIcon, Images } from "lucide-react";
 import type { Category } from "@/lib/types";
 import { CATEGORY_LABELS } from "@/lib/constants";
 import Link from "next/link";
@@ -104,17 +104,11 @@ export default function HistoryPage() {
         {/* Header */}
         <div className="text-center mb-12">
           <div className="inline-flex items-center justify-center gap-3 mb-4 bg-surface-1/80 backdrop-blur-sm px-6 py-2 rounded-full border border-card-border shadow-sm animate-fade-in-up">
-            <Clock size={24} className="text-primary" />
+            <Images size={20} className="text-primary" />
             <span className="text-foreground font-semibold tracking-wide text-sm">
-              {t("سجل الإنشاءات", "Generation history")}
+              {t("معرض الاعمال", "Portfolio")}
             </span>
           </div>
-          <h1 className="text-3xl md:text-4xl font-extrabold mb-4 text-foreground animate-gradient-flow">
-            {t("معرض البوسترات", "Poster gallery")}
-          </h1>
-          <p className="text-muted text-lg max-w-xl mx-auto leading-relaxed font-light">
-            {t("عرض جميع البوسترات التي تم إنشاؤها سابقاً", "View all posters generated previously")}
-          </p>
         </div>
 
         {/* Unified Toolbar */}

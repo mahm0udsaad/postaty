@@ -5,10 +5,10 @@ import { Resend } from "resend";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
-const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? "Postaty <onboarding@resend.dev>";
+const FROM_EMAIL = process.env.RESEND_FROM_EMAIL ?? "Postaty <noreply@postaty.com>";
 
 // ---------------------------------------------------------------------------
-// Build the balance reminder email template (ported from convex/emailing.ts)
+// Build the balance reminder email template.
 // ---------------------------------------------------------------------------
 function buildBalanceReminderTemplate(input: {
   name: string;

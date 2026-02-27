@@ -160,7 +160,7 @@ export function ShowcaseCarousel({ showcaseImages }: ShowcaseCarouselProps) {
     return () => clearInterval(timer);
   }, [isHovered, images.length, scrollToIndex, isCoarsePointer]);
 
-  // Show skeleton while Convex is loading (useQuery returns undefined)
+  // Show skeleton while data is loading
   if (showcaseImages === undefined) {
     return (
       <section className="py-16 md:py-24 px-4 border-t border-card-border">

@@ -18,7 +18,7 @@ Deliver a bold, polished UI for:
 
 ## Non-Negotiables
 
-- Keep existing app architecture (Next.js + Convex + Clerk).
+- Keep existing app architecture (Next.js + Supabase).
 - Use existing backend endpoints (already implemented).
 - Do not break current create/history/settings flows.
 - Keep mobile + desktop quality high.
@@ -135,7 +135,7 @@ Mutations:
 ## Deliverables
 
 1. Complete admin UI pages + shared layout.
-2. Convex wiring for all listed views/actions.
+2. Supabase wiring for all listed views/actions.
 3. Feedback controls integrated in poster modal.
 4. Short implementation note describing:
    - design system choices

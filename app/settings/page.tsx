@@ -12,6 +12,12 @@ import {
   Pencil,
   Check,
   X,
+  ArrowUp,
+  User,
+  CreditCard,
+  Settings,
+  HelpCircle,
+  ChevronRight,
 } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
@@ -250,121 +256,166 @@ function SettingsPageContent() {
   const planKey =
     creditState && "planKey" in creditState ? creditState.planKey : "none";
 
+  const creditPercentage = creditState?.monthlyCreditLimit
+    ? Math.min(100, Math.round((creditState.monthlyCreditsUsed / creditState.monthlyCreditLimit) * 100))
+    : 0;
+
   return (
     <main className="min-h-screen relative pt-8 pb-32 px-4 md:pt-16 md:pb-24">
-      <div className="max-w-2xl mx-auto space-y-6">
-        {/* Profile Header */}
-        <div className="bg-surface-1 border border-card-border rounded-2xl p-8 text-center">
-          {/* Avatar with edit overlay */}
-          <div className="relative w-24 h-24 mx-auto mb-4 group">
-            <div className="relative w-full h-full rounded-full overflow-hidden border-4 border-card-border">
-              {avatarUrl ? (
-                <Image
-                  src={avatarUrl}
-                  alt={fullName || "Profile"}
-                  fill
-                  className="object-cover"
-                  sizes="96px"
-                  unoptimized
-                />
-              ) : (
-                <div className="w-full h-full bg-primary/10 flex items-center justify-center text-primary text-2xl font-bold">
-                  {initials}
-                </div>
-              )}
-
-              {/* Upload overlay */}
-              {isUploadingAvatar && (
-                <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                  <Loader2 size={24} className="animate-spin text-white" />
-                </div>
-              )}
+      <div className="max-w-2xl mx-auto space-y-8">
+        {/* Page Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <div className="flex items-center gap-2 text-muted text-sm mb-1">
+              <Link href="/" className="hover:text-foreground transition-colors">
+                {t("الرئيسية", "Home")}
+              </Link>
+              <ChevronRight size={14} className="opacity-50" />
+              <span>{t("الإعدادات", "Settings")}</span>
             </div>
-
-            {/* Camera button */}
-            <button
-              onClick={handleAvatarClick}
-              disabled={isUploadingAvatar}
-              className="absolute bottom-0 end-0 w-8 h-8 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg hover:bg-primary-hover transition-colors disabled:opacity-50 cursor-pointer"
-              title={t("تغيير الصورة", "Change photo")}
-            >
-              <Camera size={14} />
-            </button>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              onChange={handleAvatarChange}
-              className="hidden"
-            />
+            <h1 className="text-3xl font-black">{t("إعدادات الحساب", "Account Settings")}</h1>
           </div>
-
-          {/* Name with edit */}
-          <div className="flex items-center justify-center gap-2 mb-1">
-            {isEditingName ? (
-              <div className="flex items-center gap-2">
-                <input
-                  type="text"
-                  value={editName}
-                  onChange={(e) => setEditName(e.target.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleSaveName();
-                    if (e.key === "Escape") handleCancelEditName();
-                  }}
-                  autoFocus
-                  className="bg-surface-2 border border-card-border rounded-xl px-4 py-2 text-lg font-bold text-foreground text-center focus:outline-none focus:ring-2 focus:ring-primary/50 w-56"
-                  placeholder={t("أدخل اسمك", "Enter your name")}
-                />
-                <button
-                  onClick={handleSaveName}
-                  disabled={isSavingName}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-success/10 text-success hover:bg-success/20 transition-colors disabled:opacity-50"
-                >
-                  {isSavingName ? (
-                    <Loader2 size={14} className="animate-spin" />
-                  ) : (
-                    <Check size={14} />
-                  )}
-                </button>
-                <button
-                  onClick={handleCancelEditName}
-                  disabled={isSavingName}
-                  className="w-8 h-8 flex items-center justify-center rounded-lg bg-danger/10 text-danger hover:bg-danger/20 transition-colors"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            ) : (
-              <>
-                <h1 className="text-2xl font-black">
-                  {fullName || t("بدون اسم", "No name")}
-                </h1>
-                <button
-                  onClick={handleStartEditName}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg text-muted hover:text-foreground hover:bg-surface-2 transition-colors"
-                  title={t("تعديل الاسم", "Edit name")}
-                >
-                  <Pencil size={14} />
-                </button>
-                <span
-                  className={`px-3 py-0.5 rounded-full text-xs font-bold ${PLAN_COLORS[planKey]} ${PLAN_BG[planKey]}`}
-                >
-                  {PLAN_NAMES[planKey]?.[locale] ||
-                    t("غير معروف", "Unknown")}
-                </span>
-              </>
-            )}
+          <div className="hidden sm:block">
+            <Settings size={32} className="text-muted/20" />
           </div>
-
-          {/* Email */}
-          <p className="text-muted text-sm">
-            {email || t("بدون بريد", "No email")}
-          </p>
         </div>
 
-        {/* Credits & Subscription */}
-        {isCreditLoading || creditState === undefined ? (
+        {/* Section: Account Profile */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-2 px-1">
+            <User size={18} className="text-primary" />
+            <h2 className="font-bold text-lg">{t("الملف الشخصي", "Profile")}</h2>
+          </div>
+          
+          <div className="bg-surface-1 border border-card-border rounded-3xl overflow-hidden transition-all hover:border-primary/20 shadow-sm relative">
+            {/* Banner Background */}
+            <div className="h-24 bg-gradient-to-r from-primary/10 via-accent/10 to-primary/5 w-full absolute top-0 left-0 border-b border-card-border/50"></div>
+            
+            <div className="p-6 sm:p-8 pt-12 sm:pt-16 relative flex flex-col sm:flex-row items-center sm:items-end text-center sm:text-start gap-6">
+              {/* Avatar with edit overlay */}
+              <div className="relative w-28 h-28 group shrink-0">
+                <div className="relative w-full h-full rounded-full overflow-hidden border-4 border-surface-1 shadow-md bg-surface-1">
+                  {avatarUrl ? (
+                    <Image
+                      src={avatarUrl}
+                      alt={fullName || "Profile"}
+                      fill
+                      className="object-cover transition-transform group-hover:scale-105"
+                      sizes="112px"
+                      unoptimized
+                    />
+                  ) : (
+                    <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-primary text-3xl font-bold">
+                      {initials}
+                    </div>
+                  )}
+
+                  {/* Upload overlay */}
+                  {isUploadingAvatar && (
+                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center">
+                      <Loader2 size={24} className="animate-spin text-white" />
+                    </div>
+                  )}
+                </div>
+
+                {/* Camera button */}
+                <button
+                  onClick={handleAvatarClick}
+                  disabled={isUploadingAvatar}
+                  className="absolute z-10 bottom-0 end-0 w-9 h-9 bg-primary text-primary-foreground rounded-full flex items-center justify-center shadow-lg hover:bg-primary-hover transition-all scale-100 active:scale-95 disabled:opacity-50 cursor-pointer border-2 border-surface-1"
+                  title={t("تغيير الصورة", "Change photo")}
+                >
+                  <Camera size={14} />
+                </button>
+
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp"
+                  onChange={handleAvatarChange}
+                  className="hidden"
+                />
+              </div>
+
+              <div className="flex-1 space-y-3 w-full pb-2">
+                {/* Name with edit */}
+                <div className="flex flex-col sm:flex-row items-center sm:items-center gap-3">
+                  {isEditingName ? (
+                    <div className="flex items-center gap-2 w-full max-w-sm bg-surface-2 p-1.5 rounded-2xl border border-card-border focus-within:border-primary/50 focus-within:ring-2 focus-within:ring-primary/20 transition-all">
+                      <input
+                        type="text"
+                        value={editName}
+                        onChange={(e) => setEditName(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") handleSaveName();
+                          if (e.key === "Escape") handleCancelEditName();
+                        }}
+                        autoFocus
+                        className="bg-transparent px-3 py-1.5 text-lg font-bold text-foreground focus:outline-none w-full"
+                        placeholder={t("أدخل اسمك", "Enter your name")}
+                      />
+                      <div className="flex gap-1 shrink-0">
+                        <button
+                          onClick={handleSaveName}
+                          disabled={isSavingName}
+                          className="w-8 h-8 flex items-center justify-center rounded-xl bg-primary text-primary-foreground hover:bg-primary-hover transition-colors disabled:opacity-50"
+                        >
+                          {isSavingName ? (
+                            <Loader2 size={14} className="animate-spin" />
+                          ) : (
+                            <Check size={14} />
+                          )}
+                        </button>
+                        <button
+                          onClick={handleCancelEditName}
+                          disabled={isSavingName}
+                          className="w-8 h-8 flex items-center justify-center rounded-xl bg-surface-3 text-muted hover:text-foreground transition-colors"
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-3">
+                      <h3 className="text-2xl sm:text-3xl font-black tracking-tight">
+                        {fullName || t("بدون اسم", "No name")}
+                      </h3>
+                      <button
+                        onClick={handleStartEditName}
+                        className="w-8 h-8 flex items-center justify-center rounded-full bg-surface-2 text-muted hover:text-foreground hover:bg-surface-3 transition-all shadow-sm border border-card-border/50"
+                        title={t("تعديل الاسم", "Edit name")}
+                      >
+                        <Pencil size={14} />
+                      </button>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3">
+                  <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-surface-2 border border-card-border/50 text-muted text-sm font-medium">
+                    <User size={12} className="opacity-50" />
+                    <span>{email || t("بدون بريد", "No email")}</span>
+                  </div>
+                  <span
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] uppercase tracking-wider font-black ${PLAN_COLORS[planKey]} ${PLAN_BG[planKey]} border border-current/10`}
+                  >
+                    <Zap size={12} className="opacity-70" />
+                    <span>{PLAN_NAMES[planKey]?.[locale] || t("غير معروف", "Unknown")}</span>
+                  </span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Section: Subscription & Credits */}
+        <section className="space-y-4">
+          <div className="flex items-center gap-2 px-1">
+            <CreditCard size={18} className="text-accent" />
+            <h2 className="font-bold text-lg">{t("الاشتراك والأرصدة", "Subscription & Credits")}</h2>
+          </div>
+
+          {isCreditLoading || creditState === undefined ? (
           <div className="bg-surface-1 border border-card-border rounded-2xl p-8 flex items-center justify-center h-48">
             <div className="text-center">
               <Loader2
@@ -380,166 +431,217 @@ function SettingsPageContent() {
             </div>
           </div>
         ) : creditState && "planKey" in creditState ? (
-          <>
-            {/* Credits Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {/* Credits Card */}
-              <div className="bg-surface-1 border border-card-border rounded-2xl p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <Zap size={18} className="text-primary" />
-                  <h3 className="font-bold">
-                    {t("الأرصدة", "Credits")}
-                  </h3>
-                </div>
-                <div className="space-y-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted">
-                      {t("الشهري المتبقي", "Monthly remaining")}
-                    </span>
-                    <span className="text-lg font-bold text-primary">
-                      {creditState.monthlyRemaining}
-                    </span>
+          <div className="space-y-6">
+            {/* Credits & Usage */}
+            <div className="bg-surface-1 border border-card-border rounded-3xl overflow-hidden shadow-sm">
+              <div className="p-6 sm:p-8 space-y-8">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-1">
+                    <h3 className="text-xl font-black">{t("رصيد العمليات", "Credits Balance")}</h3>
+                    <p className="text-muted text-sm">{t("الرصيد المتاح لإنشاء التصاميم", "Available credits for creation")}</p>
                   </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted">
-                      {t("إضافات", "Add-ons")}
-                    </span>
-                    <span className="text-lg font-bold text-accent">
-                      {creditState.addonRemaining}
-                    </span>
-                  </div>
-                  <div className="border-t border-card-border pt-3 flex justify-between items-center">
-                    <span className="text-sm font-medium">
-                      {t("المجموع", "Total")}
-                    </span>
-                    <span className="text-2xl font-black text-foreground">
+                  <div className="text-end">
+                    <div className="text-3xl font-black text-primary leading-none">
                       {creditState.totalRemaining}
-                    </span>
+                    </div>
+                    <div className="text-[10px] text-muted font-bold uppercase tracking-widest mt-1">
+                      {t("رصيد كلي", "Total Remaining")}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Progress Bar */}
+                <div className="space-y-3">
+                  <div className="flex justify-between text-sm font-bold">
+                    <span className="text-muted">{t("الاستخدام الشهري", "Monthly Usage")}</span>
+                    <span>{creditState.monthlyCreditsUsed} / {creditState.monthlyCreditLimit}</span>
+                  </div>
+                  <div className="h-3 bg-surface-2 rounded-full overflow-hidden border border-card-border/50">
+                    <div 
+                      className="h-full bg-gradient-to-r from-primary to-primary-hover transition-all duration-1000 ease-out rounded-full"
+                      style={{ width: `${creditPercentage}%` }}
+                    />
+                  </div>
+                  <p className="text-[11px] text-muted text-center italic">
+                    {creditPercentage > 80 
+                      ? t("لقد اقتربت من استهلاك كامل رصيدك الشهري", "You've almost used up your monthly credits")
+                      : t("يتم تجديد الرصيد تلقائياً في بداية كل شهر ميلادي", "Credits renew automatically at the start of each month")}
+                  </p>
+                </div>
+
+                {/* Breakdown */}
+                <div className="grid grid-cols-2 gap-4 sm:gap-8 pt-4 border-t border-card-border/50">
+                  <div className="space-y-1">
+                    <span className="text-xs text-muted font-medium">{t("الإضافات", "Add-on Credits")}</span>
+                    <p className="text-lg font-bold text-accent">{creditState.addonRemaining}</p>
+                  </div>
+                  <div className="space-y-1 text-end">
+                    <span className="text-xs text-muted font-medium">{t("المتبقي من الشهر", "Monthly Remaining")}</span>
+                    <p className="text-lg font-bold text-foreground">{creditState.monthlyRemaining}</p>
                   </div>
                 </div>
               </div>
 
-              {/* Status Card */}
-              <div className="bg-surface-1 border border-card-border rounded-2xl p-6">
-                <div className="flex items-center gap-2 mb-4">
-                  <Calendar size={18} className="text-accent" />
-                  <h3 className="font-bold">
-                    {t("الاشتراك", "Subscription")}
-                  </h3>
-                </div>
-                <div className="space-y-3">
-                  <div>
-                    <span className="text-sm text-muted">
-                      {t("الحالة", "Status")}
-                    </span>
-                    <div className="mt-1">
-                      <span
-                        className={`inline-block px-3 py-1 rounded-full text-sm font-bold ${
-                          creditState.status === "active"
-                            ? "bg-success/20 text-success"
-                            : "bg-muted/20 text-muted"
-                        }`}
-                      >
+              <div className="border-t border-card-border">
+                {/* Subscription date info */}
+                <div className="px-6 sm:px-8 py-5 grid grid-cols-1 sm:grid-cols-3 gap-4 divide-y sm:divide-y-0 sm:divide-x divide-card-border/50 rtl:sm:divide-x-reverse">
+                  {/* Status */}
+                  <div className="flex items-center gap-3 sm:pe-4 pb-4 sm:pb-0">
+                    <div className="w-9 h-9 rounded-xl bg-accent/10 flex items-center justify-center text-accent shrink-0">
+                      <Calendar size={16} />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted font-medium mb-0.5">{t("الحالة", "Status")}</p>
+                      <span className={`inline-block text-xs font-black px-2 py-0.5 rounded-full ${
+                        creditState.status === "active"
+                          ? "bg-success/15 text-success"
+                          : creditState.status === "trialing"
+                          ? "bg-primary/15 text-primary"
+                          : creditState.status === "past_due"
+                          ? "bg-warning/15 text-warning"
+                          : "bg-muted/15 text-muted"
+                      }`}>
                         {creditState.status === "active"
                           ? t("نشط", "Active")
+                          : creditState.status === "trialing"
+                          ? t("تجريبي", "Trial")
+                          : creditState.status === "past_due"
+                          ? t("متأخر", "Past due")
                           : t("غير نشط", "Inactive")}
                       </span>
                     </div>
                   </div>
-                  {creditState.currentPeriodStart &&
-                    creditState.currentPeriodEnd && (
-                      <div>
-                        <span className="text-sm text-muted">
-                          {t("الفترة الحالية", "Current period")}
-                        </span>
-                        <p className="text-sm text-foreground mt-1">
-                          {new Date(
-                            creditState.currentPeriodStart
-                          ).toLocaleDateString(
-                            locale === "ar" ? "ar-SA-u-nu-latn" : "en-US"
-                          )}
-                          {" - "}
-                          {new Date(
-                            creditState.currentPeriodEnd
-                          ).toLocaleDateString(
-                            locale === "ar" ? "ar-SA-u-nu-latn" : "en-US"
-                          )}
-                        </p>
-                      </div>
-                    )}
+
+                  {/* Start date */}
+                  <div className="flex items-center gap-3 sm:px-4 py-4 sm:py-0">
+                    <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center text-primary shrink-0">
+                      <Calendar size={16} />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted font-medium mb-0.5">{t("بداية الفترة", "Period start")}</p>
+                      <p className="text-sm font-bold">
+                        {creditState.currentPeriodStart
+                          ? new Date(creditState.currentPeriodStart).toLocaleDateString(
+                              locale === "ar" ? "ar-SA-u-nu-latn" : "en-US",
+                              { day: "numeric", month: "short", year: "numeric" }
+                            )
+                          : t("—", "—")}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Renewal date */}
+                  <div className="flex items-center gap-3 sm:ps-4 pt-4 sm:pt-0">
+                    <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
+                      creditState.currentPeriodEnd &&
+                      Math.ceil((creditState.currentPeriodEnd - Date.now()) / 86400000) <= 5
+                        ? "bg-warning/10 text-warning"
+                        : "bg-success/10 text-success"
+                    }`}>
+                      <Calendar size={16} />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted font-medium mb-0.5">{t("تجديد في", "Renews on")}</p>
+                      {creditState.currentPeriodEnd ? (
+                        <>
+                          <p className="text-sm font-bold">
+                            {new Date(creditState.currentPeriodEnd).toLocaleDateString(
+                              locale === "ar" ? "ar-SA-u-nu-latn" : "en-US",
+                              { day: "numeric", month: "short", year: "numeric" }
+                            )}
+                          </p>
+                          <p className="text-[11px] text-muted">
+                            {(() => {
+                              const days = Math.ceil((creditState.currentPeriodEnd - Date.now()) / 86400000);
+                              if (days <= 0) return t("اليوم", "Today");
+                              if (days === 1) return t("غداً", "Tomorrow");
+                              return locale === "ar"
+                                ? `بعد ${days} يوم`
+                                : `in ${days} days`;
+                            })()}
+                          </p>
+                        </>
+                      ) : (
+                        <p className="text-sm font-bold">{t("—", "—")}</p>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Action buttons */}
+                <div className="px-6 sm:px-8 pb-6 flex gap-2 justify-end">
+                  {creditState.status === "active" && (
+                    <button
+                      onClick={handleManageSubscription}
+                      disabled={loadingAction === "portal"}
+                      className="flex items-center justify-center gap-2 px-5 py-2.5 bg-surface-2 border border-card-border rounded-xl font-bold text-sm text-foreground hover:bg-surface-3 transition-colors disabled:opacity-50"
+                    >
+                      {loadingAction === "portal" ? <Loader2 size={14} className="animate-spin" /> : null}
+                      {t("إدارة الاشتراك", "Manage")}
+                    </button>
+                  )}
+                  {creditState.planKey !== "dominant" && (
+                    <Link
+                      href="/pricing"
+                      className="flex items-center justify-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-xl font-bold text-sm hover:shadow-lg hover:shadow-primary/20 transition-all"
+                    >
+                      <ArrowUp size={14} />
+                      {creditState.planKey === "none" ? t("اشترك الآن", "Subscribe") : t("ترقية", "Upgrade")}
+                    </Link>
+                  )}
                 </div>
               </div>
             </div>
 
-            {/* Action Buttons */}
-            <div className="flex gap-4 flex-col sm:flex-row">
-              {"status" in creditState &&
-                creditState.status === "active" && (
-                  <button
-                    onClick={handleManageSubscription}
-                    disabled={loadingAction === "portal"}
-                    className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-surface-1 border border-card-border rounded-2xl font-bold text-foreground hover:bg-surface-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {loadingAction === "portal" ? (
-                      <>
-                        <Loader2 size={16} className="animate-spin" />
-                        <span>
-                          {t("جاري التحميل...", "Loading...")}
-                        </span>
-                      </>
-                    ) : (
-                      <span>
-                        {t("إدارة الاشتراك", "Manage subscription")}
-                      </span>
-                    )}
-                  </button>
-                )}
+            {/* Support & help */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Link href="/support" className="block group">
+                <div className="bg-surface-1 border border-card-border rounded-3xl p-6 flex items-start gap-4 transition-all duration-300 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 hover:-translate-y-1 h-full">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center text-primary shrink-0 transition-transform group-hover:scale-110">
+                    <HelpCircle size={24} />
+                  </div>
+                  <div className="space-y-2 flex-1">
+                    <div className="space-y-1">
+                      <h4 className="font-bold text-base text-foreground group-hover:text-primary transition-colors">{t("الدعم الفني", "Technical Support")}</h4>
+                      <p className="text-sm text-muted leading-relaxed">
+                        {t("هل لديك استفسار أو واجهت مشكلة؟ نحن هنا للمساعدة.", "Have a question or facing an issue? We're here to help.")}
+                      </p>
+                    </div>
+                    <div className="inline-flex items-center gap-1.5 text-xs font-black text-primary opacity-80 group-hover:opacity-100 transition-opacity">
+                      {t("تواصل معنا", "Contact Support")}
+                      <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform rtl:group-hover:-translate-x-1" />
+                    </div>
+                  </div>
+                </div>
+              </Link>
 
-              {creditState.planKey === "none" && (
-                <Link
-                  href="/pricing"
-                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-2xl font-bold hover:shadow-lg hover:shadow-primary/25 transition-all"
-                >
-                  <Zap size={16} />
-                  <span>
-                    {t(
-                      "عرض الخطط والأسعار",
-                      "View plans and pricing"
-                    )}
-                  </span>
-                </Link>
-              )}
+              <button
+                onClick={handleSignOut}
+                disabled={loadingAction === "signout"}
+                className="block group text-start disabled:opacity-70 disabled:cursor-not-allowed"
+              >
+                <div className="bg-surface-1 border border-card-border rounded-3xl p-6 flex items-start gap-4 transition-all duration-300 hover:border-danger/30 hover:shadow-lg hover:shadow-danger/5 hover:-translate-y-1 h-full">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-danger/20 to-danger/5 flex items-center justify-center text-danger shrink-0 transition-transform group-hover:scale-110">
+                    {loadingAction === "signout" ? <Loader2 size={24} className="animate-spin" /> : <LogOut size={24} />}
+                  </div>
+                  <div className="space-y-2 flex-1">
+                    <div className="space-y-1">
+                      <h4 className="font-bold text-base text-foreground group-hover:text-danger transition-colors">{t("تسجيل الخروج", "Sign Out")}</h4>
+                      <p className="text-sm text-muted leading-relaxed">
+                        {t("الخروج من حسابك الحالي على هذا الجهاز.", "Sign out of your current account on this device.")}
+                      </p>
+                    </div>
+                    <div className="inline-flex items-center gap-1.5 text-xs font-black text-danger opacity-80 group-hover:opacity-100 transition-opacity">
+                      {t("تسجيل الخروج", "Sign Out")}
+                      <ChevronRight size={14} className="group-hover:translate-x-1 transition-transform rtl:group-hover:-translate-x-1" />
+                    </div>
+                  </div>
+                </div>
+              </button>
             </div>
-          </>
+          </div>
         ) : null}
-
-        {/* Support */}
-        <div className="bg-surface-2/30 border border-card-border rounded-2xl p-6 text-center">
-          <p className="text-sm text-muted mb-3">
-            {t("هل تحتاج إلى مساعدة؟", "Need help?")}
-          </p>
-          <Link
-            href="/support"
-            className="inline-flex items-center gap-2 px-5 py-2.5 bg-primary/10 text-primary border border-primary/20 rounded-xl text-sm font-bold hover:bg-primary/20 transition-colors"
-          >
-            <LifeBuoy size={16} />
-            {t("تواصل مع الدعم الفني", "Contact support")}
-          </Link>
-        </div>
-
-        {/* Sign Out */}
-        <button
-          onClick={handleSignOut}
-          disabled={loadingAction === "signout"}
-          className="w-full flex items-center justify-center gap-2 px-6 py-3 rounded-2xl border border-red-500/20 text-red-500 hover:bg-red-500/5 transition-colors font-bold disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {loadingAction === "signout" ? (
-            <Loader2 size={16} className="animate-spin" />
-          ) : (
-            <LogOut size={16} />
-          )}
-          <span>{t("تسجيل الخروج", "Sign out")}</span>
-        </button>
+        </section>
       </div>
     </main>
   );

@@ -22,7 +22,7 @@ type StripeSubscriptionShape = {
   current_period_start?: number;
   current_period_end?: number;
   items: { data: Array<{ price?: { id?: string }; current_period_start?: number; current_period_end?: number }> };
-  metadata?: { clerkUserId?: string; userAuthId?: string };
+  metadata?: { userAuthId?: string };
 };
 
 type StripeInvoiceShape = {
@@ -45,6 +45,13 @@ const PLAN_CONFIG: Record<PlanKey, { monthlyCredits: number }> = {
   starter: { monthlyCredits: 10 },
   growth: { monthlyCredits: 25 },
   dominant: { monthlyCredits: 50 },
+};
+
+const PLAN_RANK: Record<string, number> = {
+  none: 0,
+  starter: 1,
+  growth: 2,
+  dominant: 3,
 };
 
 const MUTABLE_BILLING_STATUSES = new Set([
@@ -116,9 +123,9 @@ function planKeyFromPriceId(prices: PriceMap, priceId: string | undefined): Plan
   return null;
 }
 
-// Resolve userAuthId from metadata — supports both old clerkUserId and new userAuthId
+// Resolve user auth id from Stripe metadata.
 function resolveUserAuthId(metadata?: Record<string, string | undefined>): string | undefined {
-  return metadata?.userAuthId ?? metadata?.clerkUserId;
+  return metadata?.userAuthId;
 }
 
 // ── Stripe Event Idempotency ─────────────────────────────────────────
@@ -224,8 +231,19 @@ async function upsertBillingFromSubscription(payload: {
     !!payload.currentPeriodStart &&
     existing.current_period_start !== payload.currentPeriodStart;
 
+  // Carry over remaining monthly credits when upgrading to a higher plan
+  const oldPlanKey = existing?.plan_key ?? "none";
+  const isUpgrade = PLAN_RANK[payload.planKey] > PLAN_RANK[oldPlanKey];
+  const carryOver =
+    shouldResetMonthlyUsage && isUpgrade
+      ? Math.max(
+          (existing?.monthly_credit_limit ?? 0) - (existing?.monthly_credits_used ?? 0),
+          0
+        )
+      : 0;
+
   const monthlyCreditsUsed = shouldResetMonthlyUsage ? 0 : (existing?.monthly_credits_used ?? 0);
-  const addonCreditsBalance = existing?.addon_credits_balance ?? 0;
+  const addonCreditsBalance = (existing?.addon_credits_balance ?? 0) + carryOver;
   const now = Date.now();
 
   if (existing) {
@@ -257,6 +275,19 @@ async function upsertBillingFromSubscription(payload: {
         addon_credits_balance_after: addonCreditsBalance,
         created_at: now,
       });
+
+      if (carryOver > 0) {
+        await admin.from("credit_ledger").insert({
+          user_auth_id: userAuthId,
+          billing_id: existing.id,
+          amount: carryOver,
+          reason: "manual_adjustment",
+          source: "addon",
+          monthly_credits_used_after: 0,
+          addon_credits_balance_after: addonCreditsBalance,
+          created_at: now,
+        });
+      }
     }
 
     if (status === "canceled" && existing.status !== "canceled") {

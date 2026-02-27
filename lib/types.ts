@@ -1,4 +1,6 @@
-import type { Id } from "@/convex/_generated/dataModel";
+export type Id<TableName extends string = string> = string & {
+  readonly __tableName?: TableName;
+};
 
 // ── Categories & Formats ───────────────────────────────────────────
 export type Category = "restaurant" | "supermarket" | "ecommerce" | "services" | "fashion" | "beauty";
@@ -182,7 +184,7 @@ export interface GenerationResult {
   format: OutputFormat;
   imageBase64: string;
   storageId?: string;
-  storageUrl?: string; // Resolved URL from Convex storage (used in history page)
+  storageUrl?: string; // Resolved URL from storage (used in history page)
   status: "pending" | "generating" | "complete" | "error";
   error?: string;
 }
@@ -434,7 +436,7 @@ export interface PlanLimits {
 }
 
 // ── Admin API Contracts ─────────────────────────────────────────────
-// Convex function names and response shapes for Agent B (frontend)
+// Admin API response shapes
 //
 // Queries:
 //   admin.getAiOverview        → AdminAiOverview
@@ -489,7 +491,7 @@ export interface AdminFinancialOverview {
 
 export interface AdminUser {
   _id: string;
-  clerkId: string;
+  userAuthId: string;
   email: string;
   name: string;
   role: "owner" | "admin" | "member";
@@ -508,7 +510,7 @@ export interface AdminUser {
 export interface AdminSubscriptionsResult {
   subscriptions: Array<{
     _id: string;
-    clerkUserId: string;
+    userAuthId: string;
     planKey: string;
     status: string;
     monthlyCreditLimit: number;
@@ -530,7 +532,7 @@ export interface AdminSubscriptionsResult {
 
 export interface AdminFeedbackItem {
   _id: string;
-  clerkUserId: string;
+  userAuthId: string;
   rating: "like" | "dislike";
   comment?: string;
   model?: string;
@@ -549,7 +551,7 @@ export interface AdminFeedbackSummary {
 
 export interface AdminSupportTicket {
   _id: string;
-  clerkUserId: string;
+  userAuthId: string;
   subject: string;
   status: "open" | "in_progress" | "waiting_on_customer" | "resolved" | "closed";
   priority: "low" | "medium" | "high" | "urgent";
@@ -567,7 +569,7 @@ export interface AdminSupportThread {
   messages: Array<{
     _id: string;
     ticketId: string;
-    senderClerkUserId: string;
+    senderUserAuthId: string;
     isAdmin: boolean;
     body: string;
     createdAt: number;

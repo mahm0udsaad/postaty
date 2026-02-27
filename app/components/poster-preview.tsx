@@ -15,7 +15,7 @@ export function PosterPreview({ result }: PosterPreviewProps) {
   const config = FORMAT_CONFIGS[result.format];
   const [isDownloading, setIsDownloading] = useState(false);
 
-  // Support both base64 (immediate preview) and Convex storage URL (from history)
+  // Support both base64 (immediate preview) and storage URL (from history)
   const imageSrc = result.imageBase64
     ? `data:image/png;base64,${result.imageBase64}`
     : result.storageUrl || "";

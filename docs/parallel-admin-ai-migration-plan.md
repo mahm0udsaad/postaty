@@ -31,8 +31,8 @@ Date: 2026-02-12
 
 - Provider is currently Vercel gateway in `lib/ai.ts` using `createGateway(...)`.
 - Image generation runs in `lib/generate-designs.ts` via `generateText`.
-- Backend is Convex (not Supabase in current codebase).
-- Billing already exists in Convex via Stripe (`convex/billing.ts`, `convex/schema.ts`).
+- Backend is Supabase.
+- Billing already exists in Supabase via Stripe (server API routes + Supabase tables).
 - No admin route/pages implemented yet.
 - Preview modal exists at `app/components/poster-modal.tsx`.
 
@@ -53,7 +53,7 @@ Date: 2026-02-12
      - add `GOOGLE_GENERATIVE_AI_API_KEY`.
 
 2. Usage metering + cost accounting:
-   - Add Convex tables for:
+   - Add Supabase tables for:
      - `aiUsageEvents` (model, route, tokens/images, latency, success/failure, user/org, timestamp).
      - `aiPricingConfig` (effective dates, per-model cost rules, token/image unit costs).
      - `profitSnapshots` or computed query layer.
@@ -62,7 +62,7 @@ Date: 2026-02-12
      - compute API cost per event from pricing config.
      - aggregate by day/week/month.
 
-3. Admin analytics APIs (Convex queries/actions):
+3. Admin analytics APIs (Supabase queries/actions):
    - AI overview metrics:
      - total usage by model
      - free vs paid usage counts
@@ -76,7 +76,7 @@ Date: 2026-02-12
    - Likes/dislikes and support ticket APIs for admin views.
 
 4. Schema + migration tasks:
-   - Extend `convex/schema.ts` with new admin/feedback/support tables.
+   - Extend Supabase schema with new admin/feedback/support tables.
    - Add secure admin-only query/mutation guards (role checks).
    - Backfill script/mutation for historical generations -> approximate cost rows.
 
@@ -138,7 +138,7 @@ Date: 2026-02-12
 1. Shared TypeScript contracts:
    - define response types for each admin page in `lib/types.ts`.
 2. API stability:
-   - Agent A provides final Convex function names + payload shapes.
+   - Agent A provides final Supabase function names + payload shapes.
    - Agent B consumes only those stable APIs.
 3. Feature flags:
    - admin pages hidden behind admin role.
@@ -155,7 +155,6 @@ Date: 2026-02-12
 
 ## Notes / Risks
 
-- Supabase MCP resources are not available in this session, so DB migration is planned against Convex.
+- Supabase MCP resources are not available in this session, so DB migration is planned against Supabase.
 - Gemini 3 Pro Image is preview; pricing/rate limits can change, so pricing config must be data-driven.
 - Existing secret values shown in local env/history should be rotated before production use.
-

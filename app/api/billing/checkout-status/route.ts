@@ -11,6 +11,13 @@ const PLAN_CONFIG: Record<PlanKey, { monthlyCredits: number }> = {
   dominant: { monthlyCredits: 50 },
 };
 
+const PLAN_RANK: Record<string, number> = {
+  none: 0,
+  starter: 1,
+  growth: 2,
+  dominant: 3,
+};
+
 type StripeSubscriptionShape = {
   id: string;
   status: string;
@@ -116,11 +123,23 @@ export async function GET(request: Request) {
             existingBilling.current_period_start !==
               subscription.current_period_start * 1000;
 
+          // Carry over remaining monthly credits when upgrading to a higher plan
+          const oldPlanKey = existingBilling?.plan_key ?? "none";
+          const isUpgrade = PLAN_RANK[planKey] > PLAN_RANK[oldPlanKey];
+          const carryOver =
+            shouldResetMonthlyUsage && isUpgrade
+              ? Math.max(
+                  (existingBilling!.monthly_credit_limit ?? 0) -
+                    (existingBilling!.monthly_credits_used ?? 0),
+                  0
+                )
+              : 0;
+
           const monthlyCreditsUsed = shouldResetMonthlyUsage
             ? 0
             : (existingBilling?.monthly_credits_used ?? 0);
           const addonCreditsBalance =
-            existingBilling?.addon_credits_balance ?? 0;
+            (existingBilling?.addon_credits_balance ?? 0) + carryOver;
 
           if (existingBilling) {
             await admin
@@ -154,6 +173,19 @@ export async function GET(request: Request) {
                 addon_credits_balance_after: addonCreditsBalance,
                 created_at: now,
               });
+
+              if (carryOver > 0) {
+                await admin.from("credit_ledger").insert({
+                  user_auth_id: user.id,
+                  billing_id: existingBilling.id,
+                  amount: carryOver,
+                  reason: "manual_adjustment",
+                  source: "addon",
+                  monthly_credits_used_after: 0,
+                  addon_credits_balance_after: addonCreditsBalance,
+                  created_at: now,
+                });
+              }
             }
           } else {
             await admin.from("billing").insert({

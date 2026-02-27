@@ -16,8 +16,8 @@ Build production-ready admin pages and UI wiring for:
 
 ## Context
 
-- Stack: Next.js App Router + React + Convex + Clerk.
-- Backend APIs and schema are already implemented in Convex.
+- Stack: Next.js App Router + React + Supabase.
+- Backend APIs and schema are already implemented in Supabase.
 - Keep current design language (do not redesign the whole app theme).
 - Keep responsive behavior for desktop and mobile.
 
@@ -35,7 +35,7 @@ Create these pages:
 
 Use an admin layout/sidebar shared across admin pages.
 
-## Required Convex APIs (already available)
+## Required Supabase APIs (already available)
 
 Queries:
 
@@ -150,7 +150,7 @@ Update preview modal component:
 ## Deliverables
 
 1. Admin layout + all listed routes.
-2. Full data wiring to Convex admin APIs.
+2. Full data wiring to Supabase admin APIs.
 3. Preview modal feedback controls connected to backend mutation.
 4. Basic QA checklist in PR description:
    - desktop/mobile checks

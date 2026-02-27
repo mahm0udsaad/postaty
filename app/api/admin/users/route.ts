@@ -192,18 +192,35 @@ export async function POST(request: Request) {
           );
         }
 
-        // Get billing record
-        const { data: billing } = await admin
+        // Get or create billing record
+        let { data: billing } = await admin
           .from("billing")
           .select("*")
           .eq("user_auth_id", targetUser.auth_id)
           .single();
 
         if (!billing) {
-          return NextResponse.json(
-            { error: "Billing record not found for user" },
-            { status: 404 }
-          );
+          const { data: newBilling, error: createError } = await admin
+            .from("billing")
+            .insert({
+              user_auth_id: targetUser.auth_id,
+              plan_key: "none",
+              status: "none",
+              monthly_credit_limit: 0,
+              monthly_credits_used: 0,
+              addon_credits_balance: 0,
+            })
+            .select()
+            .single();
+
+          if (createError || !newBilling) {
+            console.error("[admin/users] Failed to create billing record:", createError);
+            return NextResponse.json(
+              { error: "Failed to create billing record for user" },
+              { status: 500 }
+            );
+          }
+          billing = newBilling;
         }
 
         const now = Date.now();
