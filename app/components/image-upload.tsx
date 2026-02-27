@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { ImagePlus, X } from "lucide-react";
+import { ImagePlus, Loader2, X } from "lucide-react";
 import { compressImage } from "@/lib/image-compression";
 import { useLocale } from "@/hooks/use-locale";
 
@@ -21,6 +21,7 @@ export function ImageUpload({
 }: ImageUploadProps) {
   const { t } = useLocale();
   const [preview, setPreview] = useState<string | null>(value);
+  const [isCompressing, setIsCompressing] = useState(false);
 
   useEffect(() => {
     setPreview(value);
@@ -31,6 +32,7 @@ export function ImageUpload({
       const file = acceptedFiles[0];
       if (!file) return;
 
+      setIsCompressing(true);
       try {
         const compressedBase64 = await compressImage(file, 2, 1920);
         setPreview(compressedBase64);
@@ -44,6 +46,8 @@ export function ImageUpload({
           onChange(base64);
         };
         reader.readAsDataURL(file);
+      } finally {
+        setIsCompressing(false);
       }
     },
     [onChange]
@@ -54,6 +58,7 @@ export function ImageUpload({
     accept,
     maxFiles: 1,
     maxSize: 5 * 1024 * 1024,
+    disabled: isCompressing,
   });
 
   const handleRemove = (e: React.MouseEvent) => {
@@ -86,21 +91,34 @@ export function ImageUpload({
             </div>
             <button
               onClick={handleRemove}
+              disabled={isCompressing}
               className="absolute top-2 left-2 bg-surface-1 text-danger rounded-full p-1.5 shadow-md hover:bg-danger hover:text-white transition-all transform hover:scale-110"
             >
               <X size={18} />
             </button>
+            {isCompressing && (
+              <div className="absolute inset-0 rounded-xl bg-black/50 flex items-center justify-center gap-2 text-white">
+                <Loader2 size={18} className="animate-spin" />
+                <span className="text-sm font-medium">{t("جاري ضغط الصورة...", "Compressing image...")}</span>
+              </div>
+            )}
           </div>
         ) : (
           <div className="flex flex-col items-center gap-3 text-muted-foreground">
             <div className={`p-4 rounded-full ${isDragActive ? "bg-primary/10 text-primary" : "bg-surface-2 text-muted"}`}>
-              <ImagePlus size={32} />
+              {isCompressing ? <Loader2 size={32} className="animate-spin" /> : <ImagePlus size={32} />}
             </div>
             <div className="space-y-1">
               <p className="font-medium text-foreground">
-                {isDragActive ? t("أفلت الصورة هنا", "Drop image here") : t("اضغط لرفع صورة", "Click to upload image")}
+                {isCompressing
+                  ? t("جاري ضغط الصورة...", "Compressing image...")
+                  : isDragActive
+                    ? t("أفلت الصورة هنا", "Drop image here")
+                    : t("اضغط لرفع صورة", "Click to upload image")}
               </p>
-              <p className="text-xs text-muted-foreground">{t("أو اسحب وأفلت هنا", "or drag and drop here")}</p>
+              {!isCompressing && (
+                <p className="text-xs text-muted-foreground">{t("أو اسحب وأفلت هنا", "or drag and drop here")}</p>
+              )}
             </div>
             <p className="text-[10px] uppercase tracking-wider opacity-60 bg-surface-2 px-2 py-1 rounded text-muted">PNG, JPG, WEBP • Max 5MB</p>
           </div>

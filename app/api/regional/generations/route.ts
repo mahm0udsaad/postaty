@@ -58,6 +58,13 @@ export async function GET(request: Request) {
       byCategory[g.category] = (byCategory[g.category] || 0) + 1;
     }
 
+    // By generation type
+    const byType: Record<string, number> = { poster: 0, reel: 0, menu: 0 };
+    for (const g of periodGenerations) {
+      const t = g.generation_type || "poster";
+      byType[t] = (byType[t] || 0) + 1;
+    }
+
     // Daily trend
     const dailyTrend: Record<string, number> = {};
     for (const g of periodGenerations) {
@@ -77,6 +84,7 @@ export async function GET(request: Request) {
       return {
         id: g.id,
         category: g.category,
+        generation_type: g.generation_type || "poster",
         business_name: g.business_name,
         product_name: g.product_name,
         status: g.status,
@@ -97,6 +105,7 @@ export async function GET(request: Request) {
         totalCredits,
       },
       byCategory,
+      byType,
       dailyTrend,
       recent,
     });

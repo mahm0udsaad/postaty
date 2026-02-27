@@ -1,6 +1,7 @@
 "use server";
 
 import { generateText } from "ai";
+import { randomUUID } from "node:crypto";
 import { paidImageModel, freeImageModel, marketingContentModel, google } from "@/lib/ai";
 import {
   getImageDesignSystemPrompt,
@@ -14,6 +15,8 @@ import { formatRecipeForPrompt } from "./design-recipes";
 import { selectRecipes } from "./design-recipes";
 import { getInspirationImages } from "./inspiration-images";
 import { FORMAT_CONFIGS } from "./constants";
+import { buildImageProviderOptions, compressImageFromDataUrl, compressLogoFromDataUrl } from "./image-helpers";
+import { resolvePosterLanguage } from "./resolved-language";
 import type { PostFormData, MarketingContentHub, SocialPlatform, PlatformContent } from "./types";
 import type { BrandKitPromptData } from "./prompts";
 
@@ -26,7 +29,7 @@ export type GeneratedDesign = {
 };
 
 export type GenerationUsage = {
-  route: "poster" | "gift" | "reel" | "marketing-content";
+  route: "poster" | "gift" | "reel" | "marketing-content" | "menu";
   model: string;
   inputTokens: number;
   outputTokens: number;
@@ -40,55 +43,10 @@ export type GenerationUsage = {
 
 const PAID_MODEL_ID = "gemini-3-pro-image-preview";
 const FREE_MODEL_ID = "gemini-2.5-flash-image";
-
-// ── Google provider options for image responses ────────────────────
-
-function buildImageProviderOptions(aspectRatio: string, imageSize?: "1K" | "2K" | "4K") {
-  return {
-    google: {
-      responseModalities: ["TEXT", "IMAGE"],
-      imageConfig: {
-        aspectRatio,
-        ...(imageSize ? { imageSize } : {}),
-      },
-    },
-  };
-}
+const GEN_PARALLEL_PREP_ENABLED = process.env.GEN_PARALLEL_PREP !== "0";
+const VERBOSE_TIMING = process.env.NODE_ENV !== "production";
 
 // ── Helpers ──────────────────────────────────────────────────────
-
-async function compressImageFromDataUrl(
-  dataUrl: string,
-  maxWidth = 800,
-  maxHeight = 800,
-  quality = 75
-): Promise<{ image: Buffer; mediaType: "image/jpeg" } | null> {
-  const match = dataUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
-  if (!match) return null;
-  const raw = Buffer.from(match[2], "base64");
-  const sharp = (await import("sharp")).default;
-  const compressed = await sharp(raw)
-    .resize(maxWidth, maxHeight, { fit: "inside", withoutEnlargement: true })
-    .jpeg({ quality })
-    .toBuffer();
-  return { image: compressed, mediaType: "image/jpeg" };
-}
-
-async function compressLogoFromDataUrl(
-  dataUrl: string,
-  maxWidth = 400,
-  maxHeight = 400
-): Promise<{ image: Buffer; mediaType: "image/png" } | null> {
-  const match = dataUrl.match(/^data:(image\/[^;]+);base64,(.+)$/);
-  if (!match) return null;
-  const raw = Buffer.from(match[2], "base64");
-  const sharp = (await import("sharp")).default;
-  const compressed = await sharp(raw)
-    .resize(maxWidth, maxHeight, { fit: "inside", withoutEnlargement: true })
-    .png({ quality: 80 })
-    .toBuffer();
-  return { image: compressed, mediaType: "image/png" };
-}
 
 function extractSubType(data: PostFormData): string | undefined {
   switch (data.category) {
@@ -124,7 +82,10 @@ export async function generatePoster(
   data: PostFormData,
   brandKit?: BrandKitPromptData
 ): Promise<GeneratedDesign & { usage: GenerationUsage }> {
-  const systemPrompt = getImageDesignSystemPrompt(data, brandKit);
+  const requestId = randomUUID();
+  const promptBuildStart = Date.now();
+  const resolvedLanguage = resolvePosterLanguage(data);
+  const systemPrompt = getImageDesignSystemPrompt(data, resolvedLanguage, brandKit);
   let userMessage = getImageDesignUserMessage(data);
 
   // Enrich with a design recipe for creative direction
@@ -135,21 +96,68 @@ export async function generatePoster(
   }
 
   userMessage += `\n\nMake this design unique, bold, and visually striking.`;
+  const promptBuildMs = Date.now() - promptBuildStart;
 
   // Load inspiration images and extract form images
   const subType = extractSubType(data);
-  const inspirationImages = await getInspirationImages(data.category, undefined, data.campaignType, subType);
   const formImages = extractFormImages(data);
+  const prepStart = Date.now();
+  let inspirationLoadMs = 0;
+  let productCompressionMs = 0;
+  let logoCompressionMs = 0;
+
+  const loadInspiration = async () => {
+    const start = Date.now();
+    const value = await getInspirationImages(data.category, undefined, data.campaignType, subType);
+    inspirationLoadMs = Date.now() - start;
+    return value;
+  };
+
+  const compressProduct = async () => {
+    const start = Date.now();
+    const value = await compressImageFromDataUrl(formImages.product);
+    productCompressionMs = Date.now() - start;
+    return value;
+  };
+
+  const compressLogo = async () => {
+    const start = Date.now();
+    const value = await compressLogoFromDataUrl(formImages.logo);
+    logoCompressionMs = Date.now() - start;
+    return value;
+  };
+
+  const [inspirationImages, productPart, logoPart] = GEN_PARALLEL_PREP_ENABLED
+    ? await Promise.all([loadInspiration(), compressProduct(), compressLogo()])
+    : [await loadInspiration(), await compressProduct(), await compressLogo()];
 
   const formatConfig = FORMAT_CONFIGS[data.format];
+  const prepTotalMs = Date.now() - prepStart;
 
   console.info("[generatePoster] start", {
+    requestId,
     model: PAID_MODEL_ID,
     recipe: recipe?.id ?? "none",
     inspirationCount: inspirationImages.length,
     format: data.format,
     aspectRatio: formatConfig.aspectRatio,
+    promptBuildMs,
+    prepTotalMs,
+    mode: GEN_PARALLEL_PREP_ENABLED ? "parallel" : "sequential",
+    resolvedLanguage,
   });
+
+  if (VERBOSE_TIMING) {
+    console.info("[generatePoster] prep_timing", {
+      requestId,
+      promptBuildMs,
+      inspirationLoadMs,
+      productCompressionMs,
+      logoCompressionMs,
+      prepTotalMs,
+      mode: GEN_PARALLEL_PREP_ENABLED ? "parallel" : "sequential",
+    });
+  }
 
   // Build multimodal content parts
   const contentParts: Array<
@@ -167,7 +175,6 @@ export async function generatePoster(
   }
 
   // Add product image (compressed)
-  const productPart = await compressImageFromDataUrl(formImages.product);
   if (productPart) {
     contentParts.push({
       type: "image" as const,
@@ -177,7 +184,6 @@ export async function generatePoster(
   }
 
   // Add logo image (compressed, PNG to preserve transparency)
-  const logoPart = await compressLogoFromDataUrl(formImages.logo);
   if (logoPart) {
     contentParts.push({
       type: "image" as const,
@@ -206,8 +212,10 @@ export async function generatePoster(
   contentParts.push({ type: "text" as const, text: contextText });
 
   const startTime = Date.now();
+  let aiCallMs = 0;
   let result;
   try {
+    const aiStart = Date.now();
     result = await generateText({
       model: paidImageModel,
       providerOptions: buildImageProviderOptions(formatConfig.aspectRatio, "2K"),
@@ -219,6 +227,7 @@ export async function generatePoster(
         },
       ],
     });
+    aiCallMs = Date.now() - aiStart;
   } catch (err) {
     const durationMs = Date.now() - startTime;
     console.error("[generatePoster] generateText threw", err);
@@ -262,11 +271,13 @@ export async function generatePoster(
   }
 
   // Resize to exact target dimensions for the selected format
+  const resizeStart = Date.now();
   const sharp = (await import("sharp")).default;
   const resizedBuffer = await sharp(Buffer.from(imageFile.uint8Array))
     .resize(formatConfig.width, formatConfig.height, { fit: "fill" })
     .png()
     .toBuffer();
+  const postprocessResizeMs = Date.now() - resizeStart;
 
   const base64 = resizedBuffer.toString("base64");
   const base64DataUrl = `data:image/png;base64,${base64}`;
@@ -282,11 +293,14 @@ export async function generatePoster(
   };
 
   console.info("[generatePoster] success", {
+    requestId,
     model: PAID_MODEL_ID,
     recipe: recipe?.name ?? "none",
     durationMs,
     inputTokens: usage.inputTokens,
     outputTokens: usage.outputTokens,
+    aiCallMs,
+    postprocessResizeMs,
   });
 
   return {

@@ -18,6 +18,8 @@ import {
   ThumbsUp,
   Share2,
   Music,
+  Wand2,
+  Sparkles,
 } from "lucide-react";
 import type {
   MarketingContentHub as MarketingContentHubType,
@@ -143,33 +145,41 @@ export function MarketingContentHub({
 
   return (
     <motion.div
+      id="marketing-content"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5, delay: 0.3 }}
-      className="space-y-6"
+      className="space-y-6 scroll-mt-24"
     >
       {/* Section Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-gradient-to-br from-primary to-accent rounded-xl shadow-lg shadow-primary/20">
-            <Megaphone size={20} className="text-white" />
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-2 px-2">
+        <div className="flex items-center gap-4">
+          <div className="p-3 bg-primary/10 rounded-2xl text-primary shadow-inner">
+            <Megaphone size={26} />
           </div>
           <div>
-            <h3 className="text-xl font-bold text-foreground">
-              {t("محتوى تسويقي جاهز", "Ready Marketing Content")}
-            </h3>
-            <p className="text-sm text-muted">
-              {t("محتوى مخصص لكل منصة مع أفضل وقت للنشر", "Custom content for each platform with optimal posting times")}
+            <div className="flex items-center gap-2.5 mb-1">
+              <h3 className="text-2xl font-black text-foreground">
+                {t("المحتوى التسويقي", "Marketing Content")}
+              </h3>
+              <span className="px-2.5 py-0.5 rounded-lg text-[10px] font-black bg-gradient-to-r from-primary to-accent text-white uppercase tracking-widest shadow-sm">
+                AI
+              </span>
+            </div>
+            <p className="text-sm font-medium text-muted">
+              {t("نصوص وهاشتاقات محسنة لكل منصة تواصل اجتماعي", "Optimized texts and hashtags for each social media platform")}
             </p>
           </div>
         </div>
 
         {/* Language Toggle */}
-        <LanguageToggle
-          language={content?.language ?? "auto"}
-          onToggle={onLanguageToggle}
-          disabled={status === "loading"}
-        />
+        <div className="mt-2 sm:mt-0">
+          <LanguageToggle
+            language={content?.language ?? "auto"}
+            onToggle={onLanguageToggle}
+            disabled={status === "loading"}
+          />
+        </div>
       </div>
 
       {/* Content Area */}
@@ -180,7 +190,7 @@ export function MarketingContentHub({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="grid grid-cols-1 md:grid-cols-2 gap-4"
+            className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6"
           >
             {PLATFORMS.map((platform) => (
               <PlatformCardSkeleton key={platform} platform={platform} />
@@ -194,17 +204,23 @@ export function MarketingContentHub({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="flex flex-col items-center justify-center py-10 text-center space-y-4 bg-surface-1 rounded-2xl border border-card-border"
+            className="flex flex-col items-center justify-center py-12 px-4 text-center space-y-4 bg-danger/5 rounded-3xl border border-danger/20 mt-6"
           >
+            <div className="p-4 bg-danger/10 rounded-full text-danger mb-2">
+              <RefreshCw size={32} />
+            </div>
+            <h4 className="text-lg font-bold text-foreground">
+              {t("عذراً، حدث خطأ", "Sorry, an error occurred")}
+            </h4>
             <p className="text-muted text-sm max-w-md">
               {error || t("فشل إنشاء المحتوى التسويقي", "Failed to generate marketing content")}
             </p>
             <button
               type="button"
               onClick={onRetry}
-              className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary-hover transition-colors"
+              className="mt-2 flex items-center gap-2 px-6 py-3 bg-danger text-white rounded-xl font-bold hover:bg-danger/90 transition-colors shadow-lg shadow-danger/20 active:scale-95"
             >
-              <RefreshCw size={16} />
+              <RefreshCw size={18} />
               {t("إعادة المحاولة", "Try again")}
             </button>
           </motion.div>
@@ -213,25 +229,76 @@ export function MarketingContentHub({
         {status === "idle" && (
           <motion.div
             key="idle"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="flex flex-col items-center justify-center py-10 text-center space-y-4 bg-surface-1 rounded-2xl border border-card-border"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="relative overflow-hidden bg-surface-1 border border-card-border rounded-3xl shadow-sm group mt-6"
           >
-            <p className="text-muted text-sm max-w-md">
-              {t(
-                "أنشئ محتوى تسويقي مخصص لمنصات التواصل بعد تجهيز التصميم.",
-                "Generate platform-ready marketing content after your design is ready."
-              )}
-            </p>
-            <button
-              type="button"
-              onClick={onGenerate}
-              className="flex items-center gap-2 px-5 py-2.5 bg-primary text-primary-foreground rounded-xl font-medium hover:bg-primary-hover transition-colors"
-            >
-              <Lightbulb size={16} />
-              {t("إنشاء المحتوى التسويقي", "Generate marketing content")}
-            </button>
+            {/* Background Glows */}
+            <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[80px] pointer-events-none -translate-y-1/2 translate-x-1/3" />
+            <div className="absolute bottom-0 left-0 w-[500px] h-[500px] bg-accent/5 rounded-full blur-[80px] pointer-events-none translate-y-1/2 -translate-x-1/3" />
+
+            <div className="flex flex-col md:flex-row items-stretch">
+              
+              {/* Left Side: Content */}
+              <div className="flex-1 p-8 md:p-12 z-10 flex flex-col justify-center text-center md:text-start">
+                <div className="inline-flex items-center justify-center p-3.5 bg-surface-2 rounded-2xl mb-6 shadow-sm border border-card-border group-hover:scale-110 transition-transform duration-500 self-center md:self-start">
+                  <Wand2 size={28} className="text-primary" />
+                </div>
+                
+                <h4 className="text-2xl md:text-3xl font-black text-foreground mb-4 leading-tight">
+                  {t("جاهز للنشر؟ دع الذكاء الاصطناعي يكتب لك", "Ready to post? Let AI write for you")}
+                </h4>
+                
+                <p className="text-base text-muted mb-8 leading-relaxed font-medium max-w-lg mx-auto md:mx-0">
+                  {t(
+                    "احصل على نصوص جذابة، هاشتاقات متصدرة، وأفضل أوقات النشر المخصصة لـ انستقرام، تيك توك، فيسبوك، وواتساب بضغطة زر واحدة.",
+                    "Get engaging texts, trending hashtags, and best posting times optimized for Instagram, TikTok, Facebook, and WhatsApp with just one click."
+                  )}
+                </p>
+                
+                <button
+                  type="button"
+                  onClick={onGenerate}
+                  className="flex items-center justify-center gap-3 px-8 py-4 bg-gradient-to-r from-primary to-accent text-white rounded-2xl font-bold hover:opacity-90 transition-all shadow-lg shadow-primary/25 active:scale-[0.98] text-lg w-full sm:w-auto self-center md:self-start"
+                >
+                  <Sparkles size={22} />
+                  {t("توليد المحتوى بذكاء", "Generate Content Smartly")}
+                </button>
+              </div>
+
+              {/* Right Side: Visuals */}
+              <div className="w-full md:w-2/5 min-h-[320px] relative flex items-center justify-center p-8 bg-surface-2/30 border-t md:border-t-0 md:border-r border-card-border/50 overflow-hidden">
+                <div className="relative w-full max-w-[280px] aspect-square flex items-center justify-center">
+                  {/* Central glowing orb */}
+                  <div className="absolute inset-0 m-auto w-32 h-32 bg-gradient-to-br from-primary/30 to-accent/30 rounded-full blur-2xl animate-pulse" style={{ animationDuration: '4s' }} />
+                  
+                  {/* Abstract connection lines */}
+                  <svg className="absolute inset-0 w-full h-full pointer-events-none opacity-20 dark:opacity-40" viewBox="0 0 100 100">
+                    <circle cx="50" cy="50" r="32" fill="none" stroke="currentColor" strokeWidth="0.5" strokeDasharray="2 4" className="origin-center animate-[spin_20s_linear_infinite]" />
+                  </svg>
+
+                  {/* Center Node */}
+                  <div className="relative w-20 h-20 bg-surface-1 rounded-2xl shadow-2xl border border-card-border flex items-center justify-center z-20 group-hover:scale-105 transition-transform duration-500">
+                    <Sparkles size={32} className="text-primary" />
+                  </div>
+
+                  {/* Orbiting Platform Icons */}
+                  <div className="absolute top-[10%] left-1/2 -translate-x-1/2 w-14 h-14 bg-white dark:bg-black rounded-2xl shadow-xl border border-black/5 dark:border-white/5 flex items-center justify-center z-10 group-hover:-translate-y-3 transition-transform duration-500">
+                    <InstagramIcon className="w-8 h-8 text-[#E1306C]" />
+                  </div>
+                  <div className="absolute bottom-[10%] left-1/2 -translate-x-1/2 w-14 h-14 bg-black rounded-2xl shadow-xl border border-white/10 flex items-center justify-center z-10 group-hover:translate-y-3 transition-transform duration-500">
+                    <TikTokIcon className="w-7 h-7 text-white" />
+                  </div>
+                  <div className="absolute top-1/2 left-[10%] -translate-y-1/2 w-14 h-14 bg-[#1877F2] rounded-2xl shadow-xl border border-black/5 dark:border-white/5 flex items-center justify-center z-10 group-hover:-translate-x-3 transition-transform duration-500">
+                    <FacebookIcon className="w-8 h-8 text-white" />
+                  </div>
+                  <div className="absolute top-1/2 right-[10%] -translate-y-1/2 w-14 h-14 bg-[#25D366] rounded-2xl shadow-xl border border-black/5 dark:border-white/5 flex items-center justify-center z-10 group-hover:translate-x-3 transition-transform duration-500">
+                    <WhatsAppIcon className="w-8 h-8 text-white" />
+                  </div>
+                </div>
+              </div>
+            </div>
           </motion.div>
         )}
 
@@ -241,7 +308,7 @@ export function MarketingContentHub({
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="grid grid-cols-1 md:grid-cols-2 gap-4"
+            className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-6"
           >
             {PLATFORMS.map((platform, i) => (
               <motion.div
@@ -285,23 +352,23 @@ function LanguageToggle({
   ];
 
   return (
-    <div className="flex items-center gap-1 p-1 bg-surface-2 rounded-full border border-card-border">
+    <div className="flex items-center p-1 bg-surface-2/50 backdrop-blur-sm rounded-xl border border-card-border/50">
       {options.map((opt) => (
         <button
           key={opt.value}
           type="button"
           onClick={() => onToggle(opt.value)}
           disabled={disabled}
-          className={`px-4 py-1.5 rounded-full text-sm font-bold transition-all ${
+          className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 ${
             language === opt.value
-              ? "bg-primary text-primary-foreground shadow-sm"
-              : "text-muted hover:text-foreground"
+              ? "bg-surface-1 text-foreground shadow-sm border border-card-border"
+              : "text-muted hover:text-foreground hover:bg-surface-2/50 border border-transparent"
           } disabled:opacity-50`}
         >
           {opt.label}
         </button>
       ))}
-      {disabled && <Loader2 size={14} className="animate-spin text-muted mx-1" />}
+      {disabled && <Loader2 size={16} className="animate-spin text-primary ml-2 mr-2" />}
     </div>
   );
 }
@@ -336,6 +403,7 @@ function PlatformCard({
   const { t } = useLocale();
   const [copied, setCopied] = useState(false);
   const config = PLATFORM_CONFIG[platform];
+  const Icon = config.icon;
 
   const handleCopy = async () => {
     const fullText = platformContent.caption +
@@ -351,9 +419,17 @@ function PlatformCard({
 
   return (
     <div
-      className="rounded-2xl border border-card-border bg-surface-1 overflow-hidden shadow-sm hover:shadow-md transition-shadow"
+      className="relative rounded-2xl border border-card-border bg-surface-1 overflow-hidden shadow-sm hover:shadow-md transition-shadow flex flex-col h-full"
       dir={isRtl ? "rtl" : "ltr"}
     >
+      {/* Platform Badge */}
+      <div className={`absolute top-3 ${isRtl ? 'left-3' : 'right-3'} z-20 flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/90 dark:bg-black/90 backdrop-blur-sm border border-black/10 dark:border-white/10 shadow-sm`}>
+        <Icon className={`w-3.5 h-3.5 ${config.textColor}`} />
+        <span className="text-[11px] font-bold text-foreground/80">
+          {config.name[isRtl ? "ar" : "en"]}
+        </span>
+      </div>
+
       {/* Platform Mockup */}
       {platform === "facebook" && <FacebookMockup {...mockupProps} />}
       {platform === "instagram" && <InstagramMockup {...mockupProps} />}
@@ -361,76 +437,75 @@ function PlatformCard({
       {platform === "tiktok" && <TikTokMockup {...mockupProps} />}
 
       {/* Content Section (shared across all platforms) */}
-      <div className="px-4 pt-3 space-y-2.5">
-        {/* Caption */}
-        <p className="text-sm text-foreground/90 leading-relaxed whitespace-pre-line max-h-28 overflow-y-auto scrollbar-thin">
-          {platformContent.caption}
-        </p>
+      <div className="p-4 flex-1 flex flex-col gap-4 border-t border-card-border/50">
+        
+        <div className="flex-1 space-y-3">
+          {/* Caption */}
+          <p className="text-[14px] text-foreground/90 leading-relaxed whitespace-pre-line">
+            {platformContent.caption}
+          </p>
 
-        {/* Hashtags */}
-        {platformContent.hashtags.length > 0 && (
-          <div className="flex flex-wrap gap-1.5" dir="ltr">
-            {platformContent.hashtags.slice(0, 8).map((tag, i) => (
-              <span
-                key={i}
-                className={`inline-block px-2 py-0.5 rounded-md text-xs font-medium ${config.bgColor} ${config.textColor}`}
-              >
-                {tag.startsWith("#") ? tag : `#${tag}`}
-              </span>
-            ))}
-            {platformContent.hashtags.length > 8 && (
-              <span className="text-xs text-muted self-center">
-                +{platformContent.hashtags.length - 8}
-              </span>
-            )}
-          </div>
-        )}
-
-        {/* Best Posting Time */}
-        <div className={`flex items-start gap-2 p-2.5 rounded-lg ${config.bgColor}`}>
-          <Clock size={14} className={`${config.textColor} shrink-0 mt-0.5`} />
-          <div>
-            <p className={`text-xs font-bold ${config.textColor}`}>
-              {platformContent.bestPostingTime}
-            </p>
-            <p className="text-xs text-muted mt-0.5">
-              {platformContent.bestPostingTimeReason}
-            </p>
-          </div>
+          {/* Hashtags */}
+          {platformContent.hashtags.length > 0 && (
+            <div className="flex flex-wrap gap-1.5" dir="ltr">
+              {platformContent.hashtags.map((tag, i) => (
+                <span
+                  key={i}
+                  className={`inline-block px-2 py-0.5 rounded-md text-[13px] font-medium ${config.bgColor} ${config.textColor}`}
+                >
+                  {tag.startsWith("#") ? tag : `#${tag}`}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
 
-        {/* Content Tip */}
-        <div className="flex items-start gap-2 p-2.5 rounded-lg bg-amber-500/5 border border-amber-500/10">
-          <Lightbulb size={14} className="text-amber-500 shrink-0 mt-0.5" />
-          <p className="text-xs text-muted">
-            {platformContent.contentTip}
-          </p>
+        <div className="space-y-2 pt-2 border-t border-card-border/50">
+          {/* Best Posting Time */}
+          <div className={`flex items-start gap-3 p-3 rounded-xl ${config.bgColor}`}>
+            <Clock size={16} className={`${config.textColor} shrink-0 mt-0.5`} />
+            <div className="space-y-0.5">
+              <p className={`text-[13px] font-bold ${config.textColor}`}>
+                {platformContent.bestPostingTime}
+              </p>
+              <p className="text-[12px] text-foreground/70 leading-snug">
+                {platformContent.bestPostingTimeReason}
+              </p>
+            </div>
+          </div>
+
+          {/* Content Tip */}
+          <div className="flex items-start gap-3 p-3 rounded-xl bg-amber-500/5 border border-amber-500/10">
+            <Lightbulb size={16} className="text-amber-500 shrink-0 mt-0.5" />
+            <p className="text-[12px] text-foreground/70 leading-snug">
+              {platformContent.contentTip}
+            </p>
+          </div>
         </div>
 
         {/* Copy Button */}
         <button
           type="button"
           onClick={handleCopy}
-          className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium transition-colors mb-0.5 ${
+          className={`w-full flex items-center justify-center gap-2 py-3 rounded-xl text-[14px] font-bold transition-all mt-auto ${
             copied
-              ? "bg-green-500/10 text-green-600"
-              : `${config.bgColor} ${config.textColor} hover:opacity-80`
+              ? "bg-success/10 text-success"
+              : `${config.bgColor} ${config.textColor} hover:brightness-95 dark:hover:brightness-110 active:scale-[0.98]`
           }`}
         >
           {copied ? (
             <>
-              <Check size={14} />
+              <Check size={16} />
               {t("تم نسخ المحتوى", "Content Copied")}
             </>
           ) : (
             <>
-              <Copy size={14} />
+              <Copy size={16} />
               {t("نسخ المحتوى", "Copy Content")}
             </>
           )}
         </button>
       </div>
-      <div className="h-3" />
     </div>
   );
 }
@@ -715,11 +790,18 @@ function TikTokMockup({
     <div className="relative bg-black overflow-hidden" dir={isRtl ? "rtl" : "ltr"} style={{ aspectRatio: "9/16", maxHeight: "550px" }}>
       {/* Background Image */}
       {posterImageBase64 && (
-        <img
-          src={posterImageBase64}
-          alt="TikTok post preview"
-          className="absolute inset-0 w-full h-full object-cover"
-        />
+        <>
+          <img
+            src={posterImageBase64}
+            alt=""
+            className="absolute inset-0 w-full h-full object-cover blur-xl opacity-50 scale-110"
+          />
+          <img
+            src={posterImageBase64}
+            alt="TikTok post preview"
+            className="absolute inset-0 w-full h-full object-contain"
+          />
+        </>
       )}
 
       {/* Dark gradient overlays */}
@@ -806,76 +888,103 @@ function TikTokMockup({
 // ── Skeleton Card ──────────────────────────────────────────────────
 
 function PlatformCardSkeleton({ platform }: { platform: SocialPlatform }) {
-  const config = PLATFORM_CONFIG[platform];
-
-  if (platform === "whatsapp") {
-    return (
-      <div className="rounded-2xl border border-card-border bg-[#EFEAE2] overflow-hidden animate-pulse flex flex-col h-[500px]">
-        <div className="bg-[#008069] px-4 py-2 flex items-center gap-3">
-          <div className="w-9 h-9 bg-white/30 rounded-full" />
-          <div className="h-4 w-32 bg-white/30 rounded" />
-        </div>
-        <div className="flex-1 p-3 flex flex-col justify-end">
-          <div className="flex justify-end">
-            <div className="w-[80%] bg-[#D9FDD3] dark:bg-[#005C4B] rounded-lg p-2 h-[250px]" />
+  return (
+    <div className="rounded-2xl border border-card-border bg-surface-1 overflow-hidden shadow-sm flex flex-col">
+      {/* Mockup Area Skeleton */}
+      {platform === "whatsapp" && (
+        <div className="relative bg-[#EFEAE2] flex flex-col h-[500px]">
+          <div className="absolute top-0 left-0 right-0 bg-[#008069] px-4 py-2 flex items-center gap-3 z-10">
+            <div className="w-9 h-9 bg-white/30 rounded-full animate-pulse" />
+            <div className="h-4 w-32 bg-white/30 rounded animate-pulse" />
+          </div>
+          <div className="flex-1 overflow-y-auto mt-12 mb-2 p-3 flex flex-col justify-end">
+            <div className="flex justify-end">
+              <div className="w-[85%] bg-[#D9FDD3] dark:bg-[#005C4B] rounded-lg rounded-tr-none p-2 h-[250px] animate-pulse" />
+            </div>
+          </div>
+          <div className="flex items-center gap-2 mt-auto p-2 bg-[#EFEAE2] z-10">
+            <div className="flex-1 bg-white dark:bg-[#2A3942] rounded-full px-4 py-3 h-12 shadow-sm animate-pulse" />
+            <div className="w-12 h-12 rounded-full bg-[#00A884] shrink-0 shadow-sm animate-pulse" />
           </div>
         </div>
-        <div className="p-3 bg-white dark:bg-[#2A3942] m-2 rounded-full h-12" />
-      </div>
-    );
-  }
+      )}
 
-  if (platform === "tiktok") {
-    return (
-      <div className="rounded-2xl border border-card-border bg-surface-1 overflow-hidden animate-pulse">
-        <div className="bg-black" style={{ aspectRatio: "9/16", maxHeight: "550px" }}>
-          <div className="h-full bg-gray-800" />
+      {platform === "tiktok" && (
+        <div className="bg-black relative overflow-hidden" style={{ aspectRatio: "9/16", maxHeight: "550px" }}>
+          <div className="absolute inset-0 bg-gray-800 animate-pulse" />
+          <div className="absolute bottom-4 left-3 right-16 space-y-3">
+            <div className="h-4 w-24 bg-gray-700 rounded animate-pulse" />
+            <div className="space-y-2">
+              <div className="h-3 w-full bg-gray-700 rounded animate-pulse" />
+              <div className="h-3 w-4/5 bg-gray-700 rounded animate-pulse" />
+            </div>
+            <div className="flex gap-2">
+              <div className="h-3 w-16 bg-gray-700 rounded animate-pulse" />
+              <div className="h-3 w-20 bg-gray-700 rounded animate-pulse" />
+            </div>
+          </div>
+          <div className="absolute right-3 bottom-20 flex flex-col gap-6">
+            <div className="w-12 h-12 rounded-full bg-gray-700 animate-pulse" />
+            <div className="w-8 h-8 rounded-full bg-gray-700 mx-auto animate-pulse" />
+            <div className="w-8 h-8 rounded-full bg-gray-700 mx-auto animate-pulse" />
+            <div className="w-8 h-8 rounded-full bg-gray-700 mx-auto animate-pulse" />
+          </div>
         </div>
-        <SkeletonContentSection config={config} />
-      </div>
-    );
-  }
+      )}
 
-  return (
-    <div className="rounded-2xl border border-card-border bg-surface-1 overflow-hidden animate-pulse">
-      <div className={`${platform === "instagram" ? "bg-white dark:bg-black" : "bg-white dark:bg-[#242526]"}`}>
-        <div className="flex items-center gap-2.5 px-3 py-2.5">
-          <div className="w-8 h-8 bg-gray-300 dark:bg-gray-700 rounded-full" />
-          <div className="h-3 w-24 bg-gray-200 dark:bg-gray-700 rounded" />
+      {(platform === "facebook" || platform === "instagram") && (
+        <div className={`${platform === "instagram" ? "bg-white dark:bg-black" : "bg-white dark:bg-[#242526]"}`}>
+          <div className="flex items-center gap-3 px-4 py-3">
+            <div className="w-9 h-9 bg-gray-200 dark:bg-gray-800 rounded-full animate-pulse" />
+            <div className="space-y-2 flex-1">
+              <div className="h-3 w-32 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />
+              {platform === "facebook" && <div className="h-2 w-16 bg-gray-200 dark:bg-gray-800 rounded animate-pulse" />}
+            </div>
+          </div>
+          <div
+            className="bg-gray-200 dark:bg-gray-800 animate-pulse"
+            style={{
+              aspectRatio: "4/5",
+              maxHeight: platform === "instagram" ? "450px" : "400px",
+            }}
+          />
+          <div className="px-4 py-3 flex gap-4">
+            <div className="h-6 w-6 bg-gray-200 dark:bg-gray-800 rounded-full animate-pulse" />
+            <div className="h-6 w-6 bg-gray-200 dark:bg-gray-800 rounded-full animate-pulse" />
+            <div className="h-6 w-6 bg-gray-200 dark:bg-gray-800 rounded-full animate-pulse" />
+          </div>
         </div>
-        <div
-          className="bg-gray-200 dark:bg-gray-700"
-          style={{
-            aspectRatio: platform === "instagram" ? "4/5" : "4/5",
-            maxHeight: platform === "instagram" ? "450px" : "400px",
-          }}
-        />
-        <div className="px-3 py-2 flex gap-3">
-          <div className="h-4 w-4 bg-gray-200 dark:bg-gray-700 rounded" />
-          <div className="h-4 w-4 bg-gray-200 dark:bg-gray-700 rounded" />
-          <div className="h-4 w-4 bg-gray-200 dark:bg-gray-700 rounded" />
-        </div>
-      </div>
-      <SkeletonContentSection config={config} />
-    </div>
-  );
-}
+      )}
 
-function SkeletonContentSection({ config }: { config: typeof PLATFORM_CONFIG[SocialPlatform] }) {
-  return (
-    <div className="p-4 space-y-3">
-      <div className="space-y-2">
-        <div className="h-3 bg-surface-2 rounded w-full" />
-        <div className="h-3 bg-surface-2 rounded w-4/5" />
-        <div className="h-3 bg-surface-2 rounded w-3/5" />
+      {/* Content Section Skeleton (Shared) */}
+      <div className="px-4 pt-4 pb-5 space-y-4 bg-surface-1 border-t border-card-border mt-auto">
+        <div className="space-y-2.5">
+          <div className="h-3.5 bg-surface-2 rounded-md w-full animate-pulse" />
+          <div className="h-3.5 bg-surface-2 rounded-md w-[90%] animate-pulse" />
+          <div className="h-3.5 bg-surface-2 rounded-md w-[60%] animate-pulse" />
+        </div>
+        
+        <div className="flex gap-2">
+          <div className="h-6 w-16 bg-surface-2 rounded-md animate-pulse" />
+          <div className="h-6 w-20 bg-surface-2 rounded-md animate-pulse" />
+          <div className="h-6 w-14 bg-surface-2 rounded-md animate-pulse" />
+        </div>
+        
+        <div className="flex items-start gap-3 p-3 rounded-lg bg-surface-2/50 animate-pulse">
+          <div className="w-5 h-5 rounded bg-surface-2 shrink-0" />
+          <div className="space-y-2 w-full">
+            <div className="h-3 w-32 bg-surface-2 rounded" />
+            <div className="h-3 w-48 bg-surface-2 rounded" />
+          </div>
+        </div>
+
+        <div className="flex items-start gap-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20 animate-pulse">
+          <div className="w-5 h-5 rounded bg-amber-500/20 shrink-0" />
+          <div className="h-3 w-full bg-amber-500/20 rounded mt-1" />
+        </div>
+        
+        <div className="h-[44px] bg-surface-2 rounded-xl animate-pulse mt-2" />
       </div>
-      <div className="flex gap-1.5">
-        <div className="h-5 w-16 bg-surface-2 rounded-md" />
-        <div className="h-5 w-14 bg-surface-2 rounded-md" />
-        <div className="h-5 w-18 bg-surface-2 rounded-md" />
-      </div>
-      <div className="h-14 bg-surface-2 rounded-lg" />
-      <div className="h-10 bg-surface-2 rounded-xl" />
     </div>
   );
 }

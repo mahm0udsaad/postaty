@@ -266,6 +266,35 @@ export const REEL_CONFIG = {
   ttsModel: "eleven_multilingual_v2" as const,
 } as const;
 
+// ── Generation Type Labels ────────────────────────────────────────
+
+export const GENERATION_TYPE_LABELS: Record<string, string> = {
+  poster: "تصميم",
+  reel: "فيديو",
+  menu: "قائمة",
+};
+
+export const GENERATION_TYPE_LABELS_EN: Record<string, string> = {
+  poster: "Poster",
+  reel: "Reel",
+  menu: "Menu",
+};
+
+// ── Menu Configuration ───────────────────────────────────────────
+
+export const MENU_FORMAT_CONFIG = {
+  label: "A4 عمودي",
+  aspectRatio: "3:4",
+  width: 1240,
+  height: 1754,
+} as const;
+
+export const MENU_CONFIG = {
+  creditsPerMenu: 3,
+  minItems: 2,
+  maxItems: 6,
+} as const;
+
 // ── Voiceover Voice Presets ──────────────────────────────────────
 
 export interface VoicePreset {

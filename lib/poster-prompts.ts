@@ -1,6 +1,7 @@
 import { FORMAT_CONFIGS } from "./constants";
 import type { PostFormData, Category, CampaignType } from "./types";
 import type { BrandKitPromptData } from "./prompts";
+import type { ResolvedLanguage } from "./resolved-language";
 
 // ── Category Color Guidance ───────────────────────────────────────
 
@@ -52,6 +53,7 @@ Tone: joyful, premium, modern. Keep the layout clean and balanced.`,
 
 export function getImageDesignSystemPrompt(
   data: PostFormData,
+  resolvedLanguage: ResolvedLanguage,
   brandKit?: BrandKitPromptData
 ): string {
   const fmt = FORMAT_CONFIGS[data.format];
@@ -78,11 +80,11 @@ ${CAMPAIGN_STYLE_GUIDANCE[data.campaignType] ? `\n${CAMPAIGN_STYLE_GUIDANCE[data
 - If reference images contain seasonal motifs, IGNORE those motifs and match only their general layout quality and composition
 `}
 ## Language & Text Direction (CRITICAL)
-- Detect the language of the user-provided text (business name, product name, description, CTA, etc.)
-- ALL text on the poster MUST be in the SAME language as the user's input — including CTA buttons, labels, currency text, WhatsApp label, and any other UI text
-- Do NOT mix languages: if the user writes in Hebrew, ALL poster text must be in Hebrew; if in French, ALL in French; if in Arabic, ALL in Arabic; etc.
-- For RTL languages (Arabic, Hebrew): use RTL text direction
-- For LTR languages (English, French, Turkish, etc.): use LTR text direction
+- The resolved target language for this poster is: ${resolvedLanguage === "ar" ? "Arabic" : resolvedLanguage === "he" ? "Hebrew" : "English"}
+- ALL text on the poster MUST be in this target language only
+- Do NOT mix languages under any circumstance
+- For Arabic/Hebrew: use RTL text direction
+- For English: use LTR text direction
 
 ## Design Requirements
 - Headlines and prices: LARGE and bold (think billboard)

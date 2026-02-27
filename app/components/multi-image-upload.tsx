@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { useDropzone } from "react-dropzone";
-import { Images, X } from "lucide-react";
+import { Images, Loader2, X } from "lucide-react";
 import { compressImage } from "@/lib/image-compression";
 import { useLocale } from "@/hooks/use-locale";
 
@@ -21,6 +21,8 @@ export function MultiImageUpload({
 }: MultiImageUploadProps) {
   const { t } = useLocale();
   const [previews, setPreviews] = useState<string[]>(values);
+  const [isCompressing, setIsCompressing] = useState(false);
+  const [compressingCount, setCompressingCount] = useState(0);
 
   useEffect(() => {
     setPreviews(values);
@@ -30,6 +32,10 @@ export function MultiImageUpload({
     async (acceptedFiles: File[]) => {
       const remaining = maxFiles - previews.length;
       const filesToProcess = acceptedFiles.slice(0, remaining);
+      if (filesToProcess.length === 0) return;
+
+      setIsCompressing(true);
+      setCompressingCount(filesToProcess.length);
 
       const promises = filesToProcess.map(async (file) => {
         try {
@@ -44,10 +50,15 @@ export function MultiImageUpload({
         }
       });
 
-      const newBase64s = await Promise.all(promises);
-      const updated = [...previews, ...newBase64s];
-      setPreviews(updated);
-      onChange(updated);
+      try {
+        const newBase64s = await Promise.all(promises);
+        const updated = [...previews, ...newBase64s];
+        setPreviews(updated);
+        onChange(updated);
+      } finally {
+        setIsCompressing(false);
+        setCompressingCount(0);
+      }
     },
     [previews, maxFiles, onChange]
   );
@@ -56,7 +67,7 @@ export function MultiImageUpload({
     onDrop,
     accept: { "image/*": [".png", ".jpg", ".jpeg", ".webp"] },
     maxSize: 5 * 1024 * 1024,
-    disabled: previews.length >= maxFiles,
+    disabled: previews.length >= maxFiles || isCompressing,
   });
 
   const handleRemove = (index: number) => {
@@ -81,6 +92,7 @@ export function MultiImageUpload({
               />
               <button
                 onClick={() => handleRemove(i)}
+                disabled={isCompressing}
                 className="absolute -top-2 -left-2 bg-danger text-white rounded-full p-0.5 hover:bg-danger/80 transition-colors shadow-sm"
               >
                 <X size={14} />
@@ -97,12 +109,19 @@ export function MultiImageUpload({
         >
           <input {...getInputProps()} />
           <div className="flex flex-col items-center gap-1 text-muted-foreground">
-            <Images size={24} />
+            {isCompressing ? <Loader2 size={24} className="animate-spin" /> : <Images size={24} />}
             <p className="text-sm">
-              {isDragActive
-                ? t("أفلت الصور هنا", "Drop images here")
-                : `${t("أضف صور", "Add images")} (${previews.length}/${maxFiles})`}
+              {isCompressing
+                ? t("جاري ضغط الصور...", "Compressing images...")
+                : isDragActive
+                  ? t("أفلت الصور هنا", "Drop images here")
+                  : `${t("أضف صور", "Add images")} (${previews.length}/${maxFiles})`}
             </p>
+            {isCompressing && (
+              <p className="text-xs">
+                {t("عدد الصور قيد الضغط:", "Images being compressed:")} {compressingCount}
+              </p>
+            )}
           </div>
         </div>
       )}

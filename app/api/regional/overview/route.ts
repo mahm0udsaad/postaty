@@ -93,7 +93,7 @@ export async function GET(request: Request) {
       const { data } = await admin
         .from("generations")
         .select(
-          "id, user_id, category, status, credits_charged, created_at"
+          "id, user_id, category, generation_type, status, credits_charged, created_at"
         )
         .in("user_id", userIds);
       generations = data || [];
@@ -116,6 +116,12 @@ export async function GET(request: Request) {
       byCategory[g.category] = (byCategory[g.category] || 0) + 1;
     }
 
+    const byType: Record<string, number> = { poster: 0, reel: 0, menu: 0 };
+    for (const g of generations) {
+      const t = g.generation_type || "poster";
+      byType[t] = (byType[t] || 0) + 1;
+    }
+
     // Recent generations (last 10)
     const recentGenerations = generations
       .sort((a, b) => b.created_at - a.created_at)
@@ -125,6 +131,7 @@ export async function GET(request: Request) {
         return {
           id: g.id,
           category: g.category,
+          generation_type: g.generation_type || "poster",
           status: g.status,
           credits_charged: g.credits_charged,
           created_at: g.created_at,
@@ -155,6 +162,7 @@ export async function GET(request: Request) {
         failed: failedGenerations,
         totalCreditsUsed,
         byCategory,
+        byType,
         recent: recentGenerations,
       },
     });

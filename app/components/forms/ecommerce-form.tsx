@@ -12,6 +12,7 @@ import { useLocale } from "@/hooks/use-locale";
 
 interface EcommerceFormProps {
   onSubmit: (data: EcommerceFormData) => void;
+  onPrewarmHint?: (hint: { campaignType: CampaignType; subType?: string }) => void;
   isLoading: boolean;
   defaultValues?: { businessName?: string; logo?: string | null };
 }
@@ -22,7 +23,7 @@ const AVAILABILITY_AR = ["متوفر", "غير متوفر", "طلب مسبق"] a
 const AVAILABILITY_EN = ["In Stock", "Out of Stock", "Preorder"] as const;
 const CTA_EN = ["Buy now", "Shop now", "View details"] as const;
 
-export function EcommerceForm({ onSubmit, isLoading, defaultValues }: EcommerceFormProps) {
+export function EcommerceForm({ onSubmit, onPrewarmHint, isLoading, defaultValues }: EcommerceFormProps) {
   const { locale, t } = useLocale();
   const [logoOverride, setLogoOverride] = useState<string | null | undefined>(undefined);
   const [productImage, setProductImage] = useState<string | null>(null);
@@ -43,6 +44,19 @@ export function EcommerceForm({ onSubmit, isLoading, defaultValues }: EcommerceF
   const availabilityMap = locale === "ar"
     ? { "متوفر": "in-stock", "غير متوفر": "out-of-stock", "طلب مسبق": "preorder" } as const
     : { "In Stock": "in-stock", "Out of Stock": "out-of-stock", Preorder: "preorder" } as const;
+
+  const handleCampaignTypeChange = (nextCampaignType: CampaignType) => {
+    setCampaignType(nextCampaignType);
+    onPrewarmHint?.({ campaignType: nextCampaignType });
+  };
+
+  const handlePostTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const label = e.target.value;
+    const mapped = postTypeMap[label as keyof typeof postTypeMap];
+    if (mapped) {
+      onPrewarmHint?.({ campaignType, subType: mapped });
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -98,12 +112,12 @@ export function EcommerceForm({ onSubmit, isLoading, defaultValues }: EcommerceF
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
         <div className="space-y-6">
           <div className="bg-surface-2 p-1 rounded-2xl border border-card-border">
-            <CampaignTypeSelector value={campaignType} onChange={setCampaignType} />
+            <CampaignTypeSelector value={campaignType} onChange={handleCampaignTypeChange} />
           </div>
 
           <div className="space-y-5">
             <FormInput label={t("اسم المتجر", "Store name")} name="shopName" placeholder={t("مثال: متجر نون", "Example: Noon Store")} required icon={Store} defaultValue={defaultValues?.businessName} error={errors.shopName} />
-            <FormSelect label={t("نوع البوست", "Post type")} name="postType" options={postTypes} required icon={FileText} />
+            <FormSelect label={t("نوع البوست", "Post type")} name="postType" options={postTypes} required icon={FileText} onChange={handlePostTypeChange} />
             <FormInput label={t("اسم المنتج", "Product name")} name="productName" placeholder={t("مثال: سماعات أيربودز", "Example: AirPods")} required icon={ShoppingBag} error={errors.productName} />
             <FormInput label={t("المميزات (اختياري)", "Features (optional)")} name="features" placeholder={t("مثال: بلوتوث 5.0 - عزل ضوضاء - شحن لاسلكي", "Example: Bluetooth 5.0 - Noise cancelling - Wireless charging")} icon={FileText} />
             <div className="grid grid-cols-2 gap-4">
@@ -146,7 +160,7 @@ export function EcommerceForm({ onSubmit, isLoading, defaultValues }: EcommerceF
           {isLoading ? (
               <>
                 <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
-                <span>{t("جاري التصميم الذكي...", "Generating with AI...")}</span>
+                <span>{t("جاري التصميم بواسطة postaty...", "Generating with postaty...")}</span>
               </>
           ) : (
               <>

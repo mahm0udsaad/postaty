@@ -25,6 +25,7 @@ import { useLocale } from "@/hooks/use-locale";
 
 interface ServicesFormProps {
   onSubmit: (data: ServicesFormData) => void;
+  onPrewarmHint?: (hint: { campaignType: CampaignType; subType?: string }) => void;
   isLoading: boolean;
   defaultValues?: { businessName?: string; logo?: string | null };
 }
@@ -35,7 +36,7 @@ const PRICE_TYPES_AR = ["سعر ثابت", "ابتداءً من"] as const;
 const PRICE_TYPES_EN = ["Fixed price", "Starting from"] as const;
 const CTA_EN = ["Book now", "Request visit", "WhatsApp consultation"] as const;
 
-export function ServicesForm({ onSubmit, isLoading, defaultValues }: ServicesFormProps) {
+export function ServicesForm({ onSubmit, onPrewarmHint, isLoading, defaultValues }: ServicesFormProps) {
   const { locale, t } = useLocale();
   const [logoOverride, setLogoOverride] = useState<string | null | undefined>(undefined);
   const [serviceImage, setServiceImage] = useState<string | null>(null);
@@ -56,6 +57,19 @@ export function ServicesForm({ onSubmit, isLoading, defaultValues }: ServicesFor
   const priceTypeMap = locale === "ar"
     ? { "سعر ثابت": "fixed", "ابتداءً من": "starting-from" } as const
     : { "Fixed price": "fixed", "Starting from": "starting-from" } as const;
+
+  const handleCampaignTypeChange = (nextCampaignType: CampaignType) => {
+    setCampaignType(nextCampaignType);
+    onPrewarmHint?.({ campaignType: nextCampaignType });
+  };
+
+  const handleServiceTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const label = e.target.value;
+    const mapped = serviceTypeMap[label as keyof typeof serviceTypeMap];
+    if (mapped) {
+      onPrewarmHint?.({ campaignType, subType: mapped });
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -113,12 +127,12 @@ export function ServicesForm({ onSubmit, isLoading, defaultValues }: ServicesFor
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
         <div className="space-y-6">
           <div className="bg-surface-2 p-1 rounded-2xl border border-card-border">
-             <CampaignTypeSelector value={campaignType} onChange={setCampaignType} />
+             <CampaignTypeSelector value={campaignType} onChange={handleCampaignTypeChange} />
           </div>
 
           <div className="space-y-5">
             <FormInput label={t("اسم الشركة/مقدم الخدمة", "Business/provider name")} name="businessName" placeholder={t("مثال: شركة النجم للصيانة", "Example: Star Maintenance Co.")} required icon={Building2} defaultValue={defaultValues?.businessName} error={errors.businessName} />
-            <FormSelect label={t("نوع الخدمة", "Service type")} name="serviceType" options={serviceTypes} required icon={Briefcase} error={errors.serviceType} />
+            <FormSelect label={t("نوع الخدمة", "Service type")} name="serviceType" options={serviceTypes} required icon={Briefcase} error={errors.serviceType} onChange={handleServiceTypeChange} />
             <FormInput label={t("اسم الخدمة", "Service name")} name="serviceName" placeholder={t("مثال: صيانة تكييفات", "Example: AC maintenance")} required icon={Wrench} error={errors.serviceName} />
             <FormInput label={t("تفاصيل الخدمة (اختياري)", "Service details (optional)")} name="serviceDetails" placeholder={t("مثال: فحص شامل + تنظيف + تعبئة فريون", "Example: Inspection + Cleaning + Gas refill")} icon={FileText} />
             <div className="grid grid-cols-2 gap-4">
@@ -162,7 +176,7 @@ export function ServicesForm({ onSubmit, isLoading, defaultValues }: ServicesFor
           {isLoading ? (
               <>
                 <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
-                <span>{t("جاري التصميم الذكي...", "Generating with AI...")}</span>
+                <span>{t("جاري التصميم بواسطة postaty...", "Generating with postaty...")}</span>
               </>
           ) : (
               <>

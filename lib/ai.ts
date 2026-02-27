@@ -12,7 +12,7 @@ const google = createGoogleGenerativeAI({
 });
 
 /** Paid image model — Gemini 3 Pro Image Preview */
-export const paidImageModel = google("gemini-3-pro-image-preview");
+export const paidImageModel = google("gemini-3.1-flash-image-preview");
 
 /** Free image model — Gemini 2.5 Flash Image */
 export const freeImageModel = google("gemini-2.5-flash-image");

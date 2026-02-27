@@ -32,6 +32,18 @@ const CATEGORY_LABELS: Record<string, string> = {
   online: "أونلاين",
 };
 
+const TYPE_LABELS: Record<string, string> = {
+  poster: "تصميم",
+  reel: "فيديو",
+  menu: "قائمة",
+};
+
+const TYPE_COLORS: Record<string, string> = {
+  poster: "bg-blue-500",
+  reel: "bg-purple-500",
+  menu: "bg-amber-500",
+};
+
 const PLAN_LABELS: Record<string, string> = {
   none: "مجاني",
   starter: "ستارتر",
@@ -94,7 +106,7 @@ export default function RegionalOverviewPage() {
       </div>
 
       {/* Second Row */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
         {/* Users by Country */}
         <div className="bg-surface-1 border border-card-border rounded-2xl p-6">
           <h3 className="font-bold text-foreground mb-4 flex items-center gap-2">
@@ -185,6 +197,38 @@ export default function RegionalOverviewPage() {
             </div>
           )}
         </div>
+
+        {/* Generations by Type */}
+        <div className="bg-surface-1 border border-card-border rounded-2xl p-6">
+          <h3 className="font-bold text-foreground mb-4 flex items-center gap-2">
+            <ImageIcon size={18} className="text-amber-500" />
+            التوليدات حسب النوع
+          </h3>
+          {Object.keys(generations.byType || {}).length === 0 ? (
+            <p className="text-sm text-muted">لا توجد توليدات بعد</p>
+          ) : (
+            <div className="space-y-3">
+              {Object.entries(generations.byType || {})
+                .sort(([, a], [, b]) => (b as number) - (a as number))
+                .map(([type, count]) => (
+                  <div
+                    key={type}
+                    className="flex items-center justify-between"
+                  >
+                    <div className="flex items-center gap-2">
+                      <div className={`w-2.5 h-2.5 rounded-full ${TYPE_COLORS[type] || "bg-surface-2"}`} />
+                      <span className="text-sm text-muted">
+                        {TYPE_LABELS[type] || type}
+                      </span>
+                    </div>
+                    <span className="font-bold text-foreground">
+                      {count as number}
+                    </span>
+                  </div>
+                ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Subscription Stats */}
@@ -227,6 +271,9 @@ export default function RegionalOverviewPage() {
                     الفئة
                   </th>
                   <th className="text-right px-6 py-3 font-medium text-muted">
+                    النوع
+                  </th>
+                  <th className="text-right px-6 py-3 font-medium text-muted">
                     الحالة
                   </th>
                   <th className="text-right px-6 py-3 font-medium text-muted">
@@ -243,6 +290,7 @@ export default function RegionalOverviewPage() {
                     id: string;
                     user_name: string;
                     category: string;
+                    generation_type: string;
                     status: string;
                     credits_charged: number;
                     created_at: number;
@@ -256,6 +304,15 @@ export default function RegionalOverviewPage() {
                       </td>
                       <td className="px-6 py-3 text-muted">
                         {CATEGORY_LABELS[g.category] || g.category}
+                      </td>
+                      <td className="px-6 py-3">
+                        <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs font-medium ${
+                          g.generation_type === "menu" ? "bg-amber-500/10 text-amber-500" :
+                          g.generation_type === "reel" ? "bg-purple-500/10 text-purple-500" :
+                          "bg-blue-500/10 text-blue-500"
+                        }`}>
+                          {TYPE_LABELS[g.generation_type] || g.generation_type}
+                        </span>
                       </td>
                       <td className="px-6 py-3">
                         <StatusBadge status={g.status} />

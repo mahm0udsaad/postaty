@@ -34,6 +34,12 @@ const STATUS_LABELS: Record<string, string> = {
   partial: "جزئي",
 };
 
+const TYPE_LABELS: Record<string, string> = {
+  poster: "تصميم",
+  reel: "فيديو",
+  menu: "قائمة",
+};
+
 interface GenerationsData {
   periodDays: number;
   summary: {
@@ -44,10 +50,12 @@ interface GenerationsData {
     totalCredits: number;
   };
   byCategory: Record<string, number>;
+  byType: Record<string, number>;
   dailyTrend: Record<string, number>;
   recent: Array<{
     id: string;
     category: string;
+    generation_type: string;
     business_name: string;
     product_name: string;
     status: string;
@@ -74,7 +82,7 @@ export default function RegionalGenerationsPage() {
 
   if (!data) return null;
 
-  const { summary, byCategory, recent } = data;
+  const { summary, byCategory, byType, recent } = data;
 
   return (
     <div dir="rtl" className="space-y-8">
@@ -165,6 +173,40 @@ export default function RegionalGenerationsPage() {
         )}
       </div>
 
+      {/* By Type */}
+      <div className="bg-surface-1 border border-card-border rounded-2xl p-6">
+        <h3 className="font-bold text-foreground mb-4 flex items-center gap-2">
+          <BarChart3 size={18} className="text-amber-500" />
+          حسب النوع
+        </h3>
+        {Object.keys(byType || {}).length === 0 ? (
+          <p className="text-sm text-muted">لا توجد توليدات في هذه الفترة</p>
+        ) : (
+          <div className="grid grid-cols-3 gap-4">
+            {Object.entries(byType)
+              .sort(([, a], [, b]) => b - a)
+              .map(([type, count]) => {
+                const maxCount = Math.max(...Object.values(byType));
+                const barColor = type === "menu" ? "bg-amber-500" : type === "reel" ? "bg-purple-500" : "bg-blue-500";
+                return (
+                  <div key={type} className="bg-surface-2/50 rounded-xl p-4">
+                    <p className="text-xs text-muted mb-1">
+                      {TYPE_LABELS[type] || type}
+                    </p>
+                    <p className="text-xl font-black text-foreground">{count}</p>
+                    <div className="w-full h-1.5 bg-surface-2 rounded-full mt-2 overflow-hidden">
+                      <div
+                        className={`h-full ${barColor} rounded-full`}
+                        style={{ width: `${maxCount > 0 ? (count / maxCount) * 100 : 0}%` }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        )}
+      </div>
+
       {/* Recent Generations */}
       <div className="bg-surface-1 border border-card-border rounded-2xl overflow-hidden">
         <div className="p-6 border-b border-card-border">
@@ -191,6 +233,9 @@ export default function RegionalGenerationsPage() {
                   </th>
                   <th className="text-right px-6 py-3 font-medium text-muted">
                     الفئة
+                  </th>
+                  <th className="text-right px-6 py-3 font-medium text-muted">
+                    النوع
                   </th>
                   <th className="text-right px-6 py-3 font-medium text-muted">
                     الحالة
@@ -221,6 +266,15 @@ export default function RegionalGenerationsPage() {
                     <td className="px-6 py-4">
                       <span className="inline-flex px-2 py-0.5 bg-surface-2 rounded-full text-xs font-medium">
                         {CATEGORY_LABELS[gen.category] || gen.category}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-medium ${
+                        gen.generation_type === "menu" ? "bg-amber-500/10 text-amber-500" :
+                        gen.generation_type === "reel" ? "bg-purple-500/10 text-purple-500" :
+                        "bg-blue-500/10 text-blue-500"
+                      }`}>
+                        {TYPE_LABELS[gen.generation_type] || gen.generation_type}
                       </span>
                     </td>
                     <td className="px-6 py-4">

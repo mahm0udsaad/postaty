@@ -23,6 +23,7 @@ import { useLocale } from "@/hooks/use-locale";
 
 interface FashionFormProps {
   onSubmit: (data: FashionFormData) => void;
+  onPrewarmHint?: (hint: { campaignType: CampaignType; subType?: string }) => void;
   isLoading: boolean;
   defaultValues?: { businessName?: string; logo?: string | null };
 }
@@ -31,7 +32,7 @@ const POST_TYPE_AR = ["منتج", "خصم", "كوليكشن"] as const;
 const POST_TYPE_EN = ["Product", "Discount", "Collection"] as const;
 const CTA_EN = ["Shop now", "Buy now", "Order via WhatsApp"] as const;
 
-export function FashionForm({ onSubmit, isLoading, defaultValues }: FashionFormProps) {
+export function FashionForm({ onSubmit, onPrewarmHint, isLoading, defaultValues }: FashionFormProps) {
   const { locale, t } = useLocale();
   const [logoOverride, setLogoOverride] = useState<string | null | undefined>(undefined);
   const [productImage, setProductImage] = useState<string | null>(null);
@@ -46,6 +47,19 @@ export function FashionForm({ onSubmit, isLoading, defaultValues }: FashionFormP
   const postTypeMap = locale === "ar"
     ? { "منتج": "product", "خصم": "discount", "كوليكشن": "collection" } as const
     : { Product: "product", Discount: "discount", Collection: "collection" } as const;
+
+  const handleCampaignTypeChange = (nextCampaignType: CampaignType) => {
+    setCampaignType(nextCampaignType);
+    onPrewarmHint?.({ campaignType: nextCampaignType });
+  };
+
+  const handlePostTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const label = e.target.value;
+    const mapped = postTypeMap[label as keyof typeof postTypeMap];
+    if (mapped) {
+      onPrewarmHint?.({ campaignType, subType: mapped });
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -100,7 +114,7 @@ export function FashionForm({ onSubmit, isLoading, defaultValues }: FashionFormP
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
         <div className="space-y-6">
           <div className="bg-surface-2 p-1 rounded-2xl border border-card-border">
-             <CampaignTypeSelector value={campaignType} onChange={setCampaignType} />
+             <CampaignTypeSelector value={campaignType} onChange={handleCampaignTypeChange} />
           </div>
 
           <div className="space-y-5">
@@ -120,6 +134,7 @@ export function FashionForm({ onSubmit, isLoading, defaultValues }: FashionFormP
                 options={postTypeOptions}
                 required
                 icon={Tag}
+                onChange={handlePostTypeChange}
             />
 
             <FormInput
@@ -234,7 +249,7 @@ export function FashionForm({ onSubmit, isLoading, defaultValues }: FashionFormP
           {isLoading ? (
               <>
                 <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
-                <span>{t("جاري التصميم الذكي...", "Generating with AI...")}</span>
+                <span>{t("جاري التصميم بواسطة postaty...", "Generating with postaty...")}</span>
               </>
           ) : (
               <>

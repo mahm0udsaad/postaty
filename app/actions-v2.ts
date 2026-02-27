@@ -2,9 +2,10 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { generatePoster, generateMarketingContent } from "@/lib/generate-designs";
+import { getInspirationImages } from "@/lib/inspiration-images";
 import { removeBackgroundWithFallback } from "@/lib/gift-editor/remove-background";
 import { postFormDataSchema } from "@/lib/validation";
-import type { PostFormData, OutputFormat, GeneratePostersResult, MarketingContentHub } from "@/lib/types";
+import type { PostFormData, OutputFormat, GeneratePostersResult, MarketingContentHub, Category, CampaignType } from "@/lib/types";
 import type { BrandKitPromptData } from "@/lib/prompts";
 import type { GenerationUsage } from "@/lib/generate-designs";
 
@@ -33,7 +34,7 @@ function extractUsageFromUnknown(value: unknown): GenerationUsage | undefined {
 
   const usage = maybeUsage as Partial<GenerationUsage>;
   if (
-    (usage.route === "poster" || usage.route === "gift" || usage.route === "marketing-content") &&
+    (usage.route === "poster" || usage.route === "gift" || usage.route === "marketing-content" || usage.route === "menu") &&
     typeof usage.model === "string" &&
     typeof usage.inputTokens === "number" &&
     typeof usage.outputTokens === "number" &&
@@ -142,4 +143,17 @@ export async function removeOverlayBackground(
   }
 
   return removeBackgroundWithFallback(base64);
+}
+
+export async function prewarmGenerationAssets(input: {
+  category: Category;
+  campaignType: CampaignType;
+  subType?: string;
+}): Promise<{ ok: true }> {
+  try {
+    await getInspirationImages(input.category, 1, input.campaignType, input.subType);
+  } catch (err) {
+    console.warn("[prewarmGenerationAssets] non-blocking failure", err);
+  }
+  return { ok: true };
 }

@@ -21,6 +21,8 @@ import {
   Palette,
   Brain,
   Maximize2,
+  Megaphone,
+  LayoutGrid,
 } from "lucide-react";
 import type { PosterResult, PosterGenStep } from "@/lib/types";
 import { LoadingSlideshow } from "./loading-slideshow";
@@ -35,6 +37,10 @@ interface PosterGridProps {
   error?: string;
   totalExpected?: number;
   onSaveAsTemplate?: (designIndex: number) => void;
+  onGenerateMore?: () => void;
+  onReset?: () => void;
+  canGenerateMore?: boolean;
+  generateMoreLabel?: string;
 }
 
 // ── Poster Skeleton (Advanced Generative Visualization) ───────────
@@ -394,57 +400,49 @@ export function PosterGrid({
   results,
   genStep,
   error,
-  totalExpected = results.length || 3,
+  totalExpected = 1,
   onSaveAsTemplate,
+  onGenerateMore,
+  onReset,
+  canGenerateMore = true,
+  generateMoreLabel,
 }: PosterGridProps) {
-  const { t } = useLocale();
-  const shouldReduceMotion = useReducedMotion();
-  const isLoading = genStep === "generating-designs";
-  const [exportingAll, setExportingAll] = useState(false);
-  const [isCoarsePointer, setIsCoarsePointer] = useState(false);
-  
-  // Modal State
+  const { t, locale } = useLocale();
   const [selectedResult, setSelectedResult] = useState<PosterResult | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [exportingAll, setExportingAll] = useState(false);
+  const lowMotionMode = useReducedMotion() ?? false;
 
-  useEffect(() => {
-    const mediaQuery = window.matchMedia(
-      "(max-width: 768px), (hover: none) and (pointer: coarse)"
-    );
-    const onMediaChange = () => setIsCoarsePointer(mediaQuery.matches);
-
-    onMediaChange();
-    mediaQuery.addEventListener("change", onMediaChange);
-    return () => mediaQuery.removeEventListener("change", onMediaChange);
-  }, []);
-
-  const lowMotionMode = Boolean(shouldReduceMotion) || isCoarsePointer;
   const successResults = results.filter((r) => r.status === "complete");
+  const displayCount = Math.max(totalExpected, results.length);
+  const isLoading = genStep === "generating-designs";
 
-  const handleExportAll = async () => {
+  // Define grid items based on displayCount
+  const gridItems = Array.from({ length: displayCount }, (_, i) => i);
+
+  const handleExportAll = useCallback(async () => {
+    if (successResults.length === 0) return;
     setExportingAll(true);
     try {
-      for (const result of successResults) {
-        await exportPoster(result);
+      for (const res of successResults) {
+        if (!res.imageBase64) continue;
+        const link = document.createElement("a");
+        link.href = res.imageBase64;
+        link.download = `poster-${res.designIndex + 1}.png`;
+        link.click();
+        // Small delay to avoid browser blocking multiple downloads
+        await new Promise((resolve) => setTimeout(resolve, 300));
       }
     } finally {
       setExportingAll(false);
     }
-  };
+  }, [successResults]);
 
-  const handleCardClick = (result: PosterResult) => {
+  const handleCardClick = useCallback((result: PosterResult) => {
     setSelectedResult(result);
     setIsModalOpen(true);
-  };
+  }, []);
 
-  // Create grid items for all expected indices
-  // If we have results, use that count, otherwise default to totalExpected (usually 3)
-  // Ensure we at least show skeletons if we are loading and have no results yet? 
-  // actually we use LoadingSlideshow for 0 results.
-  const displayCount = Math.max(totalExpected, results.length);
-  const gridItems = Array.from({ length: displayCount }, (_, i) => i);
-
-  // Animation variants
   const containerVariants = {
     hidden: { opacity: 0 },
     show: {
@@ -466,52 +464,52 @@ export function PosterGrid({
       <div className="space-y-8">
       
       {genStep === "complete" && (
-        <div className={`flex flex-col md:flex-row items-center justify-between gap-4 py-6 px-6 bg-success/5 border border-success/20 rounded-2xl animate-in fade-in slide-in-from-bottom-4 duration-700 ${
-          displayCount === 1 ? "max-w-2xl mx-auto w-full" : ""
-        }`}>
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-success/10 rounded-full">
-              <CheckCircle2 size={24} className="text-success" />
+        <motion.div 
+          initial={{ opacity: 0, y: -5, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          className={`flex flex-col sm:flex-row items-center gap-4 p-4 sm:p-5 bg-surface-1 border border-success/30 shadow-sm rounded-2xl relative overflow-hidden ${
+            displayCount === 1 ? "max-w-3xl mx-auto w-full" : ""
+          }`}
+        >
+          {/* Subtle indicator bar */}
+          <div className="absolute top-0 left-0 bottom-0 w-1 bg-success/40" />
+          
+          <div className="flex items-center gap-3.5 flex-1">
+            <div className="w-11 h-11 bg-success/10 text-success rounded-xl flex items-center justify-center shrink-0 ring-1 ring-success/20" title={t("نجاح", "Success")}>
+              <CheckCircle2 size={22} className="animate-in zoom-in-50 duration-500" />
             </div>
-            <div>
-              <h3 className="text-lg font-bold text-foreground">
-                {t("تم اكتمال التصميم!", "Design completed!")}
+            <div className="text-start">
+              <h3 className="text-lg font-bold text-foreground leading-snug">
+                {t("تم اكتمال التصميم بنجاح!", "Design completed successfully!")}
               </h3>
-              <p className="text-muted text-sm">
-                {t("تم إنشاء التصميم بنجاح", "Design generated successfully")}
+              <p className="text-muted text-xs font-medium opacity-80 mt-0.5">
+                {t("جاهز للتحميل والمشاركة مع المحتوى التسويقي.", "Ready for download and sharing with marketing content.")}
               </p>
             </div>
           </div>
 
-          {successResults.length > 0 && (
-            <div className="flex items-center gap-3">
-              {/* Reel generation button temporarily disabled */}
-              {/* {onTurnIntoReel && (
+          <div className="flex items-center gap-2 w-full sm:w-auto mt-2 sm:mt-0 pt-3 sm:pt-0 border-t sm:border-t-0 border-card-border/40">
+             {/* Primary Actions */}
+             <div className="flex items-center gap-2 flex-1 sm:flex-none">
                 <button
-                  type="button"
-                  onClick={() => onTurnIntoReel(successResults[0])}
-                  className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-purple-600 to-pink-600 text-white rounded-xl shadow-lg shadow-purple-500/25 hover:shadow-purple-500/40 transition-all active:scale-95 font-bold"
+                  onClick={() => document.getElementById('marketing-content')?.scrollIntoView({ behavior: 'smooth' })}
+                  className="flex-1 sm:flex-none px-4 py-2.5 bg-surface-2 hover:bg-surface-3 border border-card-border text-foreground rounded-xl transition-colors font-bold text-sm"
+                  title={t("عرض المحتوى التسويقي المُقترح", "Show suggested marketing content")}
                 >
-                  <Film size={18} />
-                  {t("تحويل إلى ريلز", "Turn into Reel")}
+                  {t("المحتوى التسويقي", "Marketing Content")}
                 </button>
-              )} */}
-              <button
-                type="button"
-                onClick={handleExportAll}
-                disabled={exportingAll}
-                className="flex items-center gap-2 px-6 py-3 bg-primary hover:bg-primary-hover text-white rounded-xl shadow-lg shadow-primary/20 transition-all active:scale-95 font-medium"
-              >
-                {exportingAll ? (
-                  <Loader2 size={18} className="animate-spin" />
-                ) : (
-                  <DownloadCloud size={18} />
-                )}
-                {t("تصدير التصميم", "Export design")}
-              </button>
-            </div>
-          )}
-        </div>
+                <button
+                  onClick={handleExportAll}
+                  disabled={exportingAll}
+                  className="flex-1 sm:flex-none px-5 py-2.5 bg-primary hover:bg-primary/90 text-white rounded-xl shadow-sm shadow-primary/20 transition-all font-bold text-sm disabled:opacity-50 flex items-center justify-center gap-2 min-w-[100px]"
+                  title={t("تحميل جميع التصاميم", "Download all designs")}
+                >
+                  {exportingAll ? <Loader2 size={16} className="animate-spin" /> : <DownloadCloud size={16} />}
+                  <span>{t("تصدير", "Export")}</span>
+                </button>
+             </div>
+          </div>
+        </motion.div>
       )}
 
       {genStep === "error" && (
@@ -546,13 +544,41 @@ export function PosterGrid({
             const result = results.find((r) => r.designIndex === index);
             if (result) {
               return (
-                <div key={result.designIndex} className="w-full">
-                  <PosterCard
-                    result={result}
-                    onSaveAsTemplate={onSaveAsTemplate}
-                    lowMotion={lowMotionMode}
-                    onClick={() => handleCardClick(result)}
-                  />
+                <div key={result.designIndex} className="w-full flex flex-col md:flex-row gap-4 items-start relative group">
+                  <div className="flex-1 w-full">
+                    <PosterCard
+                      result={result}
+                      onSaveAsTemplate={onSaveAsTemplate}
+                      lowMotion={lowMotionMode}
+                      onClick={() => handleCardClick(result)}
+                    />
+                  </div>
+
+                  {/* Vertical Action Buttons beside the image */}
+                  {genStep === "complete" && (
+                    <div className="flex flex-col gap-2.5 w-full md:w-48 shrink-0 md:sticky top-4">
+                      {onGenerateMore && (
+                        <button
+                          onClick={onGenerateMore}
+                          disabled={!canGenerateMore}
+                          className="w-full flex items-center justify-center md:justify-start gap-2.5 px-4 py-3 bg-surface-1 border border-card-border hover:bg-primary/5 hover:border-primary/30 hover:text-primary text-muted-foreground font-medium text-sm rounded-2xl transition-all shadow-sm disabled:opacity-50 disabled:cursor-not-allowed group/btn"
+                        >
+                          <Sparkles size={18} className="shrink-0 group-hover/btn:scale-110 transition-transform" />
+                          <span className="text-start leading-tight">{generateMoreLabel || t("إنشاء صورة إضافية", "Create another image")}</span>
+                        </button>
+                      )}
+                      
+                      {onReset && (
+                        <button
+                          onClick={onReset}
+                          className="w-full flex items-center justify-center md:justify-start gap-2.5 px-4 py-3 bg-surface-1 border border-card-border hover:bg-surface-2 hover:border-foreground/30 hover:text-foreground text-muted-foreground font-medium text-sm rounded-2xl transition-all shadow-sm group/btn"
+                        >
+                          <LayoutGrid size={18} className="shrink-0 group-hover/btn:scale-110 transition-transform" />
+                          <span className="text-start leading-tight">{t("تصميم آخر", "Another design")}</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             }
@@ -575,7 +601,10 @@ export function PosterGrid({
       {/* Full Screen Modal */}
       <PosterModal
         isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
+        onClose={() => {
+          setIsModalOpen(false);
+          setSelectedResult(null);
+        }}
         result={selectedResult}
         onSaveAsTemplate={onSaveAsTemplate}
       />

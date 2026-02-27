@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, useRef, Suspense } from "react";
+import { useState, useEffect, useRef, Suspense, useCallback } from "react";
 import useSWR from "swr";
 import { useAuth } from "@/hooks/use-auth";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Sparkles, LayoutGrid, LogIn, AlertCircle } from "lucide-react";
+import { ArrowRight, LogIn, AlertCircle, Sparkles } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import dynamic from "next/dynamic";
 import { useLocale } from "@/hooks/use-locale";
 
@@ -14,12 +15,12 @@ import { useLocale } from "@/hooks/use-locale";
 import { CategorySelector } from "../components/category-selector";
 
 // Types & Libs
-import type { Category, PostFormData, PosterResult, PosterGenStep, MarketingContentHub as MarketingContentHubType, MarketingContentStatus } from "@/lib/types";
+import type { Category, CampaignType, PostFormData, PosterResult, PosterGenStep, MarketingContentHub as MarketingContentHubType, MarketingContentStatus } from "@/lib/types";
 import type { BrandKitPromptData } from "@/lib/prompts";
 import type { GenerationUsage } from "@/lib/generate-designs";
 import { CATEGORY_LABELS, FORMAT_CONFIGS } from "@/lib/constants";
 import { CATEGORY_THEMES } from "@/lib/category-themes";
-import { generatePosters, generateMarketingContentAction } from "../actions-v2";
+import { generatePosters, generateMarketingContentAction, prewarmGenerationAssets } from "../actions-v2";
 import { TAP_SCALE } from "@/lib/animation";
 
 const fetcher = (url: string) => fetch(url).then(r => {
@@ -73,6 +74,67 @@ const CATEGORY_LABELS_EN: Record<Category, string> = {
 
 function getNowMs(): number {
   return Date.now();
+}
+
+const GEN_PREWARM_ENABLED = process.env.NEXT_PUBLIC_GEN_PREWARM !== "0";
+const GEN_EARLY_PERSIST_ENABLED = process.env.NEXT_PUBLIC_GEN_EARLY_PERSIST !== "0";
+const TIMELINE_VERBOSE = process.env.NODE_ENV !== "production";
+const PREWARM_DEBOUNCE_MS = 600;
+const NETWORK_TIMEOUT_MS = 15_000;
+const PERSIST_RETRY_ATTEMPTS = 2;
+
+type PrewarmHint = {
+  campaignType: CampaignType;
+  subType?: string;
+};
+
+type BrandKitSummary = {
+  id?: string;
+  name?: string;
+  logoUrl?: string;
+  palette?: BrandKitPromptData["palette"];
+  styleAdjectives?: string[];
+  doRules?: string[];
+  dontRules?: string[];
+  styleSeed?: string;
+};
+
+type GenerationTimingEvent =
+  | "credit.consume.start"
+  | "credit.consume.end"
+  | "server.generate.start"
+  | "server.generate.end"
+  | "ui.result.rendered"
+  | "persistence.complete"
+  | "persistence.error";
+
+async function withRetry<T>(
+  fn: () => Promise<T>,
+  attempts = PERSIST_RETRY_ATTEMPTS,
+  delayMs = 400
+): Promise<T> {
+  let lastError: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      return await fn();
+    } catch (err) {
+      lastError = err;
+      if (i < attempts - 1) {
+        await new Promise((resolve) => setTimeout(resolve, delayMs * (i + 1)));
+      }
+    }
+  }
+  throw lastError;
+}
+
+async function fetchWithTimeout(input: string, init?: RequestInit, timeoutMs = NETWORK_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(input, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 async function urlToDataUrl(url: string): Promise<string> {
@@ -188,6 +250,8 @@ function CreatePageContent() {
   const [marketingLanguage, setMarketingLanguage] = useState<string>("auto");
   const [defaultLogo, setDefaultLogo] = useState<string | null>(null);
   const generatingRef = useRef(false);
+  const prewarmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const prewarmedKeysRef = useRef<Set<string>>(new Set());
 
   // Get category theme
   const theme = category ? CATEGORY_THEMES[category] : null;
@@ -212,7 +276,7 @@ function CreatePageContent() {
     isSignedIn && userId ? '/api/brand-kits' : null,
     fetcher
   );
-  const brandKits = brandKitsData?.brandKits as any[] | undefined;
+  const brandKits = brandKitsData?.brandKits as BrandKitSummary[] | undefined;
   const defaultBrandKit = brandKits?.[0];
 
   const brandKitPromptData: BrandKitPromptData | undefined =
@@ -298,6 +362,57 @@ function CreatePageContent() {
     }
   };
 
+  const logTimeline = useCallback((
+    requestId: string,
+    event: GenerationTimingEvent,
+    extra?: Record<string, unknown>
+  ) => {
+    const payload = {
+      requestId,
+      event,
+      ts: getNowMs(),
+      ...(extra ?? {}),
+    };
+    if (TIMELINE_VERBOSE) {
+      console.info("[create.timeline]", payload);
+      return;
+    }
+    console.info("[create.timeline]", { requestId, event });
+  }, []);
+
+  const schedulePrewarm = useCallback((hint: PrewarmHint) => {
+    if (!GEN_PREWARM_ENABLED || !category || !isSignedIn) return;
+
+    const key = `${category}|${hint.campaignType}|${hint.subType ?? ""}`;
+    if (prewarmedKeysRef.current.has(key)) return;
+
+    if (prewarmTimerRef.current) {
+      clearTimeout(prewarmTimerRef.current);
+    }
+
+    prewarmTimerRef.current = setTimeout(() => {
+      void prewarmGenerationAssets({
+        category,
+        campaignType: hint.campaignType,
+        subType: hint.subType,
+      })
+        .then(() => {
+          prewarmedKeysRef.current.add(key);
+        })
+        .catch(() => {
+          // Prewarm must stay non-blocking for UX.
+        });
+    }, PREWARM_DEBOUNCE_MS);
+  }, [category, isSignedIn]);
+
+  useEffect(() => {
+    return () => {
+      if (prewarmTimerRef.current) {
+        clearTimeout(prewarmTimerRef.current);
+      }
+    };
+  }, []);
+
   // Marketing content generation (called after poster completes)
   const fetchMarketingContent = async (data: PostFormData, lang: string) => {
     setMarketingContentStatus("loading");
@@ -336,9 +451,14 @@ function CreatePageContent() {
   // Handlers
   const handleCategorySelect = (cat: Category) => {
     setCategory(cat);
+    prewarmedKeysRef.current.clear();
     const url = new URL(window.location.href);
     url.searchParams.set("category", cat);
     window.history.pushState({}, "", url);
+  };
+
+  const handlePrewarmHint = (hint: PrewarmHint) => {
+    schedulePrewarm(hint);
   };
 
   const handleBack = () => {
@@ -361,6 +481,8 @@ function CreatePageContent() {
   const runGeneration = async (data: PostFormData) => {
     if (generatingRef.current) return;
 
+    window.scrollTo({ top: 0, behavior: "smooth" });
+
     // Gate: must have credits
     if (!canGenerate) {
       setError(t("لا يوجد لديك رصيد كافٍ. يرجى ترقية اشتراكك أو شراء رصيد إضافي.", "You don't have enough credits. Please upgrade your plan or buy additional credits."));
@@ -378,11 +500,13 @@ function CreatePageContent() {
     setMarketingContentError(undefined);
 
     const startTime = getNowMs();
+    const requestId = `gen_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
     const idempotencyKey = `gen_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 
     // Consume credit BEFORE calling the expensive AI generation
     try {
-      const creditRes = await fetch('/api/billing/consume-credit', {
+      logTimeline(requestId, "credit.consume.start");
+      const creditRes = await fetchWithTimeout('/api/billing/consume-credit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ idempotencyKey }),
@@ -391,6 +515,7 @@ function CreatePageContent() {
       if (!creditRes.ok || !creditResult.ok) {
         throw new Error(t("لا يوجد لديك رصيد كافٍ", "You don't have enough credits"));
       }
+      logTimeline(requestId, "credit.consume.end");
       mutateCreditState(); // Revalidate credit state
     } catch (err) {
       const msg = toLocalizedErrorMessage(err);
@@ -401,19 +526,35 @@ function CreatePageContent() {
       return;
     }
 
+    let generationId: string | undefined;
+    if (GEN_EARLY_PERSIST_ENABLED) {
+      generationId = await createGenerationRecord(data);
+    }
+
+    logTimeline(requestId, "server.generate.start");
     generatePosters(data, brandKitPromptData)
       .then(({ main: posterResult, usages }) => {
+        logTimeline(requestId, "server.generate.end");
         void persistUsageEvents(usages);
         setResults([posterResult]);
+        logTimeline(requestId, "ui.result.rendered", { status: posterResult.status });
         setGenStep("complete");
         setIsGenerating(false);
         generatingRef.current = false;
 
         if (posterResult.status === "complete" && posterResult.imageBase64) {
-          saveToSupabase(data, posterResult, startTime);
+          void saveToSupabase(data, posterResult, startTime, requestId, generationId);
         }
       })
       .catch((err) => {
+        logTimeline(requestId, "server.generate.end", { error: true });
+        if (generationId) {
+          void patchGenerationStatus(generationId, {
+            status: "error",
+            error: err instanceof Error ? err.message : "Generation failed",
+            duration_ms: getNowMs() - startTime,
+          });
+        }
         const localizedMessage = toLocalizedErrorMessage(err);
         const errorResult: PosterResult = {
           designIndex: 0,
@@ -432,30 +573,9 @@ function CreatePageContent() {
       });
   };
 
-  const uploadImageToStorage = async (imageBase64: string): Promise<{ storagePath: string; publicUrl: string }> => {
-    const res = await fetch('/api/storage/upload', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        base64: imageBase64,
-        bucket: 'generations',
-        prefix: 'poster',
-      }),
-    });
-    if (!res.ok) throw new Error('Failed to upload image');
-    return res.json();
-  };
-
-  const saveToSupabase = async (
-    data: PostFormData,
-    posterResult: PosterResult,
-    startTime: number
-  ) => {
+  const createGenerationRecord = async (data: PostFormData): Promise<string | undefined> => {
     try {
-      const format = data.format;
-      const formatConfig = FORMAT_CONFIGS[format];
-
-      const createGenerationPromise = fetch('/api/generations', {
+      const res = await fetchWithTimeout('/api/generations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -471,34 +591,82 @@ function CreatePageContent() {
             productImages: undefined,
             serviceImage: undefined,
           }),
-          formats: [format],
+          formats: [data.format],
           creditsCharged: 1,
+          generationType: "poster",
         }),
       });
+      if (!res.ok) return undefined;
+      const json = await res.json();
+      return json?.id as string | undefined;
+    } catch {
+      return undefined;
+    }
+  };
 
-      const uploadPromise = uploadImageToStorage(posterResult.imageBase64!);
-      const [createRes, uploadResult] = await Promise.all([createGenerationPromise, uploadPromise]);
-      if (!createRes.ok) throw new Error('Failed to create generation');
-      const { id: generationId } = await createRes.json();
-      const { publicUrl } = uploadResult;
-
-      await fetch(`/api/generations/${generationId}`, {
-        method: 'PATCH',
+  const uploadImageToStorage = async (imageBase64: string): Promise<{ storagePath: string; publicUrl: string }> => {
+    return withRetry(async () => {
+      const res = await fetchWithTimeout('/api/storage/upload', {
+        method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          outputs: [
-            {
-              format,
-              url: publicUrl,
-              width: formatConfig.width,
-              height: formatConfig.height,
-            },
-          ],
-          status: 'complete',
-          duration_ms: getNowMs() - startTime,
+          base64: imageBase64,
+          bucket: 'generations',
+          prefix: 'poster',
         }),
       });
+      if (!res.ok) throw new Error('Failed to upload image');
+      return res.json();
+    });
+  };
+
+  const patchGenerationStatus = async (
+    generationId: string,
+    updates: Record<string, unknown>
+  ): Promise<void> => {
+    await withRetry(async () => {
+      const res = await fetchWithTimeout(`/api/generations/${generationId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updates),
+      });
+      if (!res.ok) throw new Error("Failed to patch generation");
+    });
+  };
+
+  const saveToSupabase = async (
+    data: PostFormData,
+    posterResult: PosterResult,
+    startTime: number,
+    requestId: string,
+    generationId?: string
+  ) => {
+    try {
+      const format = data.format;
+      const formatConfig = FORMAT_CONFIGS[format];
+      let resolvedGenerationId = generationId;
+      if (!resolvedGenerationId) {
+        resolvedGenerationId = await createGenerationRecord(data);
+      }
+      if (!resolvedGenerationId) throw new Error("Failed to create generation");
+
+      const uploadResult = await uploadImageToStorage(posterResult.imageBase64!);
+      const { publicUrl } = uploadResult;
+      await patchGenerationStatus(resolvedGenerationId, {
+        outputs: [
+          {
+            format,
+            url: publicUrl,
+            width: formatConfig.width,
+            height: formatConfig.height,
+          },
+        ],
+        status: 'complete',
+        duration_ms: getNowMs() - startTime,
+      });
+      logTimeline(requestId, "persistence.complete", { generationId: resolvedGenerationId });
     } catch (saveErr) {
+      logTimeline(requestId, "persistence.error");
       console.error("Failed to save generation:", saveErr);
     }
   };
@@ -566,17 +734,17 @@ function CreatePageContent() {
   const renderForm = () => {
     switch (category) {
       case "restaurant":
-        return <RestaurantForm onSubmit={runGeneration} isLoading={formDisabled} defaultValues={sharedDefaultValues} />;
+        return <RestaurantForm onSubmit={runGeneration} onPrewarmHint={handlePrewarmHint} isLoading={formDisabled} defaultValues={sharedDefaultValues} />;
       case "supermarket":
-        return <SupermarketForm onSubmit={runGeneration} isLoading={formDisabled} defaultValues={sharedDefaultValues} />;
+        return <SupermarketForm onSubmit={runGeneration} onPrewarmHint={handlePrewarmHint} isLoading={formDisabled} defaultValues={sharedDefaultValues} />;
       case "ecommerce":
-        return <EcommerceForm onSubmit={runGeneration} isLoading={formDisabled} defaultValues={sharedDefaultValues} />;
+        return <EcommerceForm onSubmit={runGeneration} onPrewarmHint={handlePrewarmHint} isLoading={formDisabled} defaultValues={sharedDefaultValues} />;
       case "services":
-        return <ServicesForm onSubmit={runGeneration} isLoading={formDisabled} defaultValues={sharedDefaultValues} />;
+        return <ServicesForm onSubmit={runGeneration} onPrewarmHint={handlePrewarmHint} isLoading={formDisabled} defaultValues={sharedDefaultValues} />;
       case "fashion":
-        return <FashionForm onSubmit={runGeneration} isLoading={formDisabled} defaultValues={sharedDefaultValues} />;
+        return <FashionForm onSubmit={runGeneration} onPrewarmHint={handlePrewarmHint} isLoading={formDisabled} defaultValues={sharedDefaultValues} />;
       case "beauty":
-        return <BeautyForm onSubmit={runGeneration} isLoading={formDisabled} defaultValues={sharedDefaultValues} />;
+        return <BeautyForm onSubmit={runGeneration} onPrewarmHint={handlePrewarmHint} isLoading={formDisabled} defaultValues={sharedDefaultValues} />;
       default:
         return null;
     }
@@ -584,38 +752,6 @@ function CreatePageContent() {
 
   return (
     <div className="min-h-screen pb-20 md:pb-0">
-      {/* Header with category accent */}
-      <header className="bg-surface-1 border-b border-card-border sticky top-0 z-40 relative overflow-hidden">
-        {/* Category accent line */}
-        {theme && (
-          <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${theme.gradient}`} />
-        )}
-        <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-             <motion.button
-                whileTap={TAP_SCALE}
-                onClick={handleBack}
-                className="p-2 -mr-2 rounded-full hover:bg-surface-2 text-muted transition-colors"
-             >
-                <ArrowRight size={20} />
-             </motion.button>
-             <h1 className="text-lg font-bold text-foreground">
-                {results.length > 0 ? t("نتائج التصميم", "Design results") : category ? t("تفاصيل الإعلان", "Ad details") : t("إنشاء جديد", "Create new")}
-             </h1>
-          </div>
-
-          {category && !results.length && (
-            <div
-              className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold"
-              style={{ backgroundColor: `${CATEGORY_THEMES[category].accent}15`, color: CATEGORY_THEMES[category].accent }}
-            >
-                <Sparkles size={12} />
-                <span>{locale === "ar" ? CATEGORY_LABELS[category] : CATEGORY_LABELS_EN[category]}</span>
-            </div>
-          )}
-        </div>
-      </header>
-
       <main className="max-w-5xl mx-auto px-4 py-8">
         <AnimatePresence mode="wait">
           {!category ? (
@@ -625,10 +761,92 @@ function CreatePageContent() {
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
             >
-                <div className="text-center mb-10">
+                <div className="text-center mb-8">
                     <h2 className="text-3xl font-black text-foreground mb-3">{t("ماذا تريد أن تصمم اليوم؟", "What do you want to design today?")}</h2>
                     <p className="text-muted text-lg">{t("اختر نوع نشاطك التجاري للبدء في تصميم إعلانك", "Choose your business type to start designing your ad")}</p>
                 </div>
+
+                {/* Menu Feature Banner - Premium & Compact */}
+                <Link href="/create/menu" className="block mb-8 w-full group outline-none">
+                  <motion.div
+                    whileHover={{ scale: 1.01 }}
+                    whileTap={TAP_SCALE}
+                    className="relative overflow-hidden bg-gradient-to-br from-surface-1 to-surface-2 border border-border hover:border-primary/40 rounded-[2rem] shadow-sm hover:shadow-xl hover:shadow-primary/10 transition-all duration-500"
+                  >
+                    {/* Subtle Glow */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+                    
+                    <div className="flex flex-col sm:flex-row items-stretch relative z-10">
+                      
+                      {/* Content Side */}
+                      <div className="flex-1 p-6 sm:p-8 flex flex-col justify-center relative">
+                        <div className="flex items-center gap-3 mb-3">
+                          <span className="px-2.5 py-1 bg-primary text-primary-foreground text-[10px] font-bold rounded-full uppercase tracking-wider shadow-sm">
+                            {t("جديد", "NEW")}
+                          </span>
+                          <span className="text-xs font-semibold text-primary/80 uppercase tracking-widest">
+                            {t("ميزة استثنائية", "Premium Feature")}
+                          </span>
+                        </div>
+                        
+                        <h3 className="font-bold text-foreground text-2xl sm:text-3xl mb-2 tracking-tight">
+                          {t("تصميم ", "Design ")}
+                          <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary to-amber-500">
+                            {t("قائمة / كتالوج", "Menu / Catalog")}
+                          </span>
+                        </h3>
+                        
+                        <p className="text-sm text-muted-foreground font-medium mb-6 max-w-lg leading-relaxed">
+                          {t("أضف 4-6 منتجات واحصل على تصميم احترافي جاهز للطباعة والنشر بضغطة زر.", "Add 4-6 products and get a professional print-ready design with one click.")}
+                        </p>
+                        
+                        <div className="flex items-center mt-auto">
+                          <div className="flex items-center gap-2 text-primary font-bold text-sm group-hover:gap-3 transition-all">
+                            <span>{t("ابدأ التصميم الآن", "Start designing now")}</span>
+                            <ArrowRight size={16} className={locale === "ar" ? "rotate-180" : ""} />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Visual Side (Integrated & Abstract) */}
+                      <div className="w-full sm:w-[40%] md:w-[35%] min-h-[160px] relative flex items-center justify-center p-6 bg-gradient-to-br from-primary/5 to-primary/10 border-t sm:border-t-0 sm:border-l border-border/50 overflow-hidden">
+                        {/* Decorative background elements */}
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/20 rounded-full blur-3xl" />
+                        <div className="absolute bottom-0 left-0 w-24 h-24 bg-amber-500/20 rounded-full blur-2xl" />
+                        
+                        {/* Floating Cards Mockup */}
+                        <div className="relative w-full max-w-[140px] aspect-[3/4] group-hover:rotate-[-4deg] group-hover:scale-105 transition-all duration-700 z-10 flex items-center justify-center">
+                           {/* Back Card */}
+                           <div className="absolute inset-0 bg-background/60 backdrop-blur-sm border border-border shadow-lg rounded-xl rotate-12 translate-x-6 transition-transform group-hover:rotate-[16deg] group-hover:translate-x-8" />
+                           {/* Middle Card */}
+                           <div className="absolute inset-0 bg-background/80 backdrop-blur-md border border-border shadow-xl rounded-xl rotate-6 translate-x-3 transition-transform group-hover:rotate-8 group-hover:translate-x-4" />
+                           {/* Front Card */}
+                           <div className="relative w-full h-full bg-background border border-border shadow-2xl rounded-xl p-2.5 flex flex-col gap-2 z-20">
+                              {/* Mock Header */}
+                              <div className="h-6 bg-primary/10 rounded-lg flex items-center justify-center border border-primary/20">
+                                 <div className="w-10 h-1.5 bg-primary/40 rounded-full" />
+                              </div>
+                              {/* Mock Grid */}
+                              <div className="grid grid-cols-2 gap-1.5 flex-1">
+                                 {[...Array(4)].map((_, i) => (
+                                   <div key={i} className="bg-surface-2 rounded-md border border-border/30 p-1 flex flex-col gap-1">
+                                      <div className="flex-1 bg-foreground/5 rounded" />
+                                      <div className="h-1 w-full bg-foreground/10 rounded-full" />
+                                      <div className="h-1 w-2/3 bg-foreground/10 rounded-full" />
+                                   </div>
+                                 ))}
+                              </div>
+                           </div>
+                           
+                           {/* Sparkle */}
+                           <Sparkles size={24} className="absolute -top-4 -right-4 text-amber-500 animate-pulse z-30 drop-shadow-md" />
+                        </div>
+                      </div>
+
+                    </div>
+                  </motion.div>
+                </Link>
+
                 <CategorySelector onSelect={handleCategorySelect} />
             </motion.div>
           ) : (results.length > 0 || isGenerating) ? (
@@ -638,6 +856,17 @@ function CreatePageContent() {
                 animate={{ opacity: 1 }}
                 className="space-y-8"
             >
+                <div className="flex items-center justify-between mb-4">
+                  <motion.button
+                      whileTap={TAP_SCALE}
+                      onClick={() => setCategory(null)}
+                      className="flex items-center gap-2 px-4 py-2 bg-surface-1 border border-card-border rounded-xl text-muted hover:text-foreground hover:bg-surface-2 transition-colors font-medium text-sm"
+                  >
+                      <ArrowRight size={16} />
+                      <span>{t("العودة للتصنيفات", "Back to categories")}</span>
+                  </motion.button>
+                </div>
+
                 <div className="bg-surface-1 rounded-3xl p-1 shadow-sm border border-card-border">
                     <PosterGrid
                         results={results}
@@ -645,6 +874,12 @@ function CreatePageContent() {
                         error={error}
                         totalExpected={1}
                         onSaveAsTemplate={handleSaveAsTemplate}
+                        onGenerateMore={() => {
+                          if (!lastSubmittedData || isGenerating || !canGenerate) return;
+                          void runGeneration(lastSubmittedData);
+                        }}
+                        onReset={() => { setResults([]); setGenStep("idle"); }}
+                        canGenerateMore={!!lastSubmittedData && !isGenerating && canGenerate}
                     />
                 </div>
 
@@ -661,29 +896,6 @@ function CreatePageContent() {
                     error={marketingContentError}
                   />
                 )}
-
-                <div className="flex flex-wrap justify-center gap-3">
-                    <motion.button
-                        whileTap={TAP_SCALE}
-                        onClick={() => {
-                          if (!lastSubmittedData || isGenerating || !canGenerate) return;
-                          void runGeneration(lastSubmittedData);
-                        }}
-                        disabled={!lastSubmittedData || isGenerating || !canGenerate}
-                        className="flex items-center gap-2 px-6 py-3 bg-primary text-primary-foreground rounded-xl hover:bg-primary-hover font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    >
-                        <Sparkles size={18} />
-                        <span>{t("إنشاء صورة إضافية بنفس المحتوى", "Create another image with the same content")}</span>
-                    </motion.button>
-                    <motion.button
-                        whileTap={TAP_SCALE}
-                        onClick={() => { setResults([]); setGenStep("idle"); }}
-                        className="flex items-center gap-2 px-6 py-3 bg-surface-1 border border-card-border text-foreground rounded-xl hover:bg-surface-2 font-medium transition-colors"
-                    >
-                        <LayoutGrid size={18} />
-                        <span>{t("تصميم آخر", "Another design")}</span>
-                    </motion.button>
-                </div>
             </motion.div>
           ) : (
             <motion.div
@@ -693,6 +905,27 @@ function CreatePageContent() {
                 exit={{ opacity: 0, x: -20 }}
                 className="max-w-3xl mx-auto space-y-4"
             >
+                <div className="flex items-center justify-between mb-4">
+                  <motion.button
+                      whileTap={TAP_SCALE}
+                      onClick={() => setCategory(null)}
+                      className="flex items-center gap-2 px-4 py-2 bg-surface-1 border border-card-border rounded-xl text-muted hover:text-foreground hover:bg-surface-2 transition-colors font-medium text-sm"
+                  >
+                      <ArrowRight size={16} />
+                      <span>{t("العودة للتصنيفات", "Back to categories")}</span>
+                  </motion.button>
+                  
+                  {category && (
+                    <div
+                      className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold"
+                      style={{ backgroundColor: `${CATEGORY_THEMES[category].accent}15`, color: CATEGORY_THEMES[category].accent }}
+                    >
+                        <Image src="/icon_logo_svg.svg" alt="postaty" width={12} height={12} className="object-contain" />
+                        <span>{locale === "ar" ? CATEGORY_LABELS[category] : CATEGORY_LABELS_EN[category]}</span>
+                    </div>
+                  )}
+                </div>
+
                 {/* No credits banner */}
                 {creditState && !canGenerate && (
                   <div className="flex items-center gap-3 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400">

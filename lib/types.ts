@@ -3,6 +3,8 @@ import type { Id } from "@/convex/_generated/dataModel";
 // ── Categories & Formats ───────────────────────────────────────────
 export type Category = "restaurant" | "supermarket" | "ecommerce" | "services" | "fashion" | "beauty";
 export type CampaignType = "standard" | "ramadan" | "eid";
+export type MenuCategory = "restaurant" | "supermarket";
+export type GenerationType = "poster" | "reel" | "menu";
 
 export type OutputFormat =
   | "instagram-square"
@@ -155,6 +157,23 @@ export type PostFormData =
   | ServicesFormData
   | FashionFormData
   | BeautyFormData;
+
+// ── Menu Form Data ───────────────────────────────────────────────
+export interface MenuItemData {
+  image: string;    // base64
+  name: string;
+  price: string;
+}
+
+export interface MenuFormData {
+  menuCategory: MenuCategory;
+  campaignType: CampaignType;
+  businessName: string;
+  logo: string;     // base64
+  whatsapp: string;
+  items: MenuItemData[];  // 4-6 items
+  brandKitId?: string;
+}
 
 // ── Generation ─────────────────────────────────────────────────────
 export interface GenerationResult {

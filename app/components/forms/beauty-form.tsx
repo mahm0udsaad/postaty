@@ -24,6 +24,7 @@ import { useLocale } from "@/hooks/use-locale";
 
 interface BeautyFormProps {
   onSubmit: (data: BeautyFormData) => void;
+  onPrewarmHint?: (hint: { campaignType: CampaignType; subType?: string }) => void;
   isLoading: boolean;
   defaultValues?: { businessName?: string; logo?: string | null };
 }
@@ -34,7 +35,7 @@ const BOOKING_CONDITION_AR = ["حجز مسبق", "متاح فوراً"] as const
 const BOOKING_CONDITION_EN = ["Advance Booking", "Available Now"] as const;
 const CTA_EN = ["Book now", "Reserve via WhatsApp", "Claim offer"] as const;
 
-export function BeautyForm({ onSubmit, isLoading, defaultValues }: BeautyFormProps) {
+export function BeautyForm({ onSubmit, onPrewarmHint, isLoading, defaultValues }: BeautyFormProps) {
   const { locale, t } = useLocale();
   const [logoOverride, setLogoOverride] = useState<string | null | undefined>(undefined);
   const [serviceImage, setServiceImage] = useState<string | null>(null);
@@ -54,6 +55,19 @@ export function BeautyForm({ onSubmit, isLoading, defaultValues }: BeautyFormPro
   const bookingConditionMap = locale === "ar"
     ? { "حجز مسبق": "advance", "متاح فوراً": "available-now" } as const
     : { "Advance Booking": "advance", "Available Now": "available-now" } as const;
+
+  const handleCampaignTypeChange = (nextCampaignType: CampaignType) => {
+    setCampaignType(nextCampaignType);
+    onPrewarmHint?.({ campaignType: nextCampaignType });
+  };
+
+  const handlePostTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const label = e.target.value;
+    const mapped = postTypeMap[label as keyof typeof postTypeMap];
+    if (mapped) {
+      onPrewarmHint?.({ campaignType, subType: mapped });
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -109,7 +123,7 @@ export function BeautyForm({ onSubmit, isLoading, defaultValues }: BeautyFormPro
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
         <div className="space-y-6">
           <div className="bg-surface-2 p-1 rounded-2xl border border-card-border">
-             <CampaignTypeSelector value={campaignType} onChange={setCampaignType} />
+             <CampaignTypeSelector value={campaignType} onChange={handleCampaignTypeChange} />
           </div>
 
           <div className="space-y-5">
@@ -129,6 +143,7 @@ export function BeautyForm({ onSubmit, isLoading, defaultValues }: BeautyFormPro
                 options={postTypeOptions}
                 required
                 icon={Sparkles}
+                onChange={handlePostTypeChange}
             />
 
             <FormInput
@@ -244,7 +259,7 @@ export function BeautyForm({ onSubmit, isLoading, defaultValues }: BeautyFormPro
           {isLoading ? (
               <>
                 <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
-                <span>{t("جاري التصميم الذكي...", "Generating with AI...")}</span>
+                <span>{t("جاري التصميم بواسطة postaty...", "Generating with postaty...")}</span>
               </>
           ) : (
               <>

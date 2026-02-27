@@ -13,6 +13,7 @@ import { useLocale } from "@/hooks/use-locale";
 
 interface SupermarketFormProps {
   onSubmit: (data: SupermarketFormData) => void;
+  onPrewarmHint?: (hint: { campaignType: CampaignType; subType?: string }) => void;
   isLoading: boolean;
   defaultValues?: { businessName?: string; logo?: string | null };
 }
@@ -21,7 +22,7 @@ const POST_TYPE_AR = ["منتج", "عروض يومية", "تخفيضات قسم"
 const POST_TYPE_EN = ["Product", "Daily Offers", "Section Sales"] as const;
 const CTA_EN = ["Order now", "Add to cart on WhatsApp", "Offer valid today"] as const;
 
-export function SupermarketForm({ onSubmit, isLoading, defaultValues }: SupermarketFormProps) {
+export function SupermarketForm({ onSubmit, onPrewarmHint, isLoading, defaultValues }: SupermarketFormProps) {
   const { locale, t } = useLocale();
   const [logoOverride, setLogoOverride] = useState<string | null | undefined>(undefined);
   const [productImages, setProductImages] = useState<string[]>([]);
@@ -37,6 +38,19 @@ export function SupermarketForm({ onSubmit, isLoading, defaultValues }: Supermar
   const postTypeMap = locale === "ar"
     ? { "منتج": "product", "عروض يومية": "daily-offers", "تخفيضات قسم": "section-sales" } as const
     : { Product: "product", "Daily Offers": "daily-offers", "Section Sales": "section-sales" } as const;
+
+  const handleCampaignTypeChange = (nextCampaignType: CampaignType) => {
+    setCampaignType(nextCampaignType);
+    onPrewarmHint?.({ campaignType: nextCampaignType });
+  };
+
+  const handlePostTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const label = e.target.value;
+    const mapped = postTypeMap[label as keyof typeof postTypeMap];
+    if (mapped) {
+      onPrewarmHint?.({ campaignType, subType: mapped });
+    }
+  };
 
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
@@ -91,12 +105,12 @@ export function SupermarketForm({ onSubmit, isLoading, defaultValues }: Supermar
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 md:gap-12">
         <div className="space-y-6">
           <div className="bg-surface-2 p-1 rounded-2xl border border-card-border">
-            <CampaignTypeSelector value={campaignType} onChange={setCampaignType} />
+            <CampaignTypeSelector value={campaignType} onChange={handleCampaignTypeChange} />
           </div>
 
           <div className="space-y-5">
             <FormInput label={t("اسم السوبر ماركت", "Supermarket name")} name="supermarketName" placeholder={t("مثال: كارفور", "Example: Carrefour")} required icon={Store} defaultValue={defaultValues?.businessName} error={errors.supermarketName} />
-            <FormSelect label={t("نوع البوست", "Post type")} name="postType" options={postTypeOptions} required icon={FileText} />
+            <FormSelect label={t("نوع البوست", "Post type")} name="postType" options={postTypeOptions} required icon={FileText} onChange={handlePostTypeChange} />
             <FormInput label={t("اسم المنتج", "Product name")} name="productName" placeholder={t("مثال: شيبسي ليز", "Example: Chips")} required icon={ShoppingBasket} error={errors.productName} />
             <FormInput label={t("الكمية / الوزن (اختياري)", "Quantity / weight (optional)")} name="quantity" placeholder={t("مثال: 200 جرام أو 6 حبات", "Example: 200g or 6 pieces")} icon={Scale} />
             <div className="grid grid-cols-2 gap-4">
@@ -141,7 +155,7 @@ export function SupermarketForm({ onSubmit, isLoading, defaultValues }: Supermar
           {isLoading ? (
               <>
                 <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"/>
-                <span>{t("جاري التصميم الذكي...", "Generating with AI...")}</span>
+                <span>{t("جاري التصميم بواسطة postaty...", "Generating with postaty...")}</span>
               </>
           ) : (
               <>

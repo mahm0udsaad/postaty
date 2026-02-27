@@ -67,6 +67,7 @@ export async function POST(request: Request) {
       inputs,
       creditsCharged,
       brandKitId,
+      generationType,
     } = body;
 
     if (!category) {
@@ -86,6 +87,7 @@ export async function POST(request: Request) {
         product_name: productName || "",
         inputs: inputs || "",
         brand_kit_id: brandKitId || null,
+        generation_type: generationType || "poster",
         credits_charged: creditsCharged ?? 1,
         status: "processing",
         created_at: Date.now(),

@@ -231,6 +231,28 @@ export const brandKitSchema = z.object({
   isDefault: z.boolean(),
 });
 
+// ── Menu form validators ──────────────────────────────────────────
+
+const menuItemSchema = z.object({
+  image: base64ImageSchema,
+  name: textFieldSchema("Item name"),
+  price: priceSchema,
+});
+
+export const menuFormDataSchema = z.object({
+  menuCategory: z.enum(["restaurant", "supermarket"]),
+  campaignType: campaignTypeSchema,
+  businessName: textFieldSchema("Business name"),
+  logo: base64ImageSchema,
+  whatsapp: phoneSchema,
+  items: z
+    .array(menuItemSchema)
+    .min(2, "At least 2 items required")
+    .max(6, "Maximum 6 items"),
+  brandKitId: z.string().optional(),
+});
+
 // ── Export types ────────────────────────────────────────────────────
 export type ValidatedPostFormData = z.infer<typeof postFormDataSchema>;
+export type ValidatedMenuFormData = z.infer<typeof menuFormDataSchema>;
 export type ValidatedBrandKit = z.infer<typeof brandKitSchema>;
