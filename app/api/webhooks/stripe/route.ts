@@ -116,8 +116,11 @@ async function getActivePrices(): Promise<PriceMap> {
 function planKeyFromPriceId(prices: PriceMap, priceId: string | undefined): PlanKey | null {
   if (!priceId) return null;
   for (const [key, id] of Object.entries(prices)) {
-    if (id === priceId && (key === "starter" || key === "growth" || key === "dominant")) {
-      return key;
+    if (id !== priceId) continue;
+    // Support both "starter" and "starter:mena_local" style keys
+    const basePlanKey = key.split(":")[0];
+    if (basePlanKey === "starter" || basePlanKey === "growth" || basePlanKey === "dominant") {
+      return basePlanKey;
     }
   }
   return null;
