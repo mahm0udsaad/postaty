@@ -9,7 +9,7 @@ type PlanKey = "starter" | "growth" | "dominant";
 const PLAN_FEATURES: Record<PlanKey, { ar: string[]; en: string[] }> = {
   starter: {
     ar: [
-      "10 تصاميم ذكية شهرياً",
+      "15 تصاميم ذكية شهرياً",
       "1–2 محتوى أسبوعياً",
       "حجم تصدير واحد",
       "نصوص تسويقية أساسية",
@@ -17,7 +17,7 @@ const PLAN_FEATURES: Record<PlanKey, { ar: string[]; en: string[] }> = {
       "معرض بسيط",
     ],
     en: [
-      "10 AI designs/month",
+      "15 AI designs/month",
       "1-2 weekly content pieces",
       "One export size",
       "Basic marketing copy",
@@ -27,7 +27,7 @@ const PLAN_FEATURES: Record<PlanKey, { ar: string[]; en: string[] }> = {
   },
   growth: {
     ar: [
-      "25 تصميماً ذكياً شهرياً",
+      "35 تصميماً ذكياً شهرياً",
       "3–4 محتوى أسبوعياً",
       "3 أحجام تصدير (بوست، ستوري، واتس)",
       "نصوص تسويقية قوية",
@@ -36,7 +36,7 @@ const PLAN_FEATURES: Record<PlanKey, { ar: string[]; en: string[] }> = {
       "معرض منظم",
     ],
     en: [
-      "25 AI designs/month",
+      "35 AI designs/month",
       "3-4 weekly content pieces",
       "3 export sizes (Post, Story, WhatsApp)",
       "High-converting marketing copy",
@@ -47,7 +47,7 @@ const PLAN_FEATURES: Record<PlanKey, { ar: string[]; en: string[] }> = {
   },
   dominant: {
     ar: [
-      "50 تصميماً ذكياً شهرياً",
+      "70 تصميماً ذكياً شهرياً",
       "محتوى يومي تقريباً",
       "توليد موجه بالأهداف",
       "عبارات تحويل ذكية",
@@ -57,7 +57,7 @@ const PLAN_FEATURES: Record<PlanKey, { ar: string[]; en: string[] }> = {
       "مرشحات محتوى ذكية",
     ],
     en: [
-      "50 AI designs/month",
+      "70 AI designs/month",
       "Near-daily content",
       "Goal-based generation",
       "Smart conversion copy",

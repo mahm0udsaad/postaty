@@ -6,9 +6,9 @@ import { requireAuth } from "@/lib/supabase/auth-helpers";
 type PlanKey = "starter" | "growth" | "dominant";
 
 const PLAN_CONFIG: Record<PlanKey, { monthlyCredits: number }> = {
-  starter: { monthlyCredits: 10 },
-  growth: { monthlyCredits: 25 },
-  dominant: { monthlyCredits: 50 },
+  starter: { monthlyCredits: 15 },
+  growth: { monthlyCredits: 35 },
+  dominant: { monthlyCredits: 70 },
 };
 
 const PLAN_RANK: Record<string, number> = {

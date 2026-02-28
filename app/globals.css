@@ -105,6 +105,11 @@ body {
   background-attachment: scroll;
 }
 
+html,
+body {
+  overflow-x: hidden;
+}
+
 /* Theme transition */
 .theme-transition,
 .theme-transition *,
@@ -431,10 +436,27 @@ input::placeholder, textarea::placeholder {
 
 /* Mobile/Safari-friendly paint budget guard */
 @media (max-width: 1024px) {
+  .mobile-no-blur,
   .glass,
   .glass-card {
     backdrop-filter: none;
     -webkit-backdrop-filter: none;
+  }
+
+  .animate-hero-orbit,
+  .animate-hero-orbit-reverse,
+  .animate-hero-float,
+  .animate-hero-pan,
+  .animate-hero-poster-a,
+  .animate-hero-poster-b,
+  .animate-hero-poster-c,
+  .animate-hero-chip,
+  .animate-hero-chip-reverse,
+  .animate-hero-symbol-float,
+  .animate-hero-symbol-float-delayed,
+  .animate-hero-beam,
+  .animate-hero-beam-reverse {
+    animation: none !important;
   }
 }
 

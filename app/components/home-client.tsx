@@ -20,7 +20,6 @@ import {
   Zap,
   Check,
   ArrowLeft,
-  Quote,
   Star,
   ShieldCheck,
   UtensilsCrossed,
@@ -225,16 +224,16 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
   const showcaseCard2 = showcaseImages[2];
   const starterFeatures =
     locale === "ar"
-      ? ["10 تصاميم ذكية شهرياً", "1–2 محتوى أسبوعياً", "حجم تصدير واحد", "نصوص تسويقية أساسية", "تنزيل HD", "معرض بسيط"]
-      : ["10 AI designs/month", "1-2 weekly posts", "One export format", "Basic marketing copy", "HD download", "Simple gallery"];
+      ? ["15 تصاميم ذكية شهرياً", "1–2 محتوى أسبوعياً", "حجم تصدير واحد", "نصوص تسويقية أساسية", "تنزيل HD", "معرض بسيط"]
+      : ["15 AI designs/month", "1-2 weekly posts", "One export format", "Basic marketing copy", "HD download", "Simple gallery"];
   const growthFeatures =
     locale === "ar"
-      ? ["25 تصميماً ذكياً شهرياً", "3–4 محتوى أسبوعياً", "3 أحجام تصدير (بوست، ستوري، واتس)", "نصوص تسويقية قوية", "الهوية التجارية محفوظة", "تنزيل حزمة كاملة", "معرض منظم"]
-      : ["25 AI designs/month", "3-4 weekly posts", "3 export formats (post, story, WhatsApp)", "High-converting copy", "Saved brand identity", "Full pack download", "Organized gallery"];
+      ? ["35 تصميماً ذكياً شهرياً", "3–4 محتوى أسبوعياً", "3 أحجام تصدير (بوست، ستوري، واتس)", "نصوص تسويقية قوية", "الهوية التجارية محفوظة", "تنزيل حزمة كاملة", "معرض منظم"]
+      : ["35 AI designs/month", "3-4 weekly posts", "3 export formats (post, story, WhatsApp)", "High-converting copy", "Saved brand identity", "Full pack download", "Organized gallery"];
   const dominantFeatures =
     locale === "ar"
-      ? ["50 تصميماً ذكياً شهرياً", "محتوى يومي تقريباً", "توليد موجه بالأهداف", "عبارات تحويل ذكية", "جميع الأحجام مُصَدَّرة تلقائياً", "أرشيف متقدم", "توليد بأولوية", "مرشحات محتوى ذكية"]
-      : ["50 AI designs/month", "Near-daily content", "Goal-based generation", "Smart conversion copy", "Auto-export all formats", "Advanced archive", "Priority generation", "Smart content filters"];
+      ? ["70 تصميماً ذكياً شهرياً", "محتوى يومي تقريباً", "توليد موجه بالأهداف", "عبارات تحويل ذكية", "جميع الأحجام مُصَدَّرة تلقائياً", "أرشيف متقدم", "توليد بأولوية", "مرشحات محتوى ذكية"]
+      : ["70 AI designs/month", "Near-daily content", "Goal-based generation", "Smart conversion copy", "Auto-export all formats", "Advanced archive", "Priority generation", "Smart content filters"];
   void countryCode;
 
   const renderAuthButton = (redirectUrl: string, label: string, className: string, isMotion = false) => {
@@ -260,13 +259,13 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
   };
 
   return (
-    <main className="min-h-screen relative overflow-x-clip pb-32 md:pb-0">
+    <main className="min-h-screen relative overflow-x-hidden pb-32 md:pb-0">
       <div className="bg-grid-pattern absolute inset-0 opacity-30 pointer-events-none" />
 
       {/* SECTION 1: HERO */}
       <section id="hero" className="relative pt-8 pb-16 px-4 md:pt-16 md:pb-24 border-b border-card-border">
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-primary/5 rounded-full blur-[120px] pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-accent/5 rounded-full blur-[100px] pointer-events-none" />
+        <div className="absolute top-0 right-0 w-[300px] h-[300px] md:w-[600px] md:h-[600px] bg-primary/5 rounded-full blur-3xl md:blur-[120px] pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-[220px] h-[220px] md:w-[400px] md:h-[400px] bg-accent/5 rounded-full blur-2xl md:blur-[100px] pointer-events-none" />
 
         <div className="max-w-7xl mx-auto flex flex-col-reverse lg:flex-row items-center justify-between gap-8 lg:gap-16 relative">
           <motion.div
@@ -364,9 +363,8 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
             {/* 1. Large Feature Card (Before/After) - Spans 2x2 */}
             <motion.div
                className="row-span-2 md:col-span-2 rounded-3xl border border-card-border bg-surface-1 overflow-hidden relative group p-6 flex flex-col justify-between"
-               initial={{ opacity: 0, y: 20 }}
-               whileInView={{ opacity: 1, y: 0 }}
-               viewport={{ once: true }}
+               initial={false}
+               animate={{ opacity: 1, y: 0 }}
             >
                <div className="z-10 relative">
                  <h3 className="text-xl font-bold mb-2">{t("تحول فوري للصور", "Instant image transformation")}</h3>
@@ -390,9 +388,8 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
             {/* 2. Stat Card 1 */}
              <motion.div
                className="md:col-span-1 md:row-span-1 rounded-3xl border border-card-border bg-surface-1 p-6 flex flex-col justify-center items-center text-center relative overflow-hidden"
-               initial={{ opacity: 0, y: 20 }}
-               whileInView={{ opacity: 1, y: 0 }}
-               viewport={{ once: true }}
+               initial={false}
+               animate={{ opacity: 1, y: 0 }}
                transition={{ delay: 0.1 }}
             >
                 <div className="absolute inset-0 bg-primary/5 opacity-0 hover:opacity-100 transition-opacity" />
@@ -403,9 +400,8 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
             {/* 3. Showcase Image 1 */}
             <motion.div
                className="md:col-span-1 md:row-span-1 rounded-3xl border border-card-border bg-surface-1 overflow-hidden relative group"
-               initial={{ opacity: 0, y: 20 }}
-               whileInView={{ opacity: 1, y: 0 }}
-               viewport={{ once: true }}
+               initial={false}
+               animate={{ opacity: 1, y: 0 }}
                transition={{ delay: 0.2 }}
             >
                {showcaseCard1?.url ? (
@@ -420,9 +416,8 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
             {/* 4. Stat Card 2 */}
             <motion.div
                className="md:col-span-1 md:row-span-1 rounded-3xl border border-card-border bg-surface-1 p-6 flex flex-col justify-center items-center text-center"
-               initial={{ opacity: 0, y: 20 }}
-               whileInView={{ opacity: 1, y: 0 }}
-               viewport={{ once: true }}
+               initial={false}
+               animate={{ opacity: 1, y: 0 }}
                transition={{ delay: 0.3 }}
             >
                 <Zap size={32} className="text-primary mb-3" />
@@ -434,9 +429,8 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
              {/* 5. Showcase Image (Tall) */}
              <motion.div
                className="row-span-2 rounded-3xl border border-card-border bg-surface-1 overflow-hidden relative group"
-               initial={{ opacity: 0, y: 20 }}
-               whileInView={{ opacity: 1, y: 0 }}
-               viewport={{ once: true }}
+               initial={false}
+               animate={{ opacity: 1, y: 0 }}
                transition={{ delay: 0.4 }}
             >
                {showcaseTall?.url ? (
@@ -451,9 +445,8 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
              {/* 6. Text/CTA Card */}
              <motion.div
                className="md:col-span-2 md:row-span-1 rounded-3xl border border-card-border bg-gradient-to-br from-primary/10 to-accent/5 p-6 flex items-center justify-between relative overflow-hidden group"
-               initial={{ opacity: 0, y: 20 }}
-               whileInView={{ opacity: 1, y: 0 }}
-               viewport={{ once: true }}
+               initial={false}
+               animate={{ opacity: 1, y: 0 }}
                transition={{ delay: 0.5 }}
             >
                <div className="relative z-10">
@@ -474,9 +467,8 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
             {/* 7. Showcase Image */}
              <motion.div
                className="md:col-span-1 md:row-span-1 rounded-3xl border border-card-border bg-surface-1 overflow-hidden relative group"
-               initial={{ opacity: 0, y: 20 }}
-               whileInView={{ opacity: 1, y: 0 }}
-               viewport={{ once: true }}
+               initial={false}
+               animate={{ opacity: 1, y: 0 }}
                transition={{ delay: 0.6 }}
             >
                {showcaseCard2?.url ? (

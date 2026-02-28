@@ -52,7 +52,7 @@ export function BottomDock() {
         </div>
 
         {/* Main Dock Container */}
-        <div className="relative w-full bg-surface-1/95 backdrop-blur-2xl border-t border-card-border shadow-[0_-10px_40px_-10px_rgba(0,0,0,0.2)] pb-[env(safe-area-inset-bottom)] transition-all duration-300 ease-out">
+        <div className="relative w-full bg-surface-1/98 border-t border-card-border shadow-[0_-10px_24px_-12px_rgba(0,0,0,0.22)] pb-[env(safe-area-inset-bottom)] transition-all duration-300 ease-out">
           <nav className="flex items-center justify-between px-2 h-16">
 
             {/* Left Side */}

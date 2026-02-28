@@ -50,6 +50,15 @@ type NavBarProps = {
   locale: AppLocale;
 };
 
+type AuthUserLike = {
+  user_metadata?: {
+    full_name?: string;
+    name?: string;
+    avatar_url?: string;
+    picture?: string;
+  };
+};
+
 export function NavBar({ locale }: NavBarProps) {
   const pathname = usePathname();
   const isAuthPage = pathname.startsWith("/sign-in") || pathname.startsWith("/sign-up");
@@ -88,11 +97,11 @@ function NavBarContent({ locale }: NavBarProps) {
   };
 
   return (
-    <nav className="sticky top-0 z-50 px-4 py-3">
+    <nav className="sticky top-0 z-50 px-4 py-3 [transform:translateZ(0)]">
       <div className="max-w-7xl mx-auto">
-        <div className="bg-surface-1/90 md:bg-surface-1/80 md:backdrop-blur-xl border border-card-border shadow-sm rounded-2xl px-4 h-16 flex items-center justify-between transition-all duration-300 hover:bg-surface-1/90">
+        <div className="mobile-no-blur bg-surface-1/90 md:bg-surface-1/80 md:backdrop-blur-xl border border-card-border shadow-sm rounded-2xl px-4 h-16 flex items-center justify-between transition-all duration-300 hover:bg-surface-1/90">
           <Link href="/" onClick={handleLogoClick} className="flex items-center gap-2 group">
-            <div className=" relative size-24 transition-transform duration-300 group-hover:rotate-12">
+            <div className="relative size-24 md:transition-transform md:duration-300 md:group-hover:rotate-12">
               <Image
                 src="/name_logo_svg.svg"
                 alt="Postaty Symbol"
@@ -167,7 +176,7 @@ function NavBarContent({ locale }: NavBarProps) {
   );
 }
 
-function CreditsBadge({ locale, user }: NavBarProps & { user: any }) {
+function CreditsBadge({ locale, user }: NavBarProps & { user: AuthUserLike | null | undefined }) {
   const { data: creditState } = useSWR('/api/billing', fetcher);
   const requiresSubscription =
     !!creditState &&

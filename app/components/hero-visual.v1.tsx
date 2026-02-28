@@ -43,13 +43,6 @@ export function HeroVisual() {
   const [lowPowerMode, setLowPowerMode] = useState(false);
 
   useEffect(() => {
-    const interval = setInterval(() => {
-      setIndex((prev) => (prev + 1) % themes.length);
-    }, 4000);
-    return () => clearInterval(interval);
-  }, []);
-
-  useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce), (max-width: 1024px)");
     const sync = () => setLowPowerMode(media.matches);
     sync();
@@ -58,6 +51,49 @@ export function HeroVisual() {
   }, []);
 
   const theme = themes[index];
+  const staticMode =
+    typeof navigator !== "undefined" &&
+    /Safari/i.test(navigator.userAgent) &&
+    !/Chrome|CriOS|FxiOS|EdgiOS|OPiOS/i.test(navigator.userAgent) &&
+    /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+  const shouldAnimate = !(lowPowerMode || staticMode);
+
+  useEffect(() => {
+    if (!shouldAnimate) return;
+    const interval = setInterval(() => {
+      setIndex((prev) => (prev + 1) % themes.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, [shouldAnimate]);
+
+  if (!shouldAnimate) {
+    return (
+      <div className="relative w-full max-w-[500px] aspect-square mx-auto lg:mx-0 flex items-center justify-center">
+        <div className={`absolute inset-0 bg-gradient-to-br ${theme.color} opacity-10 blur-[40px] transition-colors duration-700`} />
+        <div className="relative w-[290px] h-[360px] rounded-[2rem] bg-surface-1 border border-white/10 shadow-xl overflow-hidden">
+          <div className="absolute inset-3 rounded-[1.4rem] overflow-hidden">
+            <Image
+              src={theme.image}
+              alt={theme.title}
+              fill
+              sizes="(max-width: 1024px) 78vw, 320px"
+              className="object-cover"
+              priority={index === 0}
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/15 to-transparent" />
+          </div>
+          <div className="absolute bottom-6 right-6 left-6">
+            <h2 className="text-3xl font-black text-white leading-[0.95] mb-1 tracking-tight">{theme.title}</h2>
+            <p className="text-sm font-medium text-white/90 mb-3 tracking-wide uppercase">{theme.subtitle}</p>
+            <div className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg ${theme.accent} text-black font-bold text-sm`}>
+              <span>{theme.cta}</span>
+              <MousePointer2 size={14} className="rotate-[-15deg]" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative w-full max-w-[500px] aspect-square mx-auto lg:mx-0 flex items-center justify-center perspective-[1200px] group">

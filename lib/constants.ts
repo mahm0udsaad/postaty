@@ -290,7 +290,7 @@ export const MENU_FORMAT_CONFIG = {
 } as const;
 
 export const MENU_CONFIG = {
-  creditsPerMenu: 3,
+  creditsPerMenu: 2,
   minItems: 2,
   maxItems: 6,
 } as const;

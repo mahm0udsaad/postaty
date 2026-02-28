@@ -112,30 +112,17 @@ export function ShowcaseCarousel({ showcaseImages }: ShowcaseCarouselProps) {
     const root = scrollRef.current;
     if (!root || !images.length) return;
 
-    const bestRatioByIndex = new Map<number, number>();
     const observer = new IntersectionObserver(
       (entries) => {
-        entries.forEach((entry) => {
-          const idx = cardRefs.current.findIndex((card) => card === entry.target);
-          if (idx >= 0) {
-            bestRatioByIndex.set(idx, entry.intersectionRatio);
-          }
-        });
+        const visibleEntry = entries.find((entry) => entry.isIntersecting);
+        if (!visibleEntry) return;
 
-        let bestIndex = activeIndexRef.current;
-        let bestRatio = -1;
-        bestRatioByIndex.forEach((ratio, idx) => {
-          if (ratio > bestRatio) {
-            bestRatio = ratio;
-            bestIndex = idx;
-          }
-        });
-
-        if (bestRatio >= 0) {
-          setActiveIndex((prev) => (prev === bestIndex ? prev : bestIndex));
+        const idx = cardRefs.current.findIndex((card) => card === visibleEntry.target);
+        if (idx >= 0) {
+          setActiveIndex((prev) => (prev === idx ? prev : idx));
         }
       },
-      { root, threshold: [0.35, 0.5, 0.65, 0.8, 0.95] }
+      { root, threshold: 0.6 }
     );
 
     cardRefs.current.forEach((card) => {
