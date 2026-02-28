@@ -303,7 +303,7 @@ function MenuPageContent() {
     // Gate: must have enough credits (3 for menu)
     if (!canGenerate || totalRemaining < MENU_CONFIG.creditsPerMenu) {
       setError(t(
-        "لا يوجد لديك رصيد كافٍ. تحتاج 3 أرصدة لتصميم القائمة.",
+        `لا يوجد لديك رصيد كافٍ. تحتاج ${MENU_CONFIG.creditsPerMenu} أرصدة لتصميم القائمة.`,
         `You need at least ${MENU_CONFIG.creditsPerMenu} credits for menu generation.`
       ));
       return;
