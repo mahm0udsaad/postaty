@@ -49,7 +49,7 @@ function extractTranslatableFields(data: PostFormData): Record<string, string> {
   const fieldNames = TRANSLATABLE_FIELDS[data.category] ?? [];
   const result: Record<string, string> = {};
   for (const field of fieldNames) {
-    const value = (data as Record<string, unknown>)[field];
+    const value = (data as unknown as Record<string, unknown>)[field];
     if (typeof value === "string" && value.trim()) {
       result[field] = value;
     }
@@ -113,11 +113,11 @@ function applyTranslations(
   data: PostFormData,
   translations: Record<string, string>
 ): PostFormData {
-  const clone = { ...data } as Record<string, unknown>;
+  const clone = { ...data } as unknown as Record<string, unknown>;
   for (const [key, value] of Object.entries(translations)) {
     clone[key] = value;
   }
-  return clone as PostFormData;
+  return clone as unknown as PostFormData;
 }
 
 // ── Main entry point ────────────────────────────────────────────
