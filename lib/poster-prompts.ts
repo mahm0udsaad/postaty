@@ -1,7 +1,7 @@
 import { FORMAT_CONFIGS } from "./constants";
 import type { PostFormData, Category, CampaignType } from "./types";
 import type { BrandKitPromptData } from "./prompts";
-import type { ResolvedLanguage } from "./resolved-language";
+import { resolvePosterLanguage, type ResolvedLanguage } from "./resolved-language";
 
 // ── Category Color Guidance ───────────────────────────────────────
 
@@ -57,7 +57,8 @@ Tone: joyful, premium, modern. Keep the layout clean and balanced.`,
 export function getImageDesignSystemPrompt(
   data: PostFormData,
   resolvedLanguage: ResolvedLanguage,
-  brandKit?: BrandKitPromptData
+  brandKit?: BrandKitPromptData,
+  preTranslated?: boolean
 ): string {
   const fmt = FORMAT_CONFIGS[data.format];
   const orientation = fmt.height > fmt.width ? "vertical (portrait)" : fmt.height < fmt.width ? "horizontal (landscape)" : "square";
@@ -90,8 +91,12 @@ ${CAMPAIGN_STYLE_GUIDANCE[data.campaignType] ? `\n${CAMPAIGN_STYLE_GUIDANCE[data
 ## Language & Text Direction (CRITICAL)
 - The resolved target language for this poster is: ${resolvedLanguage === "ar" ? "Arabic" : resolvedLanguage === "he" ? "Hebrew" : resolvedLanguage === "fr" ? "French" : resolvedLanguage === "de" ? "German" : resolvedLanguage === "tr" ? "Turkish" : resolvedLanguage === "en" ? "English" : resolvedLanguage}
 - ALL text on the poster MUST be in the resolved target language
-- If user-provided text is in a DIFFERENT language than the target, TRANSLATE it to the target language before rendering
-- Business/brand names are proper nouns — keep them exactly as the user typed them (do NOT translate brand names)
+${preTranslated
+  ? `- All text in the EXACT TEXT INVENTORY has already been pre-translated to the target language
+- Render every text string EXACTLY as provided — character-for-character. Do NOT translate, transliterate, or modify any text
+- Business/brand names are proper nouns — keep them exactly as given`
+  : `- If user-provided text is in a DIFFERENT language than the target, TRANSLATE it properly to the target language — use real words in the target language, do NOT just transliterate (rewrite in different script). For example: Arabic "بطاطس" → Hebrew should be "צ'יפס" (proper Hebrew word), NOT "בטאטס" (Arabic transliterated into Hebrew letters). Always use native vocabulary of the target language.
+- Business/brand names are proper nouns — keep them exactly as the user typed them (do NOT translate brand names)`}
 - For Arabic/Hebrew target: use RTL text direction for the overall layout
 - For all other languages: use LTR text direction for the overall layout
 
@@ -125,10 +130,10 @@ ${CAMPAIGN_STYLE_GUIDANCE[data.campaignType] ? `\n${CAMPAIGN_STYLE_GUIDANCE[data
 - Show the product/meal image EXACTLY ONCE — do NOT duplicate, mirror, or repeat the product in the composition
 - Do NOT add decorative copies, reflections, or smaller thumbnails of the same product
 - Do NOT generate or hallucinate any text on the product's packaging or label — preserve existing label text from the photo as-is, but add NOTHING new onto the product surface
-- Include the provided business logo EXACTLY as given — do NOT redraw, restyle, or add text to the logo
+- The business logo is provided as a PHOTOGRAPH — embed it as-is like pasting a sticker. Do NOT redraw, recreate, restyle, rewrite its text, or re-render the logo in any way. The logo image must appear PIXEL-PERFECT as provided. If the logo contains text, that text is PART OF THE IMAGE — do NOT attempt to read it and re-type it
 - Show the logo EXACTLY ONCE — do NOT duplicate, repeat, or place multiple copies of the logo anywhere in the design
 - The poster should contain ONLY: ONE hero product image, ONE logo instance, and text from the inventory — NOTHING more
-- Do NOT invent or add ANY visual elements that were not provided by the user — no QR codes, no barcodes, no maps, no icons, no social media icons, no phone illustrations, no decorative badges, no stamps, no seals, no ribbons, no stickers
+- Do NOT invent or add ANY visual elements that were not provided by the user — no QR codes, no barcodes, no maps, no icons, no social media icons, no phone illustrations, no decorative illustrations (no scooters, no fruit baskets, no stopwatches, no location pins, no cartoon characters), no decorative badges, no stamps, no seals, no ribbons, no stickers
 - The ONLY images allowed are the user's product photo and logo — everything else must be abstract design elements (gradients, shapes, color blocks, patterns)
 
 ## Layout Structure (placement hints only — do NOT render these labels as visible text)
@@ -233,7 +238,14 @@ function langDisplayName(code: string): string {
   return map[code] || code;
 }
 
-export function getImageDesignUserMessage(data: PostFormData, posterLanguage?: string): string {
+/** Helper: format a translatable field line (with or without "translate to" suffix) */
+function fieldLine(label: string, value: string, langName: string, preTranslated?: boolean): string {
+  return preTranslated
+    ? `- ${label}: "${value}"`
+    : `- ${label}: "${value}" → translate to ${langName}`;
+}
+
+export function getImageDesignUserMessage(data: PostFormData, posterLanguage?: string, preTranslated?: boolean): string {
   const lang = posterLanguage || data.posterLanguage || "en";
   const cta = translateCta(data.cta, lang);
   const langName = langDisplayName(lang);
@@ -241,6 +253,10 @@ export function getImageDesignUserMessage(data: PostFormData, posterLanguage?: s
     data.campaignType !== "standard"
       ? `- Campaign Type: ${data.campaignType}`
       : "";
+
+  const inventoryHeader = preTranslated
+    ? `EXACT TEXT INVENTORY — poster language: ${langName}\nALL text below is already in ${langName}. Render EXACTLY as written — do NOT translate, transliterate, or modify any text. Only these items may appear on the poster:`
+    : `EXACT TEXT INVENTORY — poster language: ${langName}\nTranslate ALL text below to ${langName} before rendering. Only these items may appear on the poster:`;
 
   switch (data.category) {
     case "restaurant":
@@ -253,13 +269,12 @@ ${campaignLine}
 
 The meal photo and restaurant logo are provided as images in this message.
 
-EXACT TEXT INVENTORY — poster language: ${langName}
-Translate ALL text below to ${langName} before rendering. Only these items may appear on the poster:
+${inventoryHeader}
 - Business name: "${data.restaurantName}" (proper noun — do NOT translate)
-- Product name: "${data.mealName}" → translate to ${langName}
-${data.description ? `- Description: "${data.description}" → translate to ${langName}\n` : ""}- New price: "${data.newPrice}"
+${fieldLine("Product name", data.mealName, langName, preTranslated)}
+${data.description ? `${fieldLine("Description", data.description, langName, preTranslated)}\n` : ""}- New price: "${data.newPrice}"
 - Old price: "${data.oldPrice}"
-${data.offerBadge ? `- Offer badge: "${translateBadge(data.offerBadge, lang)}"\n` : ""}${data.deliveryType ? `- Delivery: "${translateDelivery(data.deliveryType, lang)}"\n` : ""}${data.offerDuration ? `- Offer duration: "${data.offerDuration}" → translate to ${langName}\n` : ""}- CTA: "${cta}"
+${data.offerBadge ? `- Offer badge: "${translateBadge(data.offerBadge, lang)}"\n` : ""}${data.deliveryType ? `- Delivery: "${translateDelivery(data.deliveryType, lang)}"\n` : ""}${data.offerDuration ? `${fieldLine("Offer duration", data.offerDuration, langName, preTranslated)}\n` : ""}- CTA: "${cta}"
 - WhatsApp: "${data.whatsapp}"
 NOTHING else. No "menu", no extra labels, no decorative text.`;
 
@@ -272,13 +287,12 @@ ${campaignLine}
 
 The product photo and supermarket logo are provided as images in this message.
 
-EXACT TEXT INVENTORY — poster language: ${langName}
-Translate ALL text below to ${langName} before rendering. Only these items may appear on the poster:
+${inventoryHeader}
 - Business name: "${data.supermarketName}" (proper noun — do NOT translate)
-- Product name: "${data.productName}" → translate to ${langName}
+${fieldLine("Product name", data.productName, langName, preTranslated)}
 - New price: "${data.newPrice}"
 - Old price: "${data.oldPrice}"
-${data.discountPercentage ? `- Discount: "${data.discountPercentage}%"\n` : ""}${data.offerDuration ? `- Offer duration: "${data.offerDuration}" → translate to ${langName}\n` : ""}- CTA: "${cta}"
+${data.discountPercentage ? `- Discount: "${data.discountPercentage}%"\n` : ""}${data.offerDuration ? `${fieldLine("Offer duration", data.offerDuration, langName, preTranslated)}\n` : ""}- CTA: "${cta}"
 - WhatsApp: "${data.whatsapp}"
 NOTHING else. No extra labels, no decorative text.`;
 
@@ -291,13 +305,12 @@ ${campaignLine}
 
 The product photo and shop logo are provided as images in this message.
 
-EXACT TEXT INVENTORY — poster language: ${langName}
-Translate ALL text below to ${langName} before rendering. Only these items may appear on the poster:
+${inventoryHeader}
 - Business name: "${data.shopName}" (proper noun — do NOT translate)
-- Product name: "${data.productName}" → translate to ${langName}
-${data.features ? `- Features: "${data.features}" → translate to ${langName}\n` : ""}- New price: "${data.newPrice}"
+${fieldLine("Product name", data.productName, langName, preTranslated)}
+${data.features ? `${fieldLine("Features", data.features, langName, preTranslated)}\n` : ""}- New price: "${data.newPrice}"
 - Old price: "${data.oldPrice}"
-${data.shippingDuration ? `- Shipping: "${data.shippingDuration}" → translate to ${langName}\n` : ""}${data.purchaseLink ? `- Purchase link: "${data.purchaseLink}"\n` : ""}- CTA: "${cta}"
+${data.shippingDuration ? `${fieldLine("Shipping", data.shippingDuration, langName, preTranslated)}\n` : ""}${data.purchaseLink ? `- Purchase link: "${data.purchaseLink}"\n` : ""}- CTA: "${cta}"
 - WhatsApp: "${data.whatsapp}"
 NOTHING else. No extra labels, no decorative text.`;
 
@@ -310,12 +323,11 @@ ${campaignLine}
 
 The service image and business logo are provided as images in this message.
 
-EXACT TEXT INVENTORY — poster language: ${langName}
-Translate ALL text below to ${langName} before rendering. Only these items may appear on the poster:
+${inventoryHeader}
 - Business name: "${data.businessName}" (proper noun — do NOT translate)
-- Service name: "${data.serviceName}" → translate to ${langName}
-${data.serviceDetails ? `- Details: "${data.serviceDetails}" → translate to ${langName}\n` : ""}- Price: "${data.price}"
-${data.executionTime ? `- Execution time: "${data.executionTime}" → translate to ${langName}\n` : ""}${data.coverageArea ? `- Coverage: "${data.coverageArea}" → translate to ${langName}\n` : ""}${data.warranty ? `- Warranty: "${data.warranty}" → translate to ${langName}\n` : ""}${data.quickFeatures ? `- Features: "${data.quickFeatures}" → translate to ${langName}\n` : ""}${data.offerDuration ? `- Offer duration: "${data.offerDuration}" → translate to ${langName}\n` : ""}- CTA: "${cta}"
+${fieldLine("Service name", data.serviceName, langName, preTranslated)}
+${data.serviceDetails ? `${fieldLine("Details", data.serviceDetails, langName, preTranslated)}\n` : ""}- Price: "${data.price}"
+${data.executionTime ? `${fieldLine("Execution time", data.executionTime, langName, preTranslated)}\n` : ""}${data.coverageArea ? `${fieldLine("Coverage", data.coverageArea, langName, preTranslated)}\n` : ""}${data.warranty ? `${fieldLine("Warranty", data.warranty, langName, preTranslated)}\n` : ""}${data.quickFeatures ? `${fieldLine("Features", data.quickFeatures, langName, preTranslated)}\n` : ""}${data.offerDuration ? `${fieldLine("Offer duration", data.offerDuration, langName, preTranslated)}\n` : ""}- CTA: "${cta}"
 - WhatsApp: "${data.whatsapp}"
 NOTHING else. No extra labels, no decorative text.`;
 
@@ -328,13 +340,12 @@ ${campaignLine}
 
 The product photo and brand logo are provided as images in this message.
 
-EXACT TEXT INVENTORY — poster language: ${langName}
-Translate ALL text below to ${langName} before rendering. Only these items may appear on the poster:
+${inventoryHeader}
 - Brand name: "${data.brandName}" (proper noun — do NOT translate)
-- Item name: "${data.itemName}" → translate to ${langName}
-${data.description ? `- Description: "${data.description}" → translate to ${langName}\n` : ""}- New price: "${data.newPrice}"
+${fieldLine("Item name", data.itemName, langName, preTranslated)}
+${data.description ? `${fieldLine("Description", data.description, langName, preTranslated)}\n` : ""}- New price: "${data.newPrice}"
 - Old price: "${data.oldPrice}"
-${data.availableSizes ? `- Sizes: "${data.availableSizes}" → translate to ${langName}\n` : ""}${data.availableColors ? `- Colors: "${data.availableColors}" → translate to ${langName}\n` : ""}${data.offerNote ? `- Offer note: "${data.offerNote}" → translate to ${langName}\n` : ""}- CTA: "${cta}"
+${data.availableSizes ? `${fieldLine("Sizes", data.availableSizes, langName, preTranslated)}\n` : ""}${data.availableColors ? `${fieldLine("Colors", data.availableColors, langName, preTranslated)}\n` : ""}${data.offerNote ? `${fieldLine("Offer note", data.offerNote, langName, preTranslated)}\n` : ""}- CTA: "${cta}"
 - WhatsApp: "${data.whatsapp}"
 NOTHING else. No extra labels, no decorative text.`;
 
@@ -347,13 +358,12 @@ ${campaignLine}
 
 The service/product image and salon logo are provided as images in this message.
 
-EXACT TEXT INVENTORY — poster language: ${langName}
-Translate ALL text below to ${langName} before rendering. Only these items may appear on the poster:
+${inventoryHeader}
 - Salon name: "${data.salonName}" (proper noun — do NOT translate)
-- Service name: "${data.serviceName}" → translate to ${langName}
-${data.benefit ? `- Benefit: "${data.benefit}" → translate to ${langName}\n` : ""}- New price: "${data.newPrice}"
+${fieldLine("Service name", data.serviceName, langName, preTranslated)}
+${data.benefit ? `${fieldLine("Benefit", data.benefit, langName, preTranslated)}\n` : ""}- New price: "${data.newPrice}"
 - Old price: "${data.oldPrice}"
-${data.sessionDuration ? `- Duration: "${data.sessionDuration}" → translate to ${langName}\n` : ""}${data.suitableFor ? `- Suitable for: "${data.suitableFor}" → translate to ${langName}\n` : ""}- CTA: "${cta}"
+${data.sessionDuration ? `${fieldLine("Duration", data.sessionDuration, langName, preTranslated)}\n` : ""}${data.suitableFor ? `${fieldLine("Suitable for", data.suitableFor, langName, preTranslated)}\n` : ""}- CTA: "${cta}"
 - WhatsApp: "${data.whatsapp}"
 NOTHING else. No extra labels, no decorative text.`;
   }
@@ -445,13 +455,23 @@ export function buildMarketingContentSystemPrompt(
   data: PostFormData,
   language: string
 ): string {
-  const langInstruction = language === "auto"
-    ? "CRITICAL: Detect the language of the user's input (business name, product name, description, CTA, etc.) and generate ALL output text in that SAME language. Do NOT default to Arabic or English — match the user's input language exactly. Hashtags can mix the detected language with English."
-    : language === "ar"
+  // When "auto", resolve the poster's actual language from form data instead of
+  // relying on AI auto-detection (which often defaults to Arabic for Arabic input fields).
+  const resolvedLang = language === "auto" ? resolvePosterLanguage(data) : language;
+
+  const langInstruction = resolvedLang === "ar"
     ? "CRITICAL: ALL output text MUST be in Arabic. Hashtags can mix Arabic and English."
-    : language === "en"
+    : resolvedLang === "en"
     ? "CRITICAL: ALL output text MUST be in English. Hashtags should be in English."
-    : `CRITICAL: ALL output text MUST be in the same language as the user's input. Hashtags can mix with English.`;
+    : resolvedLang === "he"
+    ? "CRITICAL: ALL output text MUST be in Hebrew. Hashtags can mix Hebrew and English."
+    : resolvedLang === "fr"
+    ? "CRITICAL: ALL output text MUST be in French. Hashtags can mix French and English."
+    : resolvedLang === "de"
+    ? "CRITICAL: ALL output text MUST be in German. Hashtags can mix German and English."
+    : resolvedLang === "tr"
+    ? "CRITICAL: ALL output text MUST be in Turkish. Hashtags can mix Turkish and English."
+    : `CRITICAL: ALL output text MUST be in ${resolvedLang}. Hashtags can mix with English.`;
 
   return `You are an expert social media marketing strategist specializing in MENA region businesses.
 
@@ -502,7 +522,8 @@ export function buildMarketingContentUserMessage(
 ): string {
   const businessName = getBusinessNameFromForm(data);
   const productName = getProductNameFromForm(data);
-  const categoryLabel = language === "ar"
+  const resolvedLang = language === "auto" ? resolvePosterLanguage(data) : language;
+  const categoryLabel = resolvedLang === "ar"
     ? CATEGORY_LABELS_MAP[data.category].ar
     : CATEGORY_LABELS_MAP[data.category].en;
 
@@ -525,9 +546,10 @@ Product/Service: ${productName}`;
     details += `\nFeatures: ${data.features}`;
   }
 
-  const lang = language === "auto" ? "the same language as the user's input below" : language === "ar" ? "Arabic" : language === "en" ? "English" : "the same language as the user's input below";
+  const LANG_NAMES: Record<string, string> = { ar: "Arabic", en: "English", he: "Hebrew", fr: "French", de: "German", tr: "Turkish" };
+  const langName = LANG_NAMES[resolvedLang] || resolvedLang;
 
-  return `Generate optimized marketing captions in ${lang} for all 4 platforms for this business:
+  return `Generate optimized marketing captions in ${langName} for all 4 platforms for this business:
 
 ${details}
 

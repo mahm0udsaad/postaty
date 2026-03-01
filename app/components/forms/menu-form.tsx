@@ -256,7 +256,8 @@ export function MenuForm({ menuCategory, onSubmit, isLoading, defaultValues }: M
               className="w-full flex items-center justify-center gap-2 py-3 border-2 border-dashed border-card-border rounded-2xl text-sm font-medium text-muted hover:border-primary/40 hover:text-primary hover:bg-primary/5 transition-all"
             >
               <Plus size={16} />
-              {t("إضافة منتج", "Add item")}
+              {t(`إضافة منتج (حتى ${MENU_CONFIG.maxItems})`, `Add item (up to ${MENU_CONFIG.maxItems})`)}
+
             </button>
           )}
         </div>

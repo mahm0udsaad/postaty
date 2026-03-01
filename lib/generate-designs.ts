@@ -17,6 +17,7 @@ import { getInspirationImages } from "./inspiration-images";
 import { FORMAT_CONFIGS } from "./constants";
 import { buildImageProviderOptions, compressImageFromDataUrl, compressLogoFromDataUrl, getSharp } from "./image-helpers";
 import { resolvePosterLanguage } from "./resolved-language";
+import { preTranslateIfNeeded } from "./pre-translate";
 import type { PostFormData, MarketingContentHub, SocialPlatform, PlatformContent } from "./types";
 import type { BrandKitPromptData } from "./prompts";
 
@@ -83,22 +84,12 @@ export async function generatePoster(
   brandKit?: BrandKitPromptData
 ): Promise<GeneratedDesign & { usage: GenerationUsage }> {
   const requestId = randomUUID();
-  const promptBuildStart = Date.now();
   const resolvedLanguage = resolvePosterLanguage(data);
-  const systemPrompt = getImageDesignSystemPrompt(data, resolvedLanguage, brandKit);
-  let userMessage = getImageDesignUserMessage(data, resolvedLanguage);
 
   // Enrich with a design recipe for creative direction
   const [recipe] = selectRecipes(data.category, 1, data.campaignType);
-  if (recipe) {
-    const recipeDirective = formatRecipeForPrompt(recipe, data.campaignType);
-    userMessage += `\n\n${recipeDirective}`;
-  }
 
-  userMessage += `\n\nMake this design unique, bold, and visually striking.`;
-  const promptBuildMs = Date.now() - promptBuildStart;
-
-  // Load inspiration images and extract form images
+  // Load inspiration images, compress form images, and pre-translate — all in parallel
   const subType = extractSubType(data);
   const formImages = extractFormImages(data);
   const prepStart = Date.now();
@@ -127,9 +118,24 @@ export async function generatePoster(
     return value;
   };
 
-  const [inspirationImages, productPart, logoPart] = GEN_PARALLEL_PREP_ENABLED
-    ? await Promise.all([loadInspiration(), compressProduct(), compressLogo()])
-    : [await loadInspiration(), await compressProduct(), await compressLogo()];
+  const [inspirationImages, productPart, logoPart, preTranslateResult] = GEN_PARALLEL_PREP_ENABLED
+    ? await Promise.all([loadInspiration(), compressProduct(), compressLogo(), preTranslateIfNeeded(data, resolvedLanguage)])
+    : [await loadInspiration(), await compressProduct(), await compressLogo(), await preTranslateIfNeeded(data, resolvedLanguage)];
+
+  const { data: translatedData, wasTranslated } = preTranslateResult;
+
+  // Build prompts AFTER pre-translation so they use translated text
+  const promptBuildStart = Date.now();
+  const systemPrompt = getImageDesignSystemPrompt(translatedData, resolvedLanguage, brandKit, wasTranslated);
+  let userMessage = getImageDesignUserMessage(translatedData, resolvedLanguage, wasTranslated);
+
+  if (recipe) {
+    const recipeDirective = formatRecipeForPrompt(recipe, data.campaignType);
+    userMessage += `\n\n${recipeDirective}`;
+  }
+
+  userMessage += `\n\nMake this design unique, bold, and visually striking.`;
+  const promptBuildMs = Date.now() - promptBuildStart;
 
   const formatConfig = FORMAT_CONFIGS[data.format];
   const prepTotalMs = Date.now() - prepStart;
@@ -145,6 +151,7 @@ export async function generatePoster(
     prepTotalMs,
     mode: GEN_PARALLEL_PREP_ENABLED ? "parallel" : "sequential",
     resolvedLanguage,
+    preTranslated: wasTranslated,
   });
 
   if (VERBOSE_TIMING) {
@@ -205,9 +212,11 @@ export async function generatePoster(
     contextText += `The ${inspirationImages.length > 0 ? "next" : "first"} image is the product/meal photo — place it EXACTLY as shown, unchanged. Do NOT redraw, stylize, or add elements to the product itself. Feature it prominently but preserve it exactly.\n`;
   }
   if (logoPart) {
-    contextText += `The last image is the business logo — include it EXACTLY as given. Do NOT modify, redraw, or add text to the logo. Place the logo EXACTLY ONCE — do NOT duplicate it.\n`;
+    contextText += `The last image is the business logo — embed it as-is like pasting a sticker. Do NOT redraw, recreate, or re-render the logo. If the logo has text in it, that text is part of the image — do NOT re-type it. Place the logo EXACTLY ONCE.\n`;
   }
-  contextText += `\nCRITICAL REMINDER: Render ONLY text from the EXACT TEXT INVENTORY below — nothing else. Translate inventory text to the target poster language if needed. Do NOT invent any text, slogans, taglines, or promotional phrases. Do NOT add text to the product image. Show the product EXACTLY once. Show the logo EXACTLY once.\n`;
+  contextText += wasTranslated
+    ? `\nCRITICAL REMINDER: All text in the EXACT TEXT INVENTORY below has already been pre-translated to the target language. Render EVERY text string EXACTLY as written — character-for-character. Do NOT translate, transliterate, or modify any text. Do NOT invent any text, slogans, taglines, or promotional phrases. Do NOT add text to the product image. Show the product EXACTLY once. Show the logo EXACTLY once.\n`
+    : `\nCRITICAL REMINDER: Render ONLY text from the EXACT TEXT INVENTORY below — nothing else. Translate inventory text to the target poster language if needed. Do NOT invent any text, slogans, taglines, or promotional phrases. Do NOT add text to the product image. Show the product EXACTLY once. Show the logo EXACTLY once.\n`;
   contextText += `\n${userMessage}`;
 
   contentParts.push({ type: "text" as const, text: contextText });

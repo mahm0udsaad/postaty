@@ -292,7 +292,7 @@ export const MENU_FORMAT_CONFIG = {
 export const MENU_CONFIG = {
   creditsPerMenu: 2,
   minItems: 2,
-  maxItems: 6,
+  maxItems: 9,
 } as const;
 
 // ── Voiceover Voice Presets ──────────────────────────────────────

@@ -79,6 +79,26 @@ function getFreeTextSignals(data: PostFormData): string[] {
   }
 }
 
+/**
+ * Detects the language of the user's input text (ignoring posterLanguage setting).
+ * Used by pre-translation to determine if translation is needed.
+ */
+export function detectInputLanguage(data: PostFormData): ResolvedLanguage {
+  const rawText = getFreeTextSignals(data).join(" ");
+  const text = stripNoise(rawText);
+  if (!text) return "en";
+
+  const arabicCount = countMatches(text, /[\u0600-\u06FF]/g);
+  const hebrewCount = countMatches(text, /[\u0590-\u05FF]/g);
+  const latinCount = countMatches(text, /[A-Za-z]/g);
+
+  const maxCount = Math.max(arabicCount, hebrewCount, latinCount);
+  if (maxCount === 0) return "en";
+  if (arabicCount === maxCount) return "ar";
+  if (hebrewCount === maxCount) return "he";
+  return "en";
+}
+
 export function resolvePosterLanguage(data: PostFormData): ResolvedLanguage {
   // If the user explicitly chose a language in the form, use it directly.
   if (data.posterLanguage) {

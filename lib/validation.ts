@@ -250,7 +250,7 @@ export const menuFormDataSchema = z.object({
   items: z
     .array(menuItemSchema)
     .min(2, "At least 2 items required")
-    .max(6, "Maximum 6 items"),
+    .max(9, "Maximum 9 items"),
   brandKitId: z.string().optional(),
 });
 

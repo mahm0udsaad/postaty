@@ -85,9 +85,7 @@ export function MarketingContentModal({
   const handleLanguageToggle = (lang: string) => {
     if (lang === language) return;
     setLanguage(lang);
-    if (status !== "idle") {
-      fetchContent(lang);
-    }
+    fetchContent(lang);
   };
 
   const handleRetry = () => fetchContent(language);
