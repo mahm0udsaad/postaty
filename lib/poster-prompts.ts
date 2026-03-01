@@ -100,7 +100,9 @@ ${CAMPAIGN_STYLE_GUIDANCE[data.campaignType] ? `\n${CAMPAIGN_STYLE_GUIDANCE[data
 - Every word on the poster MUST be copied EXACTLY, character-by-character, from the inventory
 - Do NOT paraphrase, abbreviate, rephrase, merge, or "improve" any user-provided text
 - Do NOT invent, hallucinate, or generate ANY text that is not in the inventory
-- Do NOT add labels, headings, categories, or descriptive words (e.g., do NOT add "menu", "discount", "delivery", "offer", "sale", "new", "free" unless they appear in the inventory)
+- ABSOLUTELY NO creative slogans, taglines, promotional phrases, marketing headlines, or catchy lines — if it's not in the inventory, it MUST NOT appear on the poster
+- Do NOT add labels, headings, categories, or descriptive words (e.g., do NOT add "menu", "discount", "delivery", "offer", "sale", "new", "free", "special", "limited" unless they appear in the inventory)
+- Do NOT add decorative Arabic/English text like "عرض خاص", "لا تفوت الفرصة", "اليوم فقط", "Don't miss out", etc. unless explicitly in the inventory
 - If inventory text is in a different language than the target poster language, translate it accurately to the target language — but NEVER add extra text that isn't in the inventory
 - If uncertain about a word's spelling, use the EXACT characters from the inventory — do NOT guess
 - Arabic text is especially sensitive: ط≠ظ, ا≠أ≠إ, ة≠ه, ي≠ى — copy each letter precisely
@@ -120,11 +122,14 @@ ${CAMPAIGN_STYLE_GUIDANCE[data.campaignType] ? `\n${CAMPAIGN_STYLE_GUIDANCE[data
 - Do NOT add objects, ingredients, toppings, or decorations that are not present in the original product image
 - Maintain the product's original shape, colors, proportions, and material appearance
 - The product should look like a real photograph placed into a designed poster, not a re-illustrated version
-- Include the provided business logo EXACTLY as given — do NOT redraw, restyle, or add text to the logo
 - Show the product/meal image EXACTLY ONCE — do NOT duplicate, mirror, or repeat the product in the composition
-- The poster should contain ONE hero product image, ONE logo, and text elements — nothing more
 - Do NOT add decorative copies, reflections, or smaller thumbnails of the same product
 - Do NOT generate or hallucinate any text on the product's packaging or label — preserve existing label text from the photo as-is, but add NOTHING new onto the product surface
+- Include the provided business logo EXACTLY as given — do NOT redraw, restyle, or add text to the logo
+- Show the logo EXACTLY ONCE — do NOT duplicate, repeat, or place multiple copies of the logo anywhere in the design
+- The poster should contain ONLY: ONE hero product image, ONE logo instance, and text from the inventory — NOTHING more
+- Do NOT invent or add ANY visual elements that were not provided by the user — no QR codes, no barcodes, no maps, no icons, no social media icons, no phone illustrations, no decorative badges, no stamps, no seals, no ribbons, no stickers
+- The ONLY images allowed are the user's product photo and logo — everything else must be abstract design elements (gradients, shapes, color blocks, patterns)
 
 ## Layout Structure (placement hints only — do NOT render these labels as visible text)
 - Top: business name
@@ -137,13 +142,15 @@ You will receive reference poster designs. Match or exceed their professional qu
 
 ## Things to AVOID
 - No garbled, misspelled, or broken Arabic/Hebrew characters
-- No text that was not explicitly provided by the user
+- No text that was not explicitly provided by the user — NO invented slogans, taglines, or promotional headlines
 - No duplicate product images — show the product exactly once
+- No duplicate logos — show the logo exactly once
 - No fictional or hallucinated text on product packaging or labels
 - No tiny, unreadable text anywhere on the poster
 - No mixed languages — all text in the resolved target language (except business/brand names which are proper nouns)
 - No watermarks or stock photo badges
-- No distorted or warped text`;
+- No distorted or warped text
+- No QR codes, barcodes, maps, social media icons, or any invented visual elements not provided by the user`;
 
   if (brandKit) {
     if (brandKit.styleAdjectives.length > 0) {

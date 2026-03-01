@@ -206,7 +206,7 @@ function MenuPageContent() {
   const handleMarketingLanguageToggle = (lang: string) => {
     if (lang === marketingLanguage) return;
     setMarketingLanguage(lang);
-    if (lastSubmittedData && marketingContentStatus !== "idle") {
+    if (lastSubmittedData) {
       fetchMenuMarketingContent(lastSubmittedData, lang);
     }
   };

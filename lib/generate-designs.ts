@@ -205,9 +205,9 @@ export async function generatePoster(
     contextText += `The ${inspirationImages.length > 0 ? "next" : "first"} image is the product/meal photo — place it EXACTLY as shown, unchanged. Do NOT redraw, stylize, or add elements to the product itself. Feature it prominently but preserve it exactly.\n`;
   }
   if (logoPart) {
-    contextText += `The last image is the business logo — include it EXACTLY as given. Do NOT modify, redraw, or add text to the logo.\n`;
+    contextText += `The last image is the business logo — include it EXACTLY as given. Do NOT modify, redraw, or add text to the logo. Place the logo EXACTLY ONCE — do NOT duplicate it.\n`;
   }
-  contextText += `\nCRITICAL REMINDER: Render ONLY text from the EXACT TEXT INVENTORY below — nothing else. Translate inventory text to the target poster language if needed. Do NOT invent any text. Do NOT add text to the product image. Show the product EXACTLY once.\n`;
+  contextText += `\nCRITICAL REMINDER: Render ONLY text from the EXACT TEXT INVENTORY below — nothing else. Translate inventory text to the target poster language if needed. Do NOT invent any text, slogans, taglines, or promotional phrases. Do NOT add text to the product image. Show the product EXACTLY once. Show the logo EXACTLY once.\n`;
   contextText += `\n${userMessage}`;
 
   contentParts.push({ type: "text" as const, text: contextText });

@@ -440,7 +440,7 @@ function CreatePageContent() {
   const handleMarketingLanguageToggle = (lang: string) => {
     if (lang === marketingLanguage) return;
     setMarketingLanguage(lang);
-    if (lastSubmittedData && marketingContentStatus !== "idle") {
+    if (lastSubmittedData) {
       fetchMarketingContent(lastSubmittedData, lang);
     }
   };
