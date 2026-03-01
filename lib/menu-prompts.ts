@@ -11,11 +11,12 @@ Style: Professional menu layout. Each item gets a dedicated section with its pho
 Layout inspiration: Think restaurant menu boards, cafe chalkboard menus, or printed menu cards.
 Products should look appetizing and well-presented.`,
 
-  supermarket: `Category: Supermarket Sale Flyer / Catalog
+  supermarket: `Category: Supermarket Product Catalog / Flyer
 Color palette: energetic retail — bright reds, yellows, greens on white or cream backgrounds.
-Style: Bold promotional flyer with prominent price tags, discount badges, and eye-catching borders.
-Layout inspiration: Think grocery store weekly flyers, "Super Sale" promotional catalogs.
-Products should be clear and identifiable with prices as the focal point.`,
+Style: Bold product catalog with prominent price tags and eye-catching borders.
+Layout inspiration: Think grocery store product catalogs, organized product displays.
+Products should be clear and identifiable with prices as the focal point.
+IMPORTANT: Do NOT add sale/offer/discount elements unless the user explicitly provided old prices.`,
 };
 
 const MENU_CAMPAIGN_GUIDANCE: Record<CampaignType, string> = {
@@ -53,7 +54,7 @@ Generate a SINGLE high-quality A4 portrait menu image (${fmt.width}x${fmt.height
 - **Main section**: All items arranged in an organized grid (2-column or 3-column layout)
   - Each item gets: product photo (prominent) + name (clear text) + price (bold, visible)
   - Items should have equal visual weight — no item should dominate over others
-- **Bottom section**: WhatsApp contact number + CTA text
+- **Bottom section**: WhatsApp contact number (no invented CTA or tagline text)
 
 ## Product Image Rules (CRITICAL)
 - Display each product image EXACTLY as provided — do NOT redraw, stylize, or artistically reinterpret any product
@@ -74,6 +75,18 @@ ${MENU_CAMPAIGN_GUIDANCE[data.campaignType] ? `\n${MENU_CAMPAIGN_GUIDANCE[data.c
 - Do NOT mix languages
 - For RTL languages (Arabic, Hebrew): use RTL text direction
 - For LTR languages (English, French, Turkish, etc.): use LTR text direction
+
+## CRITICAL: You are a VISUAL DESIGNER ONLY — Do NOT Invent Any Text Content
+- Your ONLY job is to create a beautiful visual layout and arrange the content the user provided
+- Display ONLY the exact text the user gave you: business name, item names, prices, WhatsApp number, and address
+- Do NOT invent, add, or generate ANY text that the user did not provide, including:
+  - Headlines or titles (e.g. "Weekly Offers", "Our Menu", "عروض الأسبوع", "قائمة الطعام")
+  - Promotional text (e.g. "Sale", "Limited Time", "خصم", "عرض ساخن")
+  - Taglines or slogans (e.g. "The Best Spices", "Order Now", "اطلب الآن")
+  - Old/crossed-out prices or discount percentages — ONLY show if the user explicitly provided an old price
+  - CTA phrases, hashtags, or any decorative text
+- If no old prices are given, treat ALL prices as regular prices with clean styling — no discount formatting
+- The design should be visually rich and professional using colors, shapes, borders, and layout — NOT invented text
 
 ## Design Requirements
 - Fill the entire A4 page — no large empty areas
@@ -127,5 +140,7 @@ The user has uploaded:
 - ${data.items.length} product/item photos (one per item, in the same order as the list above)
 - The business logo
 
-Arrange ALL items in a clean, organized grid layout. Each item must clearly show its photo, name, and price. Make the design professional and visually appealing.`;
+Arrange ALL items in a clean, organized grid layout. Each item must clearly show its photo, name, and price. Make the design professional and visually appealing.
+
+REMINDER: Only display the text provided above. Do NOT add any headlines, taglines, slogans, promotional text, or CTA phrases that are not in the data above.`;
 }

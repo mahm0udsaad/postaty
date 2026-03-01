@@ -7,16 +7,18 @@ import type { PostFormData } from "@/lib/types";
 import type { ResolvedLanguage } from "@/lib/resolved-language";
 
 // ── Translatable field definitions per category ─────────────────
-// Excludes: business names (proper nouns), prices, WhatsApp, CTA,
+// Excludes: business names (proper nouns), WhatsApp, CTA,
 // offerBadge, deliveryType (handled by static lookup tables).
+// Includes: prices (they often contain currency names like "درهم" that need translation).
 
 const TRANSLATABLE_FIELDS: Record<string, string[]> = {
-  restaurant: ["mealName", "description", "offerDuration"],
-  supermarket: ["productName", "offerDuration"],
-  ecommerce: ["productName", "features", "shippingDuration"],
+  restaurant: ["mealName", "description", "newPrice", "oldPrice", "offerDuration"],
+  supermarket: ["productName", "newPrice", "oldPrice", "offerDuration"],
+  ecommerce: ["productName", "features", "newPrice", "oldPrice", "shippingDuration"],
   services: [
     "serviceName",
     "serviceDetails",
+    "price",
     "coverageArea",
     "executionTime",
     "warranty",
@@ -26,12 +28,14 @@ const TRANSLATABLE_FIELDS: Record<string, string[]> = {
   fashion: [
     "itemName",
     "description",
+    "newPrice",
+    "oldPrice",
     "availableSizes",
     "availableColors",
     "offerNote",
     "offerDuration",
   ],
-  beauty: ["serviceName", "benefit", "sessionDuration", "suitableFor", "offerDuration"],
+  beauty: ["serviceName", "benefit", "newPrice", "oldPrice", "sessionDuration", "suitableFor", "offerDuration"],
 };
 
 const LANG_NAMES: Record<string, string> = {
@@ -70,22 +74,41 @@ async function translateFieldsBatch(
 
   const fieldList = entries.map(([key, val], i) => `${i + 1}. [${key}]: "${val}"`).join("\n");
 
-  const prompt = `Translate the following marketing text from ${fromName} to ${toName}.
+  const prompt = `You are a professional translator for marketing posters. Translate the following text from ${fromName} to ${toName}.
 
-CRITICAL RULES:
-- Use REAL native ${toName} vocabulary — do NOT transliterate (rewrite in different script)
-- Example: Arabic "بطاطس" → Hebrew must be "צ'יפס" (proper Hebrew word), NOT "בטאטס" (Arabic in Hebrew letters)
-- Example: Arabic "توصيل مجاني" → Hebrew must be "משלוח חינם", NOT "תוצ'יל מג'אני"
-- Preserve the marketing meaning and keep translations concise (they must fit on a poster)
-- Prices, numbers, phone numbers, and URLs must remain unchanged
-- If a value is already in ${toName}, return it unchanged
+## CRITICAL ACCURACY RULES
 
-Use Google Search if you need to verify the correct ${toName} word for any term.
+1. USE REAL NATIVE ${toName.toUpperCase()} WORDS — absolutely NO transliteration (rewriting words in a different script).
+   - WRONG: Arabic "بطاطس" → Hebrew "בטאטס" (this is just Arabic in Hebrew letters!)
+   - CORRECT: Arabic "بطاطس" → Hebrew "צ'יפס" (actual Hebrew word for fries)
+   - WRONG: Arabic "توصيل مجاني" → Hebrew "תוצ'יל מג'אני"
+   - CORRECT: Arabic "توصيل مجاني" → Hebrew "משלוח חינם"
+   - WRONG: Arabic "درهم" → Hebrew "דרהם"
+   - CORRECT: Arabic "درهم" → Hebrew "דירהם"
 
-Fields to translate:
+2. For PRICE fields (newPrice, oldPrice, price): translate the currency name but keep the number exactly the same.
+   - Arabic "20 درهم" → Hebrew "20 דירהם"
+   - Arabic "٥٠ جنيه" → Hebrew "50 שקל" (convert Arabic numerals ٠١٢٣٤٥٦٧٨٩ to Western 0123456789)
+   - Arabic "100 ريال" → Hebrew "100 ריאל"
+
+3. For FOOD/PRODUCT names: use the common ${toName} name that local customers would recognize.
+   - Use Google Search to verify the correct ${toName} term if unsure.
+
+4. Keep translations CONCISE — they must fit on a marketing poster.
+
+5. If a value is already in ${toName}, return it UNCHANGED.
+
+6. Do NOT add or remove information — translate the meaning exactly.
+
+## USE GOOGLE SEARCH
+Search for the correct ${toName} translation of any word you are not 100% certain about. Accuracy is more important than speed.
+
+## Fields to translate:
 ${fieldList}
 
-Respond with ONLY a valid JSON object mapping field names to translated values. No markdown, no explanation.`;
+## Response format
+Respond with ONLY a valid JSON object mapping field names to translated values. No markdown, no code blocks, no explanation.
+Example: {"fieldName1": "translated value", "fieldName2": "translated value"}`;
 
   const result = await generateText({
     model: marketingContentModel,

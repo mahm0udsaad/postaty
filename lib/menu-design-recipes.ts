@@ -67,9 +67,9 @@ const SUPERMARKET_MENU_RECIPES: MenuDesignRecipe[] = [
     id: "sm-super-sale",
     name: "Super Sale Flyer",
     menuCategory: "supermarket",
-    directive: `Concept: Bold retail sale flyer. Large "Super Sale" or equivalent promotional headline at the top with starburst/splash graphics. Products arranged in a grid with prominent price tags. Each product has a circular or rectangular frame with the price in a bold red or yellow badge.
-Creative hook: Use a bright, energetic color scheme (red, yellow, white). Price tags should be the most prominent element. Add diagonal banner strips, dotted borders, or zigzag edges for retail energy. Discount percentages in starburst shapes.
-Mood: Energetic, retail, grab-attention sale flyer.`,
+    directive: `Concept: Bold retail product flyer. Large store name headline at the top with eye-catching graphics. Products arranged in a grid with prominent price tags. Each product has a circular or rectangular frame with the price in a bold red or yellow badge.
+Creative hook: Use a bright, energetic color scheme (red, yellow, white). Price tags should be the most prominent element. Add diagonal banner strips, dotted borders, or zigzag edges for retail energy.
+Mood: Energetic, retail, eye-catching product catalog. Only show discount/sale elements if old prices are provided by the user.`,
     campaignModifiers: {
       ramadan: `Add "Ramadan Offers" header in gold. Navy background with lantern motifs. Keep bold pricing.`,
     },
@@ -89,9 +89,9 @@ Mood: Fresh, clean, trustworthy grocery.`,
     id: "sm-weekly-offers",
     name: "Weekly Offers Flyer",
     menuCategory: "supermarket",
-    directive: `Concept: Classic weekly offers flyer layout. Header with store name and "Weekly Offers" or equivalent. Products in a structured 2x3 or 3x2 grid. Each product has a dedicated card with photo, name, and price. Bold crossed-out old prices with new prices highlighted.
-Creative hook: Use a gradient background (warm red to orange or blue to cyan). Product cards are white with rounded corners. Price comparison (old vs new) is the focal point. Add a "Limited Time" or timer-style urgency element.
-Mood: Promotional, time-sensitive, value-focused.`,
+    directive: `Concept: Classic product showcase flyer layout. Header with store name prominently displayed. Products in a structured 2x3 or 3x2 grid. Each product has a dedicated card with photo, name, and price clearly displayed.
+Creative hook: Use a gradient background (warm red to orange or blue to cyan). Product cards are white with rounded corners. Prices are bold and prominent. Clean, organized layout with consistent card styling.
+Mood: Professional, organized, value-focused. Only show crossed-out old prices if the user provided them.`,
     campaignModifiers: {
       ramadan: `Deep purple-to-gold gradient. "Ramadan Specials" badge. Lantern silhouettes in header.`,
     },

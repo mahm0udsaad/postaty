@@ -108,7 +108,9 @@ ${preTranslated
 - ABSOLUTELY NO creative slogans, taglines, promotional phrases, marketing headlines, or catchy lines — if it's not in the inventory, it MUST NOT appear on the poster
 - Do NOT add labels, headings, categories, or descriptive words (e.g., do NOT add "menu", "discount", "delivery", "offer", "sale", "new", "free", "special", "limited" unless they appear in the inventory)
 - Do NOT add decorative Arabic/English text like "عرض خاص", "لا تفوت الفرصة", "اليوم فقط", "Don't miss out", etc. unless explicitly in the inventory
-- If inventory text is in a different language than the target poster language, translate it accurately to the target language — but NEVER add extra text that isn't in the inventory
+${preTranslated
+  ? `- All inventory text is already in the target language — render it EXACTLY as written, character-for-character. Do NOT translate or modify anything.`
+  : `- If inventory text is in a different language than the target poster language, translate it accurately to the target language — but NEVER add extra text that isn't in the inventory`}
 - If uncertain about a word's spelling, use the EXACT characters from the inventory — do NOT guess
 - Arabic text is especially sensitive: ط≠ظ, ا≠أ≠إ, ة≠ه, ي≠ى — copy each letter precisely
 - Keep ALL text LARGE and readable — no tiny footnote-style text anywhere on the poster
@@ -177,57 +179,58 @@ You will receive reference poster designs. Match or exceed their professional qu
 
 // ── CTA / Dropdown Translation ─────────────────────────────────────
 
-const CTA_TRANSLATIONS: Record<string, string> = {
+const CTA_TRANSLATIONS: Record<string, Record<string, string>> = {
   // Restaurant
-  "اطلب الان واستفيد من العرض": "Order now and save",
-  "اطلب قبل انتهاء العرض": "Order before offer ends",
-  "توصيل سريع": "Fast delivery",
+  "اطلب الان واستفيد من العرض": { en: "Order now and save", he: "הזמן עכשיו וחסוך", fr: "Commandez et économisez", de: "Jetzt bestellen und sparen", tr: "Şimdi sipariş ver ve tasarruf et" },
+  "اطلب قبل انتهاء العرض": { en: "Order before offer ends", he: "הזמן לפני סיום המבצע", fr: "Commandez avant la fin de l'offre", de: "Bestellen Sie vor Angebotsende", tr: "Teklif bitmeden sipariş ver" },
+  "توصيل سريع": { en: "Fast delivery", he: "משלוח מהיר", fr: "Livraison rapide", de: "Schnelle Lieferung", tr: "Hızlı teslimat" },
   // Supermarket
-  "اطلب الان": "Order now",
-  "أضف للسلة عبر الواتساب": "Add to cart on WhatsApp",
-  "العرض ساري اليوم": "Offer valid today",
+  "اطلب الان": { en: "Order now", he: "הזמן עכשיו", fr: "Commandez maintenant", de: "Jetzt bestellen", tr: "Şimdi sipariş ver" },
+  "أضف للسلة عبر الواتساب": { en: "Add to cart on WhatsApp", he: "הוסף לסל בוואטסאפ", fr: "Ajouter au panier via WhatsApp", de: "Zum Warenkorb über WhatsApp", tr: "WhatsApp ile sepete ekle" },
+  "العرض ساري اليوم": { en: "Offer valid today", he: "המבצע תקף היום", fr: "Offre valable aujourd'hui", de: "Angebot gilt heute", tr: "Teklif bugün geçerli" },
   // Ecommerce
-  "اشترِ الآن": "Buy now",
-  "تسوق الآن": "Shop now",
-  "شاهد التفاصيل": "View details",
+  "اشترِ الآن": { en: "Buy now", he: "קנה עכשיו", fr: "Achetez maintenant", de: "Jetzt kaufen", tr: "Şimdi satın al" },
+  "تسوق الآن": { en: "Shop now", he: "קנה עכשיו", fr: "Achetez maintenant", de: "Jetzt einkaufen", tr: "Şimdi alışveriş yap" },
+  "شاهد التفاصيل": { en: "View details", he: "צפה בפרטים", fr: "Voir les détails", de: "Details anzeigen", tr: "Detayları gör" },
   // Services
-  "احجز الآن": "Book now",
-  "اطلب زيارة": "Request visit",
-  "استشارة واتساب": "WhatsApp consultation",
+  "احجز الآن": { en: "Book now", he: "הזמן עכשיו", fr: "Réservez maintenant", de: "Jetzt buchen", tr: "Şimdi rezerve et" },
+  "اطلب زيارة": { en: "Request visit", he: "בקש ביקור", fr: "Demander une visite", de: "Besuch anfragen", tr: "Ziyaret talep et" },
+  "استشارة واتساب": { en: "WhatsApp consultation", he: "ייעוץ בוואטסאפ", fr: "Consultation WhatsApp", de: "WhatsApp-Beratung", tr: "WhatsApp danışma" },
   // Fashion
-  "اطلب الآن": "Order now",
-  "اطلبها عبر الواتساب": "Order via WhatsApp",
+  "اطلب الآن": { en: "Order now", he: "הזמן עכשיו", fr: "Commandez maintenant", de: "Jetzt bestellen", tr: "Şimdi sipariş ver" },
+  "اطلبها عبر الواتساب": { en: "Order via WhatsApp", he: "הזמן דרך וואטסאפ", fr: "Commander via WhatsApp", de: "Über WhatsApp bestellen", tr: "WhatsApp ile sipariş ver" },
   // Beauty
-  "احجزي الآن": "Book now",
-  "احجز عبر الواتساب": "Reserve via WhatsApp",
-  "استفيدي من العرض": "Claim offer",
+  "احجزي الآن": { en: "Book now", he: "הזמיני עכשיו", fr: "Réservez maintenant", de: "Jetzt buchen", tr: "Şimdi rezerve et" },
+  "احجز عبر الواتساب": { en: "Reserve via WhatsApp", he: "הזמן דרך וואטסאפ", fr: "Réserver via WhatsApp", de: "Über WhatsApp reservieren", tr: "WhatsApp ile rezerve et" },
+  "استفيدي من العرض": { en: "Claim offer", he: "נצלי את המבצע", fr: "Profitez de l'offre", de: "Angebot nutzen", tr: "Tekliften yararlan" },
 };
 
 const OFFER_BADGE_TRANSLATIONS: Record<string, Record<string, string>> = {
-  discount: { ar: "خصم", en: "Discount", fr: "Remise", de: "Rabatt", tr: "İndirim" },
-  new: { ar: "جديد", en: "New", fr: "Nouveau", de: "Neu", tr: "Yeni" },
-  bestseller: { ar: "الأكثر مبيعاً", en: "Best Seller", fr: "Best-seller", de: "Bestseller", tr: "Çok Satan" },
+  discount: { ar: "خصم", en: "Discount", he: "הנחה", fr: "Remise", de: "Rabatt", tr: "İndirim" },
+  new: { ar: "جديد", en: "New", he: "חדש", fr: "Nouveau", de: "Neu", tr: "Yeni" },
+  bestseller: { ar: "الأكثر مبيعاً", en: "Best Seller", he: "רב מכר", fr: "Best-seller", de: "Bestseller", tr: "Çok Satan" },
 };
 
 const DELIVERY_TRANSLATIONS: Record<string, Record<string, string>> = {
-  free: { ar: "توصيل مجاني", en: "Free Delivery", fr: "Livraison gratuite", de: "Kostenlose Lieferung", tr: "Ücretsiz Teslimat" },
-  paid: { ar: "توصيل مدفوع", en: "Paid Delivery", fr: "Livraison payante", de: "Kostenpflichtige Lieferung", tr: "Ücretli Teslimat" },
+  free: { ar: "توصيل مجاني", en: "Free Delivery", he: "משלוח חינם", fr: "Livraison gratuite", de: "Kostenlose Lieferung", tr: "Ücretsiz Teslimat" },
+  paid: { ar: "توصيل مدفوع", en: "Paid Delivery", he: "משלוח בתשלום", fr: "Livraison payante", de: "Kostenpflichtige Lieferung", tr: "Ücretli Teslimat" },
 };
 
 function translateCta(cta: string, posterLanguage: string): string {
   if (posterLanguage === "ar") return cta; // Already Arabic
-  // If cta is Arabic and poster language is not, translate it
-  const translation = CTA_TRANSLATIONS[cta];
-  return translation || cta;
+  const translations = CTA_TRANSLATIONS[cta];
+  if (!translations) return cta;
+  const lang = posterLanguage === "he" ? "he" : posterLanguage === "fr" ? "fr" : posterLanguage === "de" ? "de" : posterLanguage === "tr" ? "tr" : "en";
+  return translations[lang] || translations["en"] || cta;
 }
 
 function translateBadge(badge: string, posterLanguage: string): string {
-  const lang = posterLanguage === "ar" ? "ar" : posterLanguage === "fr" ? "fr" : posterLanguage === "de" ? "de" : posterLanguage === "tr" ? "tr" : "en";
+  const lang = posterLanguage === "ar" ? "ar" : posterLanguage === "he" ? "he" : posterLanguage === "fr" ? "fr" : posterLanguage === "de" ? "de" : posterLanguage === "tr" ? "tr" : "en";
   return OFFER_BADGE_TRANSLATIONS[badge]?.[lang] || badge;
 }
 
 function translateDelivery(type: string, posterLanguage: string): string {
-  const lang = posterLanguage === "ar" ? "ar" : posterLanguage === "fr" ? "fr" : posterLanguage === "de" ? "de" : posterLanguage === "tr" ? "tr" : "en";
+  const lang = posterLanguage === "ar" ? "ar" : posterLanguage === "he" ? "he" : posterLanguage === "fr" ? "fr" : posterLanguage === "de" ? "de" : posterLanguage === "tr" ? "tr" : "en";
   return DELIVERY_TRANSLATIONS[type]?.[lang] || type;
 }
 
