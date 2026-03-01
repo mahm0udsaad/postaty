@@ -224,16 +224,40 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
   const showcaseCard2 = showcaseImages[2];
   const starterFeatures =
     locale === "ar"
-      ? ["15 تصاميم ذكية شهرياً", "1–2 محتوى أسبوعياً", "حجم تصدير واحد", "نصوص تسويقية أساسية", "تنزيل HD", "معرض بسيط"]
-      : ["15 AI designs/month", "1-2 weekly posts", "One export format", "Basic marketing copy", "HD download", "Simple gallery"];
+      ? [
+          "15 تصميم ذكي شهرياً (جاهزين للنشر خلال دقائق)",
+          "1–2 محتوى أسبوعياً مناسب لحسابك ونشاطك",
+          "مقاس تصدير واحد حسب استخدامك الأساسي",
+          "نصوص تسويقية أساسية جاهزة مع كل تصميم",
+          "تحميل بجودة HD للنشر بثقة",
+          "معرض بسيط لترتيب أعمالك والرجوع لها بسهولة",
+        ]
+      : ["15 AI designs/month (Ready in minutes)", "1-2 weekly posts tailored to your activity", "One export format for your primary use", "Basic marketing copy for every design", "High-quality HD downloads", "Simple gallery to organize your work"];
   const growthFeatures =
     locale === "ar"
-      ? ["35 تصميماً ذكياً شهرياً", "3–4 محتوى أسبوعياً", "3 أحجام تصدير (بوست، ستوري، واتس)", "نصوص تسويقية قوية", "الهوية التجارية محفوظة", "تنزيل حزمة كاملة", "معرض منظم"]
-      : ["35 AI designs/month", "3-4 weekly posts", "3 export formats (post, story, WhatsApp)", "High-converting copy", "Saved brand identity", "Full pack download", "Organized gallery"];
+      ? [
+          "35 تصميم ذكي شهرياً (حضور أقوى ومبيعات أكثر)",
+          "3–4 محتوى أسبوعياً لضمان الاستمرارية",
+          "3 أحجام تصدير (بوست، ستوري، واتس)",
+          "نصوص تسويقية قوية تركز على الإقناع",
+          "حفظ هوية علامتك التجارية (لوجو + ألوان)",
+          "تنزيل حزمة كاملة بضغطة واحدة",
+          "معرض منظم لتتبع محتواك الشهري",
+        ]
+      : ["35 AI designs/month (Strong presence)", "3-4 weekly posts for consistency", "3 export formats (Post, Story, WhatsApp)", "High-converting persuasive copy", "Saved brand identity (Logo + Colors)", "Full pack download in one click", "Organized gallery to track your content"];
   const dominantFeatures =
     locale === "ar"
-      ? ["70 تصميماً ذكياً شهرياً", "محتوى يومي تقريباً", "توليد موجه بالأهداف", "عبارات تحويل ذكية", "جميع الأحجام مُصَدَّرة تلقائياً", "أرشيف متقدم", "توليد بأولوية", "مرشحات محتوى ذكية"]
-      : ["70 AI designs/month", "Near-daily content", "Goal-based generation", "Smart conversion copy", "Auto-export all formats", "Advanced archive", "Priority generation", "Smart content filters"];
+      ? [
+          "70 تصميم ذكي شهرياً (حضور قوي طوال الشهر)",
+          "محتوى يومي تقريباً لزيادة التفاعل والطلبات",
+          "توليد موجه بالأهداف (عرض – منتج – خدمة – موسمي)",
+          "عبارات تحويل ذكية (CTA) لرفع المبيعات والرسائل",
+          "تصدير تلقائي لكل المقاسات بدون ما تختار كل مرة",
+          "أرشيف متقدم لتسلسل وتنظيم المحتوى",
+          "أولوية في التوليد لسرعة أعلى وقت الزحمة",
+          "مرشحات محتوى ذكية (عروض/مواسم/أقسام/أنواع)",
+        ]
+      : ["70 AI designs/month (Dominant presence)", "Near-daily content for maximum engagement", "Goal-based generation (Offer, Product, Season)", "Smart CTA copy to boost sales and messages", "Auto-export for all sizes automatically", "Advanced archive for content organization", "Priority generation during peak times", "Smart content filters (Offers/Seasons/Types)"];
   void countryCode;
 
   const renderAuthButton = (redirectUrl: string, label: string, className: string, isMotion = false) => {
@@ -280,18 +304,18 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
             </div>
 
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-black leading-tight">
-              {t("صمّم إعلانك خلال ثوانٍ", "Design your ad in seconds")}
+              {t("بوستاتي —", "Postaty —")}
               <br />
-              <span className="text-gradient">{t("بشكل يرفع المبيعات", "Built to increase sales")}</span>
+              <span className="text-gradient">{t("تصميم يشد .. تسويق يقنع", "Designs that attract .. Marketing that converts")}</span>
             </h1>
 
             <p className="text-lg text-muted max-w-xl mx-auto lg:mx-0 leading-relaxed">
               {t(
-                "بوستاتي يحول صورة منتجك إلى إعلان جاهز للنشر على السوشيال ميديا خلال 30 ثانية.",
-                "Postaty turns your product image into a social-ready ad in just 30 seconds."
+                "بوستاتي يحول صورة منتجك إلى إعلان احترافي يركز على أهدافك البيعية، مع تحسينات ذكية لظهور أقوى (SEO) لعلامتك التجارية.",
+                "Postaty turns your product image into a professional ad focused on your sales goals, with smart SEO optimizations for a stronger brand presence."
               )}
               <br className="hidden md:block" />
-              {t("بدون فريق تصميم، وبدون تعقيد.", "No design team needed and no complexity.")}
+              {t("تصميم ذكي، تسويق فعال، ونتائج حقيقية.", "Smart design, effective marketing, and real results.")}
             </p>
 
             <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-4 pt-4">
@@ -645,45 +669,78 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
 
           <StaggerOnScroll className="grid grid-cols-1 md:grid-cols-3 gap-6">
             {/* Starter Plan */}
-            <motion.div variants={STAGGER_ITEM} className="bg-surface-1 border border-card-border rounded-2xl p-8">
-              <div className="text-sm font-bold text-muted mb-2">{t("أساسي", "Basic")}</div>
+            <motion.div variants={STAGGER_ITEM} className="bg-surface-1 border border-card-border rounded-2xl p-8 flex flex-col">
+              <div className="text-sm font-bold text-muted mb-2">{t("خطة أساسي (Starter)", "Starter Plan")}</div>
               <div className="text-4xl font-black mb-1">
-                {formatPrice(pricing.starter.monthly)} <span className="text-lg text-muted font-medium">{t("/شهر", "/month")}</span>
+                {formatPrice(pricing.starter.monthly)} <span className="text-lg text-muted font-medium">{t("/ شهر", "/ month")}</span>
               </div>
-              <p className="text-muted text-sm mb-1">{t("الشهر الأول:", "First month:")} {formatPrice(pricing.starter.firstMonth)}</p>
-              <p className="text-muted text-xs mb-6 opacity-75">{t("ثم", "Then")} {formatPrice(pricing.starter.monthly)} {t("شهرياً", "monthly")}</p>
-              <ul className="space-y-3 mb-8">
-                {starterFeatures.map((item, i) => (<li key={i} className="flex items-center gap-2 text-sm"><Check size={14} className="text-success" /><span>{item}</span></li>))}
+              <p className="text-muted text-sm mb-1">{t("الشهر الأول:", "First month:")} {formatPrice(pricing.starter.firstMonth)} {t("ثم", "then")} {formatPrice(pricing.starter.monthly)} {t("شهرياً", "monthly")}</p>
+              
+              <p className="text-sm font-medium text-foreground mt-4 mb-6 leading-relaxed">
+                {t("ابدأ بسرعة وخلّي حساباتك “شغّالة” بتصاميم جاهزة للنشر بدون تعب.", "Start quickly and keep your accounts active with ready-to-publish designs without the hassle.")}
+              </p>
+
+              <div className="text-sm font-bold mb-3">{t("يشمل:", "Includes:")}</div>
+              <ul className="space-y-3 mb-8 flex-1">
+                {starterFeatures.map((item, i) => (<li key={i} className="flex items-start gap-2 text-sm"><Check size={14} className="text-success mt-1 shrink-0" /><span>{item}</span></li>))}
               </ul>
+              
+              <div className="mt-auto mb-6 p-3 bg-surface-2 rounded-xl text-xs text-muted-foreground leading-relaxed border border-card-border/50">
+                <span className="font-bold text-foreground">{t("مناسب لـ: ", "Best for: ")}</span>
+                {t("بدايات المشاريع + اللي عايز محتوى ثابت بأقل تكلفة.", "New projects + those who want consistent content at minimal cost.")}
+              </div>
+
               {renderAuthButton("/checkout?plan=starter", t("اشترك الآن", "Subscribe now"), "w-full py-3 border border-card-border rounded-xl font-bold text-foreground text-center hover:bg-surface-2 transition-colors block")}
             </motion.div>
 
             {/* Growth Plan */}
-            <motion.div variants={STAGGER_ITEM} className="bg-surface-1 border-2 border-primary/30 rounded-2xl p-8 relative">
+            <motion.div variants={STAGGER_ITEM} className="bg-surface-1 border-2 border-primary/30 rounded-2xl p-8 relative flex flex-col shadow-lg shadow-primary/5">
               <div className="absolute -top-3 right-6 bg-gradient-to-r from-primary to-accent text-primary-foreground text-xs font-bold px-3 py-1 rounded-full">{t("الأكثر شعبية", "Most popular")}</div>
-              <div className="text-sm font-bold text-primary mb-2">{t("احترافي", "Pro")}</div>
+              <div className="text-sm font-bold text-primary mb-2">{t("خطة احترافي (Pro)", "Pro Plan")}</div>
               <div className="text-4xl font-black mb-1">
-                {formatPrice(pricing.growth.monthly)} <span className="text-lg text-muted font-medium">{t("/شهر", "/month")}</span>
+                {formatPrice(pricing.growth.monthly)} <span className="text-lg text-muted font-medium">{t("/ شهر", "/ month")}</span>
               </div>
-              <p className="text-muted text-sm mb-1">{t("الشهر الأول:", "First month:")} {formatPrice(pricing.growth.firstMonth)}</p>
-              <p className="text-muted text-xs mb-6 opacity-75">{t("ثم", "Then")} {formatPrice(pricing.growth.monthly)} {t("شهرياً", "monthly")}</p>
-              <ul className="space-y-3 mb-8">
-                {growthFeatures.map((item, i) => (<li key={i} className="flex items-center gap-2 text-sm"><Check size={14} className="text-primary" /><span>{item}</span></li>))}
+              <p className="text-muted text-sm mb-1">{t("الشهر الأول:", "First month:")} {formatPrice(pricing.growth.firstMonth)} {t("ثم", "then")} {formatPrice(pricing.growth.monthly)} {t("شهرياً", "monthly")}</p>
+              
+              <p className="text-sm font-medium text-foreground mt-4 mb-6 leading-relaxed">
+                {t("خلي ظهورك أقوى… محتوى أكثر، مقاسات أكثر، ونتيجة أحسن للمبيعات.", "Make your presence stronger... more content, more sizes, and better results for sales.")}
+              </p>
+
+              <div className="text-sm font-bold mb-3">{t("يشمل:", "Includes:")}</div>
+              <ul className="space-y-3 mb-8 flex-1">
+                {growthFeatures.map((item, i) => (<li key={i} className="flex items-start gap-2 text-sm"><Check size={14} className="text-primary mt-1 shrink-0" /><span>{item}</span></li>))}
               </ul>
+
+              <div className="mt-auto mb-6 p-3 bg-primary/5 rounded-xl text-xs text-muted-foreground leading-relaxed border border-primary/10">
+                <span className="font-bold text-foreground">{t("مناسب لـ: ", "Best for: ")}</span>
+                {t("المتاجر والأنشطة اللي محتاجة تسويق قوي مستمر.", "Stores and businesses that need strong, continuous marketing.")}
+              </div>
+
               {renderAuthButton("/checkout?plan=growth", t("اشترك الآن", "Subscribe now"), "w-full py-3 bg-gradient-to-r from-primary to-primary-hover text-primary-foreground rounded-xl font-bold text-center hover:shadow-lg hover:shadow-primary/25 transition-all block")}
             </motion.div>
 
             {/* Dominant Plan */}
-            <motion.div variants={STAGGER_ITEM} className="bg-surface-1 border border-card-border rounded-2xl p-8">
-              <div className="text-sm font-bold text-muted mb-2">{t("بريميوم", "Premium")}</div>
+            <motion.div variants={STAGGER_ITEM} className="bg-surface-1 border border-card-border rounded-2xl p-8 flex flex-col">
+              <div className="text-sm font-bold text-muted mb-2">{t("خطة بريميوم (Premium)", "Premium Plan")}</div>
               <div className="text-4xl font-black mb-1">
-                {formatPrice(pricing.dominant.monthly)} <span className="text-lg text-muted font-medium">{t("/شهر", "/month")}</span>
+                {formatPrice(pricing.dominant.monthly)} <span className="text-lg text-muted font-medium">{t("/ شهر", "/ month")}</span>
               </div>
-              <p className="text-muted text-sm mb-1">{t("الشهر الأول:", "First month:")} {formatPrice(pricing.dominant.firstMonth)}</p>
-              <p className="text-muted text-xs mb-6 opacity-75">{t("ثم", "Then")} {formatPrice(pricing.dominant.monthly)} {t("شهرياً", "monthly")}</p>
-              <ul className="space-y-3 mb-8">
-                {dominantFeatures.map((item, i) => (<li key={i} className="flex items-center gap-2 text-sm"><Check size={14} className="text-accent" /><span>{item}</span></li>))}
+              <p className="text-muted text-sm mb-1">{t("الشهر الأول:", "First month:")} {formatPrice(pricing.dominant.firstMonth)} {t("ثم", "then")} {formatPrice(pricing.dominant.monthly)} {t("شهرياً", "monthly")}</p>
+              
+              <p className="text-sm font-medium text-foreground mt-4 mb-6 leading-relaxed">
+                {t("أقصى إنتاجية… محتوى شبه يومي + ذكاء أعلى يركز على الهدف والتحويل.", "Maximum productivity... near-daily content + higher AI focused on goals and conversion.")}
+              </p>
+
+              <div className="text-sm font-bold mb-3">{t("يشمل:", "Includes:")}</div>
+              <ul className="space-y-3 mb-8 flex-1">
+                {dominantFeatures.map((item, i) => (<li key={i} className="flex items-start gap-2 text-sm"><Check size={14} className="text-accent mt-1 shrink-0" /><span>{item}</span></li>))}
               </ul>
+
+              <div className="mt-auto mb-6 p-3 bg-surface-2 rounded-xl text-xs text-muted-foreground leading-relaxed border border-card-border/50">
+                <span className="font-bold text-foreground">{t("مناسب لـ: ", "Best for: ")}</span>
+                {t("اللي عايز يسيطر على السوشيال ويطلع بنتيجة “شركة تسويق”.", "Those who want to dominate social media and achieve 'marketing agency' results.")}
+              </div>
+
               {renderAuthButton("/checkout?plan=dominant", t("اشترك الآن", "Subscribe now"), "w-full py-3 border border-card-border rounded-xl font-bold text-foreground text-center hover:bg-surface-2 transition-colors block")}
             </motion.div>
           </StaggerOnScroll>

@@ -261,7 +261,9 @@ function CreatePageContent() {
     const catParam = searchParams.get("category");
     if (catParam && ALL_CATEGORIES.includes(catParam as Category)) {
       setCategory(catParam as Category);
+      return;
     }
+    setCategory(null);
   }, [searchParams]);
 
   // Billing
@@ -448,13 +450,31 @@ function CreatePageContent() {
     fetchMarketingContent(lastSubmittedData, marketingLanguage);
   };
 
+  const resetGenerationContext = useCallback(() => {
+    setResults([]);
+    setError(undefined);
+    setIsGenerating(false);
+    setGenStep("idle");
+    setLastSubmittedData(null);
+    setMarketingContent(null);
+    setMarketingContentStatus("idle");
+    setMarketingContentError(undefined);
+    generatingRef.current = false;
+  }, []);
+
   // Handlers
   const handleCategorySelect = (cat: Category) => {
+    resetGenerationContext();
     setCategory(cat);
     prewarmedKeysRef.current.clear();
-    const url = new URL(window.location.href);
-    url.searchParams.set("category", cat);
-    window.history.pushState({}, "", url);
+    router.replace(`/create?category=${cat}`, { scroll: false });
+
+    // Eagerly pre-warm inspiration images for the default campaign type
+    if (GEN_PREWARM_ENABLED && isSignedIn) {
+      void prewarmGenerationAssets({ category: cat, campaignType: "standard" })
+        .then(() => { prewarmedKeysRef.current.add(`${cat}|standard|`); })
+        .catch(() => {});
+    }
   };
 
   const handlePrewarmHint = (hint: PrewarmHint) => {
@@ -463,16 +483,10 @@ function CreatePageContent() {
 
   const handleBack = () => {
     if (results.length > 0) {
-      setResults([]);
-      setMarketingContent(null);
-      setMarketingContentStatus("idle");
-      setMarketingContentError(undefined);
-      setGenStep("idle");
+      resetGenerationContext();
     } else if (category) {
       setCategory(null);
-      const url = new URL(window.location.href);
-      url.searchParams.delete("category");
-      window.history.pushState({}, "", url);
+      router.replace("/create", { scroll: false });
     } else {
       router.push("/");
     }
@@ -503,28 +517,22 @@ function CreatePageContent() {
     const requestId = `gen_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
     const idempotencyKey = `gen_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
 
-    // Consume credit BEFORE calling the expensive AI generation
-    try {
-      logTimeline(requestId, "credit.consume.start");
-      const creditRes = await fetchWithTimeout('/api/billing/consume-credit', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ idempotencyKey }),
-      });
-      const creditResult = await creditRes.json();
-      if (!creditRes.ok || !creditResult.ok) {
+    // Run credit consumption AND server-side generation in parallel.
+    // The server action does auth/validation/image-prep (~500ms) before the
+    // expensive AI call, so overlapping credit check with that prep saves time.
+    logTimeline(requestId, "credit.consume.start");
+    const creditPromise = fetchWithTimeout('/api/billing/consume-credit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ idempotencyKey }),
+    }).then(async (res) => {
+      const body = await res.json();
+      if (!res.ok || !body.ok) {
         throw new Error(t("لا يوجد لديك رصيد كافٍ", "You don't have enough credits"));
       }
       logTimeline(requestId, "credit.consume.end");
-      mutateCreditState(); // Revalidate credit state
-    } catch (err) {
-      const msg = toLocalizedErrorMessage(err);
-      setError(msg);
-      setGenStep("error");
-      setIsGenerating(false);
-      generatingRef.current = false;
-      return;
-    }
+      mutateCreditState();
+    });
 
     let generationId: string | undefined;
     if (GEN_EARLY_PERSIST_ENABLED) {
@@ -532,7 +540,23 @@ function CreatePageContent() {
     }
 
     logTimeline(requestId, "server.generate.start");
-    generatePosters(data, brandKitPromptData)
+    const generationPromise = generatePosters(data, brandKitPromptData);
+
+    // Wait for credit to succeed first — abort if it fails
+    try {
+      await creditPromise;
+    } catch (err) {
+      const msg = toLocalizedErrorMessage(err);
+      setError(msg);
+      setGenStep("error");
+      setIsGenerating(false);
+      generatingRef.current = false;
+      // Generation is already in-flight but its result will be discarded
+      generationPromise.catch(() => {}); // suppress unhandled rejection
+      return;
+    }
+
+    generationPromise
       .then(({ main: posterResult, usages }) => {
         logTimeline(requestId, "server.generate.end");
         void persistUsageEvents(usages);

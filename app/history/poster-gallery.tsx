@@ -10,6 +10,7 @@ import { useLocale } from "@/hooks/use-locale";
 import { MarketingContentModal } from "./marketing-content-modal";
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
+import Image from "next/image";
 
 const fetcher = (url: string) => fetch(url).then(r => {
   if (!r.ok) throw new Error('API error');
@@ -44,18 +45,15 @@ const CATEGORY_LABELS_EN: Record<Category, string> = {
   beauty: "Beauty & Care",
 };
 
-// Vary aspect ratios for a natural masonry feel
-const SKELETON_ASPECTS = ["aspect-[4/5]", "aspect-square", "aspect-[3/4]", "aspect-[4/3]", "aspect-[3/5]", "aspect-[5/4]"];
-
 function SkeletonGalleryCard({ index }: { index: number }) {
   return (
     <div
-      className="break-inside-avoid animate-pulse"
+      className="animate-pulse"
       style={{ animationDelay: `${index * 60}ms` }}
     >
-      <div className="bg-surface-1 rounded-2xl overflow-hidden border border-card-border">
-        <div className={`w-full bg-surface-2 ${SKELETON_ASPECTS[index % SKELETON_ASPECTS.length]}`} />
-        <div className="p-3 space-y-2">
+      <div className="bg-surface-1 rounded-2xl overflow-hidden border border-card-border h-full flex flex-col">
+        <div className="w-full bg-surface-2 aspect-[4/5]" />
+        <div className="p-3 space-y-2 flex-1">
           <div className="flex justify-between gap-2">
             <div className="h-3 bg-surface-2 rounded w-1/2" />
             <div className="h-3 bg-surface-2 rounded w-1/4" />
@@ -78,7 +76,7 @@ export function PosterGallery({ category, imageType = "all", onCountChange }: Po
   useEffect(() => { setMounted(true); }, []);
   const [allResults, setAllResults] = useState<any[]>([]);
   const [hasMore, setHasMore] = useState(true);
-  const pageSize = 12;
+  const pageSize = 8; // Load 8 items initially (approx 2 rows)
 
   const params = new URLSearchParams({
     limit: String(pageSize),
@@ -88,7 +86,8 @@ export function PosterGallery({ category, imageType = "all", onCountChange }: Po
 
   const { data, isLoading } = useSWR(
     `/api/generations?${params.toString()}`,
-    fetcher
+    fetcher,
+    { keepPreviousData: true }
   );
 
   // Reset when category changes
@@ -115,7 +114,6 @@ export function PosterGallery({ category, imageType = "all", onCountChange }: Po
     }
   }, [data, offset]);
 
-  const observerTarget = useRef<HTMLDivElement>(null);
   const [selectedImage, setSelectedImage] = useState<PosterImageData | null>(null);
   const [marketingImage, setMarketingImage] = useState<PosterImageData | null>(null);
 
@@ -161,23 +159,6 @@ export function PosterGallery({ category, imageType = "all", onCountChange }: Po
     onCountChange?.(allImages.length);
   }, [allImages.length, onCountChange]);
 
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && hasMore && !isLoading) {
-          loadMore();
-        }
-      },
-      { threshold: 0.1 }
-    );
-
-    if (observerTarget.current) {
-      observer.observe(observerTarget.current);
-    }
-
-    return () => observer.disconnect();
-  }, [hasMore, isLoading, loadMore]);
-
   // Escape key to close modal
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -200,7 +181,7 @@ export function PosterGallery({ category, imageType = "all", onCountChange }: Po
   return (
     <div>
       {isFirstLoad ? (
-        <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4 space-y-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <SkeletonGalleryCard key={i} index={i} />
           ))}
@@ -226,7 +207,7 @@ export function PosterGallery({ category, imageType = "all", onCountChange }: Po
         </div>
       ) : (
         <>
-          <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4 space-y-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
             {allImages.map((image, index) => {
               const formatConfig = FORMAT_CONFIGS[image.format as OutputFormat];
               const categoryLabel = locale === "ar"
@@ -236,19 +217,20 @@ export function PosterGallery({ category, imageType = "all", onCountChange }: Po
               return (
                 <div
                   key={`${image.generationId}-${image.format}-${index}`}
-                  className="break-inside-avoid group"
+                  className="group h-full"
                 >
-                  <div className="bg-surface-1 rounded-2xl overflow-hidden border border-card-border shadow-sm hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+                  <div className="bg-surface-1 rounded-2xl overflow-hidden border border-card-border shadow-sm hover:shadow-xl transition-all duration-300 hover:scale-[1.02] h-full flex flex-col">
                     {/* Image with hover overlay */}
                     <div
-                      className="relative overflow-hidden bg-surface-2/30 cursor-pointer"
+                      className="relative overflow-hidden bg-surface-2/30 cursor-pointer aspect-[4/5] shrink-0"
                       onClick={() => setSelectedImage(image)}
                     >
-                      <img
+                      <Image
                         src={image.url}
                         alt={`${image.businessName} - ${formatConfig?.label ?? image.format}`}
-                        className="w-full h-auto object-cover block"
-                        loading="lazy"
+                        fill
+                        sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, (max-width: 1280px) 33vw, 25vw"
+                        className="object-cover block"
                       />
                       {/* Hover overlay — pointer-events-none when hidden so image click fires */}
                       <div
@@ -281,7 +263,7 @@ export function PosterGallery({ category, imageType = "all", onCountChange }: Po
                     </div>
 
                     {/* Info bar */}
-                    <div className="p-3 space-y-1.5">
+                    <div className="p-3 space-y-1.5 flex-1 flex flex-col justify-between">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-xs font-bold text-foreground truncate">
                           {image.businessName}
@@ -314,13 +296,24 @@ export function PosterGallery({ category, imageType = "all", onCountChange }: Po
             })}
           </div>
 
-          <div ref={observerTarget} className="py-8">
-            {isLoading && offset > 0 && (
-              <div className="flex justify-center">
-                <Loader2 size={24} className="animate-spin text-primary" />
-              </div>
-            )}
-          </div>
+          {hasMore && (
+            <div className="py-8 flex justify-center">
+              <button
+                onClick={loadMore}
+                disabled={isLoading}
+                className="flex items-center gap-2 px-8 py-3 bg-surface-1 border border-card-border hover:bg-surface-2 hover:border-primary/30 text-foreground font-bold rounded-xl transition-all disabled:opacity-50 shadow-sm"
+              >
+                {isLoading ? (
+                  <>
+                    <Loader2 size={18} className="animate-spin text-primary" />
+                    {locale === "ar" ? "جاري التحميل..." : "Loading..."}
+                  </>
+                ) : (
+                  locale === "ar" ? "عرض المزيد" : "Load More"
+                )}
+              </button>
+            </div>
+          )}
         </>
       )}
 
@@ -366,11 +359,13 @@ export function PosterGallery({ category, imageType = "all", onCountChange }: Po
             className="flex-1 flex items-center justify-center px-4 pb-2 min-h-0"
             onClick={e => e.stopPropagation()}
           >
-            <img
+            <Image
               src={selectedImage.url}
               alt={selectedImage.businessName}
+              width={selectedImage.width || 800}
+              height={selectedImage.height || 800}
               className="max-w-full max-h-full object-contain rounded-xl shadow-2xl"
-              style={{ maxHeight: "calc(100vh - 130px)" }}
+              style={{ maxHeight: "calc(100vh - 130px)", width: "auto", height: "auto" }}
             />
           </div>
 

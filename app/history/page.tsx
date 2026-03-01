@@ -79,7 +79,8 @@ export default function HistoryPage() {
     isSignedIn && viewMode === "list"
       ? `/api/generations?${listParams.toString()}`
       : null,
-    fetcher
+    fetcher,
+    { keepPreviousData: true }
   );
   const generations = listData?.generations as any[] | undefined;
 
@@ -101,16 +102,6 @@ export default function HistoryPage() {
       <div className="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] bg-accent/5 rounded-full blur-[100px] pointer-events-none mix-blend-multiply" />
 
       <div className="max-w-7xl mx-auto relative z-10">
-        {/* Header */}
-        <div className="text-center mb-12">
-          <div className="inline-flex items-center justify-center gap-3 mb-4 bg-surface-1/80 backdrop-blur-sm px-6 py-2 rounded-full border border-card-border shadow-sm animate-fade-in-up">
-            <Images size={20} className="text-primary" />
-            <span className="text-foreground font-semibold tracking-wide text-sm">
-              {t("معرض الاعمال", "Portfolio")}
-            </span>
-          </div>
-        </div>
-
         {/* Unified Toolbar */}
         <div className="mb-8 bg-surface-1/80 backdrop-blur-sm rounded-2xl border border-card-border shadow-sm p-3 flex flex-col gap-3">
           {/* Row 1: View toggle + count + image type */}
@@ -217,3 +208,4 @@ export default function HistoryPage() {
     </main>
   );
 }
+

@@ -7,6 +7,7 @@ import { RESTAURANT_CTA_OPTIONS } from "@/lib/constants";
 import { ImageUpload } from "../image-upload";
 import { FormatSelector } from "../format-selector";
 import { CampaignTypeSelector } from "../campaign-type-selector";
+import { PosterLanguageSelector, usePosterLanguage } from "../poster-language-selector";
 import { FormInput, FormSelect } from "../ui/form-input";
 import { useLocale } from "@/hooks/use-locale";
 
@@ -34,6 +35,7 @@ export function RestaurantForm({ onSubmit, onPrewarmHint, isLoading, defaultValu
   const [mealImage, setMealImage] = useState<string | null>(null);
   const [format, setFormat] = useState<OutputFormat>("instagram-square");
   const [campaignType, setCampaignType] = useState<CampaignType>("standard");
+  const [posterLanguage, setPosterLanguage] = usePosterLanguage();
   const logo = logoOverride === undefined ? (defaultValues?.logo ?? null) : logoOverride;
 
   const postTypes = locale === "ar" ? POST_TYPE_AR : POST_TYPE_EN;
@@ -100,6 +102,7 @@ export function RestaurantForm({ onSubmit, onPrewarmHint, isLoading, defaultValu
     onSubmit({
       category: "restaurant",
       campaignType,
+      posterLanguage,
       restaurantName: restaurantName!,
       logo: logo!,
       mealImage: mealImage!,
@@ -125,6 +128,10 @@ export function RestaurantForm({ onSubmit, onPrewarmHint, isLoading, defaultValu
         <div className="space-y-6">
           <div className="bg-surface-2 p-1 rounded-2xl border border-card-border">
              <CampaignTypeSelector value={campaignType} onChange={handleCampaignTypeChange} />
+          </div>
+
+          <div className="bg-surface-2 p-4 rounded-2xl border border-card-border">
+             <PosterLanguageSelector value={posterLanguage} onChange={setPosterLanguage} />
           </div>
 
           <div className="space-y-5">

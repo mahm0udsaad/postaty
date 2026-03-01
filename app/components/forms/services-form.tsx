@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Building2,
   Briefcase,
@@ -20,8 +20,41 @@ import { SERVICES_CTA_OPTIONS } from "@/lib/constants";
 import { ImageUpload } from "../image-upload";
 import { FormatSelector } from "../format-selector";
 import { CampaignTypeSelector } from "../campaign-type-selector";
+import { PosterLanguageSelector, usePosterLanguage } from "../poster-language-selector";
 import { FormInput, FormSelect } from "../ui/form-input";
 import { useLocale } from "@/hooks/use-locale";
+
+const SERVICE_TYPE_STORAGE_KEY = "postaty-service-type";
+
+const SERVICE_TYPE_OPTIONS: {
+  value: string;
+  ar: string;
+  en: string;
+}[] = [
+  { value: "maintenance", ar: "صيانة", en: "Maintenance" },
+  { value: "cleaning", ar: "تنظيف", en: "Cleaning" },
+  { value: "travel", ar: "سفر", en: "Travel" },
+  { value: "business", ar: "رجال أعمال", en: "Business" },
+  { value: "consulting", ar: "استشارات", en: "Consulting" },
+  { value: "other", ar: "أخرى", en: "Other" },
+];
+
+const KNOWN_SERVICE_VALUES = SERVICE_TYPE_OPTIONS.filter(o => o.value !== "other").map(o => o.value);
+
+function getInitialServiceType(): string {
+  if (typeof window === "undefined") return "maintenance";
+  return localStorage.getItem(SERVICE_TYPE_STORAGE_KEY) || "maintenance";
+}
+
+function useServiceType() {
+  const [serviceType, setServiceType] = useState(getInitialServiceType);
+
+  useEffect(() => {
+    localStorage.setItem(SERVICE_TYPE_STORAGE_KEY, serviceType);
+  }, [serviceType]);
+
+  return [serviceType, setServiceType] as const;
+}
 
 interface ServicesFormProps {
   onSubmit: (data: ServicesFormData) => void;
@@ -30,8 +63,6 @@ interface ServicesFormProps {
   defaultValues?: { businessName?: string; logo?: string | null };
 }
 
-const SERVICE_TYPES_AR = ["صيانة", "تنظيف", "سفر", "رجال أعمال", "استشارات"] as const;
-const SERVICE_TYPES_EN = ["Maintenance", "Cleaning", "Travel", "Business", "Consulting"] as const;
 const PRICE_TYPES_AR = ["سعر ثابت", "ابتداءً من"] as const;
 const PRICE_TYPES_EN = ["Fixed price", "Starting from"] as const;
 const CTA_EN = ["Book now", "Request visit", "WhatsApp consultation"] as const;
@@ -42,17 +73,18 @@ export function ServicesForm({ onSubmit, onPrewarmHint, isLoading, defaultValues
   const [serviceImage, setServiceImage] = useState<string | null>(null);
   const [format, setFormat] = useState<OutputFormat>("instagram-square");
   const [campaignType, setCampaignType] = useState<CampaignType>("standard");
+  const [posterLanguage, setPosterLanguage] = usePosterLanguage();
+  const [serviceType, setServiceType] = useServiceType();
   const logo = logoOverride === undefined ? (defaultValues?.logo ?? null) : logoOverride;
 
-  const serviceTypes = locale === "ar" ? SERVICE_TYPES_AR : SERVICE_TYPES_EN;
+  const isKnownService = KNOWN_SERVICE_VALUES.includes(serviceType);
+  const selectedServiceOption = isKnownService ? serviceType : "other";
+  const customServiceValue = isKnownService ? "" : serviceType;
+
   const priceTypes = locale === "ar" ? PRICE_TYPES_AR : PRICE_TYPES_EN;
   const ctaOptions = locale === "ar" ? SERVICES_CTA_OPTIONS : CTA_EN;
 
   const [errors, setErrors] = useState<Record<string, string>>({});
-
-  const serviceTypeMap = locale === "ar"
-    ? { "صيانة": "maintenance", "تنظيف": "cleaning", "سفر": "travel", "رجال أعمال": "business", "استشارات": "consulting" } as const
-    : { Maintenance: "maintenance", Cleaning: "cleaning", Travel: "travel", Business: "business", Consulting: "consulting" } as const;
 
   const priceTypeMap = locale === "ar"
     ? { "سعر ثابت": "fixed", "ابتداءً من": "starting-from" } as const
@@ -63,11 +95,12 @@ export function ServicesForm({ onSubmit, onPrewarmHint, isLoading, defaultValues
     onPrewarmHint?.({ campaignType: nextCampaignType });
   };
 
-  const handleServiceTypeChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const label = e.target.value;
-    const mapped = serviceTypeMap[label as keyof typeof serviceTypeMap];
-    if (mapped) {
-      onPrewarmHint?.({ campaignType, subType: mapped });
+  const handleServiceTypeChange = (next: string) => {
+    if (next === "other") {
+      setServiceType("");
+    } else {
+      setServiceType(next);
+      onPrewarmHint?.({ campaignType, subType: next });
     }
   };
 
@@ -80,13 +113,11 @@ export function ServicesForm({ onSubmit, onPrewarmHint, isLoading, defaultValues
     const serviceName = (fd.get("serviceName") as string)?.trim();
     const price = (fd.get("price") as string)?.trim();
     const whatsapp = (fd.get("whatsapp") as string)?.trim();
-    const serviceTypeLabel = fd.get("serviceType") as string;
     const priceTypeLabel = fd.get("priceType") as string;
-    const serviceTypeValue = serviceTypeMap[serviceTypeLabel as keyof typeof serviceTypeMap];
     const priceTypeValue = priceTypeMap[priceTypeLabel as keyof typeof priceTypeMap];
 
     if (!businessName) newErrors.businessName = t("اسم الشركة مطلوب", "Business name is required");
-    if (!serviceTypeValue) newErrors.serviceType = t("نوع الخدمة مطلوب", "Service type is required");
+    if (!serviceType.trim()) newErrors.serviceType = t("نوع الخدمة مطلوب", "Service type is required");
     if (!serviceName) newErrors.serviceName = t("اسم الخدمة مطلوب", "Service name is required");
     if (!price) newErrors.price = t("السعر مطلوب", "Price is required");
     if (!priceTypeValue) newErrors.priceType = t("نوع السعر مطلوب", "Price type is required");
@@ -103,10 +134,11 @@ export function ServicesForm({ onSubmit, onPrewarmHint, isLoading, defaultValues
     onSubmit({
       category: "services",
       campaignType,
+      posterLanguage,
       businessName: businessName!,
       logo: logo!,
       serviceImage: serviceImage!,
-      serviceType: serviceTypeValue as ServicesFormData["serviceType"],
+      serviceType: serviceType.trim(),
       serviceName: serviceName!,
       serviceDetails: (fd.get("serviceDetails") as string) || undefined,
       price: price!,
@@ -130,9 +162,50 @@ export function ServicesForm({ onSubmit, onPrewarmHint, isLoading, defaultValues
              <CampaignTypeSelector value={campaignType} onChange={handleCampaignTypeChange} />
           </div>
 
+          <div className="bg-surface-2 p-4 rounded-2xl border border-card-border">
+             <PosterLanguageSelector value={posterLanguage} onChange={setPosterLanguage} />
+          </div>
+
           <div className="space-y-5">
             <FormInput label={t("اسم الشركة/مقدم الخدمة", "Business/provider name")} name="businessName" placeholder={t("مثال: شركة النجم للصيانة", "Example: Star Maintenance Co.")} required icon={Building2} defaultValue={defaultValues?.businessName} error={errors.businessName} />
-            <FormSelect label={t("نوع الخدمة", "Service type")} name="serviceType" options={serviceTypes} required icon={Briefcase} error={errors.serviceType} onChange={handleServiceTypeChange} />
+            <div className="bg-surface-2 p-4 rounded-2xl border border-card-border space-y-3">
+              <div className="flex items-center gap-2">
+                <Briefcase size={16} className="text-muted shrink-0" />
+                <label className="text-sm font-medium text-foreground/80">
+                  {t("نوع الخدمة", "Service type")}
+                </label>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {SERVICE_TYPE_OPTIONS.map((opt) => {
+                  const isActive = selectedServiceOption === opt.value;
+                  return (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => handleServiceTypeChange(opt.value)}
+                      className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-all ${
+                        isActive
+                          ? "border-primary/60 bg-primary/10 text-primary"
+                          : "border-card-border bg-surface-1 text-muted hover:border-primary/30 hover:text-foreground"
+                      }`}
+                    >
+                      {locale === "ar" ? opt.ar : opt.en}
+                    </button>
+                  );
+                })}
+              </div>
+              {selectedServiceOption === "other" && (
+                <input
+                  type="text"
+                  value={customServiceValue}
+                  onChange={(e) => setServiceType(e.target.value)}
+                  placeholder={t("اكتب نوع الخدمة (مثال: تصميم)", "Type the service (e.g., Design)")}
+                  className="w-full px-4 py-2.5 rounded-xl border border-card-border bg-surface-1 text-sm text-foreground placeholder:text-muted/50 focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary/40 transition-all"
+                  autoFocus
+                />
+              )}
+              {errors.serviceType && <p className="text-xs text-red-500 font-medium">{errors.serviceType}</p>}
+            </div>
             <FormInput label={t("اسم الخدمة", "Service name")} name="serviceName" placeholder={t("مثال: صيانة تكييفات", "Example: AC maintenance")} required icon={Wrench} error={errors.serviceName} />
             <FormInput label={t("تفاصيل الخدمة (اختياري)", "Service details (optional)")} name="serviceDetails" placeholder={t("مثال: فحص شامل + تنظيف + تعبئة فريون", "Example: Inspection + Cleaning + Gas refill")} icon={FileText} />
             <div className="grid grid-cols-2 gap-4">

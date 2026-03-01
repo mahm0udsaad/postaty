@@ -10,6 +10,7 @@ import {
   buildImageProviderOptions,
   compressImageFromDataUrl,
   compressLogoFromDataUrl,
+  getSharp,
 } from "./image-helpers";
 import type { MenuFormData } from "./types";
 import type { BrandKitPromptData } from "./prompts";
@@ -172,7 +173,7 @@ export async function generateMenu(
   }
 
   // Resize to A4 dimensions and output as JPEG to keep file size under 10MB
-  const sharp = (await import("sharp")).default;
+  const sharp = await getSharp();
   const resizedBuffer = await sharp(Buffer.from(imageFile.uint8Array))
     .resize(formatConfig.width, formatConfig.height, { fit: "fill" })
     .jpeg({ quality: 92 })

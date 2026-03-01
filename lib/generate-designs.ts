@@ -15,7 +15,7 @@ import { formatRecipeForPrompt } from "./design-recipes";
 import { selectRecipes } from "./design-recipes";
 import { getInspirationImages } from "./inspiration-images";
 import { FORMAT_CONFIGS } from "./constants";
-import { buildImageProviderOptions, compressImageFromDataUrl, compressLogoFromDataUrl } from "./image-helpers";
+import { buildImageProviderOptions, compressImageFromDataUrl, compressLogoFromDataUrl, getSharp } from "./image-helpers";
 import { resolvePosterLanguage } from "./resolved-language";
 import type { PostFormData, MarketingContentHub, SocialPlatform, PlatformContent } from "./types";
 import type { BrandKitPromptData } from "./prompts";
@@ -86,7 +86,7 @@ export async function generatePoster(
   const promptBuildStart = Date.now();
   const resolvedLanguage = resolvePosterLanguage(data);
   const systemPrompt = getImageDesignSystemPrompt(data, resolvedLanguage, brandKit);
-  let userMessage = getImageDesignUserMessage(data);
+  let userMessage = getImageDesignUserMessage(data, resolvedLanguage);
 
   // Enrich with a design recipe for creative direction
   const [recipe] = selectRecipes(data.category, 1, data.campaignType);
@@ -207,6 +207,7 @@ export async function generatePoster(
   if (logoPart) {
     contextText += `The last image is the business logo — include it EXACTLY as given. Do NOT modify, redraw, or add text to the logo.\n`;
   }
+  contextText += `\nCRITICAL REMINDER: Render ONLY text from the EXACT TEXT INVENTORY below — nothing else. Translate inventory text to the target poster language if needed. Do NOT invent any text. Do NOT add text to the product image. Show the product EXACTLY once.\n`;
   contextText += `\n${userMessage}`;
 
   contentParts.push({ type: "text" as const, text: contextText });
@@ -218,7 +219,10 @@ export async function generatePoster(
     const aiStart = Date.now();
     result = await generateText({
       model: paidImageModel,
-      providerOptions: buildImageProviderOptions(formatConfig.aspectRatio, "2K"),
+      providerOptions: buildImageProviderOptions(
+        formatConfig.aspectRatio,
+        Math.max(formatConfig.width, formatConfig.height) > 1080 ? "2K" : "1K"
+      ),
       system: systemPrompt,
       messages: [
         {
@@ -272,15 +276,15 @@ export async function generatePoster(
 
   // Resize to exact target dimensions for the selected format
   const resizeStart = Date.now();
-  const sharp = (await import("sharp")).default;
+  const sharp = await getSharp();
   const resizedBuffer = await sharp(Buffer.from(imageFile.uint8Array))
     .resize(formatConfig.width, formatConfig.height, { fit: "fill" })
-    .png()
+    .jpeg({ quality: 90 })
     .toBuffer();
   const postprocessResizeMs = Date.now() - resizeStart;
 
   const base64 = resizedBuffer.toString("base64");
-  const base64DataUrl = `data:image/png;base64,${base64}`;
+  const base64DataUrl = `data:image/jpeg;base64,${base64}`;
 
   const usage: GenerationUsage = {
     route: "poster",
@@ -406,14 +410,14 @@ export async function generateGiftImage(
   }
 
   // Resize to exact target dimensions for the selected format
-  const sharpGift = (await import("sharp")).default;
+  const sharpGift = await getSharp();
   const resizedGiftBuffer = await sharpGift(Buffer.from(imageFile.uint8Array))
     .resize(formatConfig.width, formatConfig.height, { fit: "fill" })
-    .png()
+    .jpeg({ quality: 90 })
     .toBuffer();
 
   const base64 = resizedGiftBuffer.toString("base64");
-  const base64DataUrl = `data:image/png;base64,${base64}`;
+  const base64DataUrl = `data:image/jpeg;base64,${base64}`;
 
   const usage: GenerationUsage = {
     route: "gift",

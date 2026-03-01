@@ -121,7 +121,7 @@ export const servicesFormSchema = z.object({
   businessName: textFieldSchema("Business name"),
   logo: base64ImageSchema,
   serviceImage: base64ImageSchema,
-  serviceType: z.enum(["maintenance", "cleaning", "travel", "business", "consulting"]),
+  serviceType: z.string().min(1, "Service type is required").max(50),
   serviceName: textFieldSchema("Service name"),
   serviceDetails: z.string().max(200).optional(),
   price: priceSchema,

@@ -24,9 +24,12 @@ export interface FormatConfig {
 }
 
 // ── Form Data ──────────────────────────────────────────────────────
+export type PosterLanguage = "ar" | "en" | "fr" | "de" | "tr" | "other";
+
 export interface RestaurantFormData {
   category: "restaurant";
   campaignType: CampaignType;
+  posterLanguage: string;
   restaurantName: string;
   logo: string; // base64
   mealImage: string; // base64
@@ -49,6 +52,7 @@ export interface RestaurantFormData {
 export interface SupermarketFormData {
   category: "supermarket";
   campaignType: CampaignType;
+  posterLanguage: string;
   supermarketName: string;
   logo: string; // base64
   productImages: string[]; // base64[]
@@ -70,6 +74,7 @@ export interface SupermarketFormData {
 export interface EcommerceFormData {
   category: "ecommerce";
   campaignType: CampaignType;
+  posterLanguage: string;
   shopName: string;
   logo: string; // base64
   productImage: string; // base64
@@ -91,10 +96,11 @@ export interface EcommerceFormData {
 export interface ServicesFormData {
   category: "services";
   campaignType: CampaignType;
+  posterLanguage: string;
   businessName: string;
   logo: string; // base64
   serviceImage: string; // base64
-  serviceType: "maintenance" | "cleaning" | "travel" | "business" | "consulting";
+  serviceType: string;
   serviceName: string;
   serviceDetails?: string;
   price: string;
@@ -113,6 +119,7 @@ export interface ServicesFormData {
 export interface FashionFormData {
   category: "fashion";
   campaignType: CampaignType;
+  posterLanguage: string;
   brandName: string;
   logo: string; // base64
   productImage: string; // base64
@@ -134,6 +141,7 @@ export interface FashionFormData {
 export interface BeautyFormData {
   category: "beauty";
   campaignType: CampaignType;
+  posterLanguage: string;
   salonName: string;
   logo: string; // base64
   serviceImage: string; // base64

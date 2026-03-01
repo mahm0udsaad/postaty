@@ -89,9 +89,9 @@ Mood: Pop art, loud, punchy, street-food buzz.`,
     id: "r-triple-showcase",
     name: "Triple Product Showcase",
     category: "restaurant",
-    directive: `Concept: Two-tone split — warm color top half, clean white bottom half. Three circular product images arranged horizontally across the boundary (large center, smaller flanks, all with white borders). Headline in white on the colored section.
-Creative hook: The triple-circle layout IS the design. The circles straddle the color boundary, creating visual depth. Logo and contact info on the white section below.
-Mood: Organized, abundant, inviting, clean.`,
+    directive: `Concept: Two-tone split — warm color top half, clean white bottom half. One large circular product image at center straddling the boundary (with white border), flanked by two smaller decorative circles using abstract color fills or subtle gradient patterns (NOT duplicates of the product). Headline in white on the colored section.
+Creative hook: The circle layout creates visual depth across the color boundary. The flanking circles use complementary abstract patterns, not product copies. Logo and contact info on the white section below.
+Mood: Organized, inviting, clean.`,
     campaignModifiers: {
       ramadan: `Top color becomes deep green. Add a subtle Islamic arch at the top edge. Gold border accents on circles.`,
       eid: `Top color becomes festive gold. Add sparkle dots around the circular images.`,
@@ -481,8 +481,8 @@ Mood: Luxurious, dark, boutique, high-end.`,
     id: "fa-collection-grid",
     name: "Collection Grid Layout",
     category: "fashion",
-    directive: `Concept: Off-white canvas divided into a grid — one large feature cell (taking 2/3 of the space) with the hero product, and 2-3 smaller cells showing additional items or color variants. Thin dark lines separate the cells. Collection name in bold sans-serif at the top, spanning the full width. Each small cell has a subtle item label.
-Creative hook: The grid layout mimics a curated lookbook or catalog page. The size hierarchy (one large, several small) creates visual interest. Grid lines are thin and precise. Small "Shop Now" text with an arrow in the bottom-right cell.
+    directive: `Concept: Off-white canvas divided into a grid — one large feature cell (taking 2/3 of the space) with the hero product, and 2-3 smaller cells filled with complementary color swatches, abstract textures, or brand-colored patterns (NOT duplicates of the product). Thin dark lines separate the cells. Collection name in bold sans-serif at the top, spanning the full width.
+Creative hook: The grid layout mimics a curated lookbook page. The size hierarchy (one large cell, smaller accent cells) creates visual interest. Grid lines are thin and precise. The smaller cells use abstract fills that complement the product's palette.
 Mood: Curated, editorial, catalog, organized.`,
     campaignModifiers: {
       ramadan: `Grid lines become gold. Off-white shifts to warm cream. Add "تشكيلة رمضان" as the collection name. Small crescent icon in one cell corner.`,

@@ -14,9 +14,9 @@ const MENU_CATEGORY_DIRS: Record<MenuCategory, string[]> = {
 
 const MENU_INSPIRATIONS_ROOT = join(process.cwd(), "public", "menu-inspiration");
 const MAX_IMAGES = 3;
-const RESIZE_WIDTH = 540;
-const RESIZE_HEIGHT = 764; // A4-like ratio (540 * 1.414)
-const JPEG_QUALITY = 70;
+const RESIZE_WIDTH = 384;
+const RESIZE_HEIGHT = 543; // A4-like ratio (384 * 1.414)
+const JPEG_QUALITY = 65;
 
 export interface MenuInspirationImage {
   type: "image";

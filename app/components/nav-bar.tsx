@@ -80,6 +80,8 @@ function NavBarContent({ locale }: NavBarProps) {
 
     if (!isSignedIn) {
       router.push("/sign-in");
+    } else if (pathname.startsWith("/create")) {
+      router.replace("/create");
     } else {
       router.push("/create");
     }

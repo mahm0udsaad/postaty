@@ -48,9 +48,9 @@ const metadataBase = (() => {
   }
 })();
 
-const metadataTitle = "مولد منشورات السوشيال ميديا | Postaty";
+const metadataTitle = "بوستاتي: تصميم يشد .. تسويق يقنع | Postaty";
 const metadataDescription =
-  "أنشئ منشورات احترافية لعروضك على السوشيال ميديا خلال دقائق";
+  "بوستاتي: تصميم احترافي للسوشيال ميديا مع تركيز على التسويق الذكي وتحسين محركات البحث (SEO).";
 const ogImageUrl = `${SITE_URL}/opengraph-image.png`;
 
 export const metadata: Metadata = {

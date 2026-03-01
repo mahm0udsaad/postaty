@@ -1,6 +1,7 @@
 import type { PostFormData } from "./types";
 
-export type ResolvedLanguage = "ar" | "he" | "en";
+/** Known language codes, or a freeform string for "other" languages. */
+export type ResolvedLanguage = "ar" | "he" | "en" | "fr" | "de" | "tr" | (string & {});
 
 function stripNoise(input: string): string {
   return input
@@ -16,6 +17,12 @@ function countMatches(text: string, pattern: RegExp): number {
   return matches ? matches.length : 0;
 }
 
+/**
+ * Returns only user-typed free-text fields for language detection.
+ * Excludes dropdown/select fields (cta, offerBadge, deliveryType, postType,
+ * availability, serviceType, priceType, bookingCondition) because their
+ * values are determined by the UI locale, not the user's intended language.
+ */
 function getFreeTextSignals(data: PostFormData): string[] {
   switch (data.category) {
     case "restaurant":
@@ -25,7 +32,6 @@ function getFreeTextSignals(data: PostFormData): string[] {
         data.description ?? "",
         data.coverageAreas ?? "",
         data.offerDuration ?? "",
-        data.cta ?? "",
       ];
     case "supermarket":
       return [
@@ -34,7 +40,6 @@ function getFreeTextSignals(data: PostFormData): string[] {
         data.quantity ?? "",
         data.offerLimit ?? "",
         data.offerDuration ?? "",
-        data.cta ?? "",
       ];
     case "ecommerce":
       return [
@@ -43,7 +48,6 @@ function getFreeTextSignals(data: PostFormData): string[] {
         data.features ?? "",
         data.colorSize ?? "",
         data.shippingDuration ?? "",
-        data.cta ?? "",
       ];
     case "services":
       return [
@@ -53,7 +57,6 @@ function getFreeTextSignals(data: PostFormData): string[] {
         data.coverageArea ?? "",
         data.quickFeatures ?? "",
         data.offerDuration ?? "",
-        data.cta ?? "",
       ];
     case "fashion":
       return [
@@ -64,7 +67,6 @@ function getFreeTextSignals(data: PostFormData): string[] {
         data.availableColors ?? "",
         data.offerNote ?? "",
         data.offerDuration ?? "",
-        data.cta ?? "",
       ];
     case "beauty":
       return [
@@ -73,12 +75,17 @@ function getFreeTextSignals(data: PostFormData): string[] {
         data.benefit ?? "",
         data.suitableFor ?? "",
         data.offerDuration ?? "",
-        data.cta ?? "",
       ];
   }
 }
 
 export function resolvePosterLanguage(data: PostFormData): ResolvedLanguage {
+  // If the user explicitly chose a language in the form, use it directly.
+  if (data.posterLanguage) {
+    return data.posterLanguage as ResolvedLanguage;
+  }
+
+  // Fallback: auto-detect from free-text fields.
   const rawText = getFreeTextSignals(data).join(" ");
   const text = stripNoise(rawText);
   if (!text) return "en";

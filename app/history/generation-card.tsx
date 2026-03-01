@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import {
   ChevronDown,
   ChevronUp,
@@ -132,10 +133,12 @@ export function GenerationCard({ generation, imageType = "all" }: GenerationCard
           <div className="flex gap-1.5 ml-auto shrink-0">
             {outputsWithUrls.slice(0, 3).map((output, i) =>
               output.url ? (
-                <img
+                <Image
                   key={i}
                   src={output.url}
                   alt=""
+                  width={28}
+                  height={28}
                   className="w-7 h-7 rounded-lg object-cover border border-card-border bg-surface-1"
                 />
               ) : (
@@ -199,10 +202,13 @@ export function GenerationCard({ generation, imageType = "all" }: GenerationCard
                     </div>
                     <div className="p-4 flex justify-center items-center min-h-[160px] bg-surface-2/30">
                       {output.url ? (
-                        <img
+                        <Image
                           src={output.url}
                           alt={label}
+                          width={output.width || 800}
+                          height={output.height || 800}
                           className="max-w-full max-h-[200px] object-contain rounded-lg shadow-sm"
+                          style={{ width: "auto", height: "auto" }}
                         />
                       ) : (
                         <div className="flex flex-col items-center gap-2 text-muted-foreground">

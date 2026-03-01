@@ -18,6 +18,7 @@ import { FASHION_CTA_OPTIONS } from "@/lib/constants";
 import { ImageUpload } from "../image-upload";
 import { FormatSelector } from "../format-selector";
 import { CampaignTypeSelector } from "../campaign-type-selector";
+import { PosterLanguageSelector, usePosterLanguage } from "../poster-language-selector";
 import { FormInput, FormSelect } from "../ui/form-input";
 import { useLocale } from "@/hooks/use-locale";
 
@@ -38,6 +39,7 @@ export function FashionForm({ onSubmit, onPrewarmHint, isLoading, defaultValues 
   const [productImage, setProductImage] = useState<string | null>(null);
   const [format, setFormat] = useState<OutputFormat>("instagram-square");
   const [campaignType, setCampaignType] = useState<CampaignType>("standard");
+  const [posterLanguage, setPosterLanguage] = usePosterLanguage();
   const logo = logoOverride === undefined ? (defaultValues?.logo ?? null) : logoOverride;
   const postTypeOptions = locale === "ar" ? POST_TYPE_AR : POST_TYPE_EN;
   const ctaOptions = locale === "ar" ? FASHION_CTA_OPTIONS : CTA_EN;
@@ -91,6 +93,7 @@ export function FashionForm({ onSubmit, onPrewarmHint, isLoading, defaultValues 
     onSubmit({
       category: "fashion",
       campaignType,
+      posterLanguage,
       brandName: brandName!,
       logo: logo!,
       productImage: productImage!,
@@ -115,6 +118,10 @@ export function FashionForm({ onSubmit, onPrewarmHint, isLoading, defaultValues 
         <div className="space-y-6">
           <div className="bg-surface-2 p-1 rounded-2xl border border-card-border">
              <CampaignTypeSelector value={campaignType} onChange={handleCampaignTypeChange} />
+          </div>
+
+          <div className="bg-surface-2 p-4 rounded-2xl border border-card-border">
+             <PosterLanguageSelector value={posterLanguage} onChange={setPosterLanguage} />
           </div>
 
           <div className="space-y-5">
