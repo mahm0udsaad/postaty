@@ -118,6 +118,7 @@ export async function generateMenu(
     if (data.campaignType === "standard") {
       contextText += `IMPORTANT: If the reference images contain seasonal or religious motifs, IGNORE those motifs. Use only their general design quality and layout structure.\n`;
     }
+    contextText += `CRITICAL: References are STYLE ONLY. Do NOT copy their products, item count, text, prices, or logo. Build content ONLY from the uploaded item photos and provided item list.\n`;
     contextText += `\n`;
   }
 
@@ -125,7 +126,8 @@ export async function generateMenu(
   translatedData.items.forEach((item, i) => {
     contextText += `  Image ${inspirationImages.length + i + 1}: "${item.name}" — Price: ${item.price}\n`;
   });
-  contextText += `Display each product photo EXACTLY as provided. Do NOT redraw or stylize them.\n\n`;
+  contextText += `Display each product photo EXACTLY as provided. Do NOT redraw or stylize them.\n`;
+  contextText += `You MUST render EXACTLY ${translatedData.items.length} menu items (no more, no less), and each listed item must appear exactly once.\n\n`;
 
   if (logoPart) {
     contextText += `The last image is the business logo. You MUST place this exact logo image as-is in the design, exactly once. Do NOT redraw, recreate, restyle, recolor, crop, retype, or modify any part of the logo.\n\n`;

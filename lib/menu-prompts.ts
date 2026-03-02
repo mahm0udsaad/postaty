@@ -100,7 +100,12 @@ ${MENU_CAMPAIGN_GUIDANCE[data.campaignType] ? `\n${MENU_CAMPAIGN_GUIDANCE[data.c
 - Each item should be clearly separated from others (cards, borders, or spacing)
 
 ## Visual References
-You will receive reference menu/flyer designs. Match or exceed their professional quality while creating an original design.`;
+You will receive reference menu/flyer designs for STYLE ONLY.
+- Use references only to understand visual direction (layout quality, spacing, color mood, hierarchy)
+- NEVER copy the reference content, product count, product names, prices, logo, or text
+- NEVER replicate the same card count/grid from references unless it naturally matches the exact uploaded item count
+- Your content source of truth is ONLY the uploaded item images + provided item list in this prompt
+- Final design must include EXACTLY ${data.items.length} items (not more, not less), each shown once`;
 
   if (brandKit) {
     prompt += `\n\n## Brand Kit (MUST follow)\n- Primary: ${brandKit.palette.primary}\n- Secondary: ${brandKit.palette.secondary}\n- Accent: ${brandKit.palette.accent}\n- Background: ${brandKit.palette.background}\n- Text: ${brandKit.palette.text}`;
