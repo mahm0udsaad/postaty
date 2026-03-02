@@ -166,12 +166,14 @@ export async function generateMenu(
   };
 
   try {
-    result = await generateText({ model: menuImageModel, ...generateRequest });
+    // maxRetries: 0 = single attempt, no retries. Fail fast so we reach fallback quickly.
+    result = await generateText({ model: menuImageModel, maxRetries: 0, ...generateRequest });
   } catch (primaryErr) {
     if (isCapacityError(primaryErr)) {
       console.warn("[generateMenu] primary model overloaded, falling back to", FALLBACK_MODEL_ID);
       try {
         usedModelId = FALLBACK_MODEL_ID;
+        // Fallback gets default retries (2 retries = 3 total attempts)
         result = await generateText({ model: paidImageModel, ...generateRequest });
       } catch (fallbackErr) {
         const durationMs = Date.now() - startTime;
