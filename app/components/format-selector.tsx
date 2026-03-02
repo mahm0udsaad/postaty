@@ -20,7 +20,7 @@ const formatIcons: Record<OutputFormat, typeof Square> = {
 };
 
 const FORMAT_COPY: Record<OutputFormat, { ar: string; en: string; ratio: string }> = {
-  "instagram-square": { ar: "انستجرام مربع", en: "Instagram Square", ratio: "1:1" },
+  "instagram-square": { ar: "انستجرام بوست", en: "Instagram Post", ratio: "3:4" },
   "instagram-story": { ar: "انستجرام ستوري", en: "Instagram Story", ratio: "9:16" },
   "facebook-post": { ar: "فيسبوك بوست", en: "Facebook Post", ratio: "4:5" },
   "facebook-cover": { ar: "غلاف فيسبوك", en: "Facebook Cover", ratio: "16:9" },

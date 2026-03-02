@@ -2,9 +2,9 @@ import Image from "next/image";
 
 const showcaseImages = [
   { src: "/showcase/burger-stack.jpeg", alt: "Burger ad design" },
-  { src: "/showcase/skincare-promo.jpeg", alt: "Skincare promo design" },
-  { src: "/showcase/ramadan-card.jpeg", alt: "Ramadan card design" },
-  { src: "/showcase/book-promo.jpeg", alt: "Book promo design" },
+  { src: "/showcase/chicken-offer.jpeg", alt: "Chicken offer ad design" },
+  { src: "/showcase/book-promo.jpeg", alt: "Book promo ad design" },
+  { src: "/showcase/supermarket-fruits.jpeg", alt: "Supermarket fruits ad design" },
 ];
 
 export function AuthVisual() {

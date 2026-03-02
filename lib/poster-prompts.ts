@@ -80,7 +80,12 @@ ${brandKit ? `Color palette (from Brand Kit — MUST use these colors):
 - Primary: ${brandKit.palette.primary} | Secondary: ${brandKit.palette.secondary} | Accent: ${brandKit.palette.accent}
 - Background: ${brandKit.palette.background} | Text: ${brandKit.palette.text}
 These brand colors OVERRIDE the default category palette. Build the entire design around these colors.` : `${CATEGORY_COLOR_PALETTES[data.category]}
-IMPORTANT: If a business logo is provided, EXTRACT its dominant colors and USE them as the primary palette for the poster. The design should feel like it belongs to the same brand as the logo. The category palette above is a fallback — the logo's actual colors always take priority.`}
+## Logo-Driven Color Theme (CRITICAL — MUST follow)
+- A business logo is provided. You MUST extract its EXACT dominant colors (backgrounds, text, shapes) and build the ENTIRE poster palette around them.
+- The poster background, accent shapes, text colors, badges, and borders must all derive from the logo's actual color palette — not from a generic palette.
+- The design must feel like an official brand extension of the logo: someone looking at the poster should immediately recognize it belongs to the same brand as the logo.
+- The category palette above is a LAST RESORT fallback — only use it if the logo has no clearly extractable colors (e.g., a white logo on transparent background).
+- DO NOT apply a random color scheme that clashes with the logo. Color harmony with the logo is mandatory.`}
 ${CAMPAIGN_STYLE_GUIDANCE[data.campaignType] ? `\n${CAMPAIGN_STYLE_GUIDANCE[data.campaignType]}\n` : `\nIMPORTANT: This is a STANDARD (non-seasonal) campaign. Do NOT use any religious, seasonal, or holiday motifs. Specifically:
 - No Ramadan elements: no crescents, no lanterns, no Islamic arches, no mosque silhouettes, no arabesque patterns
 - No Eid elements: no festive confetti, no starbursts
@@ -112,8 +117,16 @@ ${preTranslated
 ${preTranslated
   ? `- All inventory text is already in the target language — render it EXACTLY as written, character-for-character. Do NOT translate or modify anything.`
   : `- If inventory text is in a different language than the target poster language, translate it accurately to the target language — but NEVER add extra text that isn't in the inventory`}
-- If uncertain about a word's spelling, use the EXACT characters from the inventory — do NOT guess
-- Arabic text is especially sensitive: ط≠ظ, ا≠أ≠إ, ة≠ه, ي≠ى — copy each letter precisely
+- If uncertain about a word's spelling, use the EXACT characters from the inventory — do NOT guess or approximate
+- Arabic script is extremely sensitive — copy every character precisely:
+  - ط ≠ ظ (completely different letters — do NOT swap them)
+  - ا ≠ أ ≠ إ ≠ آ (bare alef vs hamza forms — always match exactly)
+  - ة ≠ ه (ta marbuta vs ha — never confuse them)
+  - ي ≠ ى (ya vs alef maqsura — always match exactly)
+  - س ≠ ش, ص ≠ ض, ع ≠ غ, ح ≠ خ (all distinct — never substitute)
+  - Never drop or add dots (نقاط) on any letter
+- Hebrew script is similarly sensitive — copy every letter and vowel mark precisely. Never transliterate Arabic into Hebrew letters or vice versa.
+- For any non-Latin script: if a character renders incorrectly or you are unsure, fall back to the EXACT codepoints from the user's input — never guess or approximate the glyph
 - Keep ALL text LARGE and readable — no tiny footnote-style text anywhere on the poster
 - Do NOT place text on curved surfaces, extreme angles, or locations that reduce readability
 - The poster is a VISUAL DESIGN with ONLY the user's provided text — treat it like a template where you place exact strings

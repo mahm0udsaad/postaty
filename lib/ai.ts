@@ -11,7 +11,10 @@ const google = createGoogleGenerativeAI({
   apiKey: googleApiKey,
 });
 
-/** Paid image model — Gemini 3 Pro Image Preview */
+/** Primary image model — Gemini 3 Pro Image (highest quality) */
+export const primaryImageModel = google("gemini-3-pro-image-preview");
+
+/** Fallback image model — Gemini 3.1 Flash Image (faster, used when primary is overloaded) */
 export const paidImageModel = google("gemini-3.1-flash-image-preview");
 
 /** Free image model — Gemini 2.5 Flash Image */

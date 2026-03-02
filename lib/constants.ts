@@ -13,10 +13,10 @@ import type {
 
 export const FORMAT_CONFIGS: Record<OutputFormat, FormatConfig> = {
   "instagram-square": {
-    label: "انستقرام مربع",
-    aspectRatio: "1:1",
+    label: "انستقرام بوست",
+    aspectRatio: "3:4",
     width: 1080,
-    height: 1080,
+    height: 1440,
   },
   "instagram-story": {
     label: "انستقرام ستوري",

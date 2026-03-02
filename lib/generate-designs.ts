@@ -2,7 +2,7 @@
 
 import { generateText } from "ai";
 import { randomUUID } from "node:crypto";
-import { paidImageModel, freeImageModel, marketingContentModel, google } from "@/lib/ai";
+import { primaryImageModel, paidImageModel, freeImageModel, marketingContentModel, google } from "@/lib/ai";
 import {
   getImageDesignSystemPrompt,
   getImageDesignUserMessage,
@@ -40,10 +40,26 @@ export type GenerationUsage = {
   error?: string;
 };
 
-// ── Model IDs (for usage tracking) ─────────────────────────────────
+// ── Model IDs ───────────────────────────────────────────────────────
 
-const PAID_MODEL_ID = "gemini-3-pro-image-preview";
+const PRIMARY_MODEL_ID = "gemini-3-pro-image-preview";
+const FALLBACK_MODEL_ID = "gemini-3.1-flash-image-preview";
 const FREE_MODEL_ID = "gemini-2.5-flash-image";
+
+/** Check if an error is a capacity/overload issue worth retrying with a fallback model */
+function isCapacityError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const msg = err.message.toLowerCase();
+  return (
+    msg.includes("high demand") ||
+    msg.includes("overloaded") ||
+    msg.includes("capacity") ||
+    msg.includes("rate limit") ||
+    msg.includes("resource exhausted") ||
+    msg.includes("503") ||
+    msg.includes("429")
+  );
+}
 const GEN_PARALLEL_PREP_ENABLED = process.env.GEN_PARALLEL_PREP !== "0";
 const VERBOSE_TIMING = process.env.NODE_ENV !== "production";
 
@@ -150,7 +166,7 @@ export async function generatePoster(
 
   console.info("[generatePoster] start", {
     requestId,
-    model: PAID_MODEL_ID,
+    model: PRIMARY_MODEL_ID,
     recipe: recipe?.id ?? "none",
     inspirationCount: inspirationImages.length,
     format: data.format,
@@ -210,9 +226,10 @@ export async function generatePoster(
   // Build context text explaining each image
   let contextText = "";
   if (inspirationImages.length > 0) {
-    contextText += `The first ${inspirationImages.length} image(s) are professional reference posters — match their layout quality and composition style.\n`;
+    contextText += `The first ${inspirationImages.length} image(s) are professional reference posters — use them for LAYOUT STRUCTURE and COMPOSITION IDEAS only (element placement, spacing, hierarchy, typography sizing).\n`;
+    contextText += `CRITICAL: Do NOT copy the color scheme, background color, decorative style, or visual motifs from the reference images. Colors MUST come from the business logo provided — not from these references.\n`;
     if (data.campaignType === "standard") {
-      contextText += `IMPORTANT: If the reference images contain seasonal or religious motifs (Ramadan, Eid, crescents, lanterns, Islamic arches), IGNORE those motifs entirely. Use only their general design quality, layout structure, and color energy as inspiration.\n`;
+      contextText += `IMPORTANT: If the reference images contain seasonal or religious motifs (Ramadan, Eid, crescents, lanterns, Islamic arches), IGNORE those motifs entirely.\n`;
     }
     contextText += `\n`;
   }
@@ -221,6 +238,7 @@ export async function generatePoster(
   }
   if (logoPart) {
     contextText += `The last image is the business logo — embed it as-is like pasting a sticker. Do NOT redraw, recreate, or re-render the logo. If the logo has text in it, that text is part of the image — do NOT re-type it. Place the logo EXACTLY ONCE.\n`;
+    contextText += `CRITICAL COLOR RULE: Extract the dominant colors from this logo image and build the ENTIRE poster palette around them. The background, shapes, badges, and text colors must all match and complement the logo's actual colors. The poster must look like it belongs to the same brand as the logo.\n`;
   }
   // Inject AI-generated design brief from context prep
   if (designBrief) {
@@ -237,40 +255,66 @@ export async function generatePoster(
   const startTime = Date.now();
   let aiCallMs = 0;
   let result;
+  let usedModelId = PRIMARY_MODEL_ID;
+
+  const generateRequest = {
+    providerOptions: buildImageProviderOptions(
+      formatConfig.aspectRatio,
+      Math.max(formatConfig.width, formatConfig.height) > 1080 ? "2K" : "1K"
+    ),
+    system: systemPrompt,
+    messages: [{ role: "user" as const, content: contentParts }],
+  };
+
   try {
     const aiStart = Date.now();
-    result = await generateText({
-      model: paidImageModel,
-      providerOptions: buildImageProviderOptions(
-        formatConfig.aspectRatio,
-        Math.max(formatConfig.width, formatConfig.height) > 1080 ? "2K" : "1K"
-      ),
-      system: systemPrompt,
-      messages: [
-        {
-          role: "user" as const,
-          content: contentParts,
-        },
-      ],
-    });
+    // maxRetries: 0 — fail fast on primary so we reach the fallback quickly
+    result = await generateText({ model: primaryImageModel, maxRetries: 0, ...generateRequest });
     aiCallMs = Date.now() - aiStart;
-  } catch (err) {
-    const durationMs = Date.now() - startTime;
-    console.error("[generatePoster] generateText threw", err);
-    const usage: GenerationUsage = {
-      route: "poster",
-      model: PAID_MODEL_ID,
-      inputTokens: 0,
-      outputTokens: 0,
-      imagesGenerated: 0,
-      durationMs,
-      success: false,
-      error: err instanceof Error ? err.message : String(err),
-    };
-    throw Object.assign(
-      new Error(`Image generation failed: ${err instanceof Error ? err.message : String(err)}`),
-      { usage }
-    );
+  } catch (primaryErr) {
+    if (isCapacityError(primaryErr)) {
+      console.warn("[generatePoster] primary model overloaded, falling back to", FALLBACK_MODEL_ID);
+      try {
+        usedModelId = FALLBACK_MODEL_ID;
+        const aiStart = Date.now();
+        result = await generateText({ model: paidImageModel, ...generateRequest });
+        aiCallMs = Date.now() - aiStart;
+      } catch (fallbackErr) {
+        const durationMs = Date.now() - startTime;
+        console.error("[generatePoster] fallback model also failed", fallbackErr);
+        const usage: GenerationUsage = {
+          route: "poster",
+          model: FALLBACK_MODEL_ID,
+          inputTokens: 0,
+          outputTokens: 0,
+          imagesGenerated: 0,
+          durationMs,
+          success: false,
+          error: fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr),
+        };
+        throw Object.assign(
+          new Error(`Image generation failed: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`),
+          { usage }
+        );
+      }
+    } else {
+      const durationMs = Date.now() - startTime;
+      console.error("[generatePoster] generateText threw", primaryErr);
+      const usage: GenerationUsage = {
+        route: "poster",
+        model: PRIMARY_MODEL_ID,
+        inputTokens: 0,
+        outputTokens: 0,
+        imagesGenerated: 0,
+        durationMs,
+        success: false,
+        error: primaryErr instanceof Error ? primaryErr.message : String(primaryErr),
+      };
+      throw Object.assign(
+        new Error(`Image generation failed: ${primaryErr instanceof Error ? primaryErr.message : String(primaryErr)}`),
+        { usage }
+      );
+    }
   }
 
   const durationMs = Date.now() - startTime;
@@ -285,7 +329,7 @@ export async function generatePoster(
     });
     const usage: GenerationUsage = {
       route: "poster",
-      model: PAID_MODEL_ID,
+      model: usedModelId,
       inputTokens: result.usage?.inputTokens ?? 0,
       outputTokens: result.usage?.outputTokens ?? 0,
       imagesGenerated: 0,
@@ -310,7 +354,7 @@ export async function generatePoster(
 
   const usage: GenerationUsage = {
     route: "poster",
-    model: PAID_MODEL_ID,
+    model: usedModelId,
     inputTokens: result.usage?.inputTokens ?? 0,
     outputTokens: result.usage?.outputTokens ?? 0,
     imagesGenerated: 1,
@@ -320,7 +364,7 @@ export async function generatePoster(
 
   console.info("[generatePoster] success", {
     requestId,
-    model: PAID_MODEL_ID,
+    model: usedModelId,
     recipe: recipe?.name ?? "none",
     durationMs,
     inputTokens: usage.inputTokens,
