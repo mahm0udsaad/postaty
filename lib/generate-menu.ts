@@ -12,6 +12,7 @@ import {
   compressLogoFromDataUrl,
   getSharp,
 } from "./image-helpers";
+import { prepareMenuContext } from "./pre-translate";
 import type { MenuFormData } from "./types";
 import type { BrandKitPromptData } from "./prompts";
 import type { GeneratedDesign, GenerationUsage } from "./generate-designs";
@@ -26,24 +27,42 @@ export async function generateMenu(
   data: MenuFormData,
   brandKit?: BrandKitPromptData
 ): Promise<GeneratedDesign & { usage: GenerationUsage }> {
-  const systemPrompt = getMenuSystemPrompt(data, brandKit);
-  let userMessage = getMenuUserMessage(data);
-
   // Enrich with a menu design recipe for creative direction
   const [recipe] = selectMenuRecipes(data.menuCategory, 1, data.campaignType);
+
+  // Phase 1: Load inspiration images, compress item images + logo in parallel
+  const inspirationImages = await getMenuInspirationImages(
+    data.menuCategory,
+    3,
+    data.campaignType
+  );
+
+  const itemImages = await Promise.all(
+    data.items.map((item) => compressImageFromDataUrl(item.image, 600, 600, 70))
+  );
+  const logoPart = await compressLogoFromDataUrl(data.logo);
+
+  // Phase 2: Context prep — Gemini 2.5 Pro analyzes images + translates if needed
+  // Menu auto-detects language (no explicit selector). Pass detected language as both
+  // input and target so translation is skipped, but design brief still runs.
+  const { data: translatedData, wasTranslated, designBrief } = await prepareMenuContext(
+    data,
+    "auto",
+    inspirationImages,
+    itemImages,
+    logoPart
+  );
+
+  // Phase 3: Build prompts using translated data
+  const systemPrompt = getMenuSystemPrompt(translatedData, brandKit);
+  let userMessage = getMenuUserMessage(translatedData);
+
   if (recipe) {
     const recipeDirective = formatMenuRecipeForPrompt(recipe, data.campaignType);
     userMessage += `\n\n${recipeDirective}`;
   }
 
   userMessage += `\n\nMake this menu design professional, visually striking, and ensure ALL items are clearly visible with their prices.`;
-
-  // Load menu inspiration images (3 references for layout guidance)
-  const inspirationImages = await getMenuInspirationImages(
-    data.menuCategory,
-    3,
-    data.campaignType
-  );
 
   const formatConfig = MENU_FORMAT_CONFIG;
 
@@ -53,6 +72,7 @@ export async function generateMenu(
     inspirationCount: inspirationImages.length,
     itemCount: data.items.length,
     menuCategory: data.menuCategory,
+    preTranslated: wasTranslated,
   });
 
   // Build multimodal content parts
@@ -70,9 +90,8 @@ export async function generateMenu(
     });
   }
 
-  // 2. Add item images (compressed to 600x600 to fit within token budget)
-  for (const item of data.items) {
-    const itemPart = await compressImageFromDataUrl(item.image, 600, 600, 70);
+  // 2. Add item images (already compressed)
+  for (const itemPart of itemImages) {
     if (itemPart) {
       contentParts.push({
         type: "image" as const,
@@ -82,8 +101,7 @@ export async function generateMenu(
     }
   }
 
-  // 3. Add logo image (compressed, PNG to preserve transparency)
-  const logoPart = await compressLogoFromDataUrl(data.logo);
+  // 3. Add logo image
   if (logoPart) {
     contentParts.push({
       type: "image" as const,
@@ -102,15 +120,24 @@ export async function generateMenu(
     contextText += `\n`;
   }
 
-  contextText += `The next ${data.items.length} images are the product/item photos (in order):\n`;
-  data.items.forEach((item, i) => {
+  contextText += `The next ${translatedData.items.length} images are the product/item photos (in order):\n`;
+  translatedData.items.forEach((item, i) => {
     contextText += `  Image ${inspirationImages.length + i + 1}: "${item.name}" — Price: ${item.price}\n`;
   });
   contextText += `Display each product photo EXACTLY as provided. Do NOT redraw or stylize them.\n\n`;
 
   if (logoPart) {
-    contextText += `The last image is the business logo — include it EXACTLY as given. Do NOT modify or redraw it.\n\n`;
+    contextText += `The last image is the business logo — embed it as-is like pasting a sticker. Do NOT redraw, recreate, or re-render the logo. Place the logo EXACTLY ONCE.\n\n`;
   }
+
+  // Inject design brief
+  if (designBrief) {
+    contextText += `## Creative Director's Brief\n${designBrief}\n\n`;
+  }
+
+  contextText += wasTranslated
+    ? `CRITICAL: All text below has been pre-translated to the target language. Render EVERY text string EXACTLY as written — character-for-character. You are a LAYOUT ENGINE — paste the given text, do NOT create, modify, or translate any text yourself.\n\n`
+    : ``;
 
   contextText += userMessage;
 

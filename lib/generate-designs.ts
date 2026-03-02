@@ -17,7 +17,7 @@ import { getInspirationImages } from "./inspiration-images";
 import { FORMAT_CONFIGS } from "./constants";
 import { buildImageProviderOptions, compressImageFromDataUrl, compressLogoFromDataUrl, getSharp } from "./image-helpers";
 import { resolvePosterLanguage } from "./resolved-language";
-import { preTranslateIfNeeded } from "./pre-translate";
+import { prepareContext } from "./pre-translate";
 import type { PostFormData, MarketingContentHub, SocialPlatform, PlatformContent } from "./types";
 import type { BrandKitPromptData } from "./prompts";
 
@@ -118,16 +118,24 @@ export async function generatePoster(
     return value;
   };
 
-  const [inspirationImages, productPart, logoPart, preTranslateResult] = GEN_PARALLEL_PREP_ENABLED
-    ? await Promise.all([loadInspiration(), compressProduct(), compressLogo(), preTranslateIfNeeded(data, resolvedLanguage)])
-    : [await loadInspiration(), await compressProduct(), await compressLogo(), await preTranslateIfNeeded(data, resolvedLanguage)];
+  // Phase 1: Load and compress images in parallel
+  const [inspirationImages, productPart, logoPart] = GEN_PARALLEL_PREP_ENABLED
+    ? await Promise.all([loadInspiration(), compressProduct(), compressLogo()])
+    : [await loadInspiration(), await compressProduct(), await compressLogo()];
 
-  const { data: translatedData, wasTranslated } = preTranslateResult;
+  // Phase 2: Context prep — Gemini 2.5 Pro analyzes all images + translates text
+  const { data: translatedData, wasTranslated, designBrief, translatedDropdowns } = await prepareContext(
+    data,
+    resolvedLanguage,
+    inspirationImages,
+    productPart,
+    logoPart
+  );
 
-  // Build prompts AFTER pre-translation so they use translated text
+  // Phase 3: Build prompts using translated data + design brief
   const promptBuildStart = Date.now();
   const systemPrompt = getImageDesignSystemPrompt(translatedData, resolvedLanguage, brandKit, wasTranslated);
-  let userMessage = getImageDesignUserMessage(translatedData, resolvedLanguage, wasTranslated);
+  let userMessage = getImageDesignUserMessage(translatedData, resolvedLanguage, wasTranslated, translatedDropdowns);
 
   if (recipe) {
     const recipeDirective = formatRecipeForPrompt(recipe, data.campaignType);
@@ -214,6 +222,11 @@ export async function generatePoster(
   if (logoPart) {
     contextText += `The last image is the business logo — embed it as-is like pasting a sticker. Do NOT redraw, recreate, or re-render the logo. If the logo has text in it, that text is part of the image — do NOT re-type it. Place the logo EXACTLY ONCE.\n`;
   }
+  // Inject AI-generated design brief from context prep
+  if (designBrief) {
+    contextText += `\n## Creative Director's Brief (from visual analysis of all images above)\n${designBrief}\n`;
+  }
+
   contextText += wasTranslated
     ? `\nCRITICAL REMINDER: All text in the EXACT TEXT INVENTORY below has already been pre-translated to the target language. Render EVERY text string EXACTLY as written — character-for-character. Do NOT translate, transliterate, or modify any text. Do NOT invent any text, slogans, taglines, or promotional phrases. Do NOT add text to the product image. Show the product EXACTLY once. Show the logo EXACTLY once.\n`
     : `\nCRITICAL REMINDER: Render ONLY text from the EXACT TEXT INVENTORY below — nothing else. Translate inventory text to the target poster language if needed. Do NOT invent any text, slogans, taglines, or promotional phrases. Do NOT add text to the product image. Show the product EXACTLY once. Show the logo EXACTLY once.\n`;

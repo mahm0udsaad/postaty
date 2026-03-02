@@ -23,5 +23,8 @@ export const reelSpecModel = google("gemini-3.1-pro-preview");
 /** Marketing content model — Gemini 3 Flash with web search grounding */
 export const marketingContentModel = google("gemini-3-flash-preview");
 
+/** Pre-translation model — Gemini 2.5 Pro (best reasoning, accurate translations) */
+export const translationModel = google("gemini-2.5-pro");
+
 /** Google provider instance for accessing tools (e.g. googleSearch) */
 export { google };

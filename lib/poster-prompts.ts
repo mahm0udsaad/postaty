@@ -101,8 +101,9 @@ ${preTranslated
 - For all other languages: use LTR text direction for the overall layout
 
 ## Text Accuracy Rules (CRITICAL — READ CAREFULLY)
+- You are a LAYOUT ENGINE, not a copywriter. Your job is to PLACE the given text strings on the poster — NEVER write or create text yourself
 - The poster must contain ONLY the text listed in the "EXACT TEXT INVENTORY" section of the user message — NOTHING else
-- Every word on the poster MUST be copied EXACTLY, character-by-character, from the inventory
+- Every word on the poster MUST be copied EXACTLY, character-by-character, from the inventory — treat each string as a pre-rendered label you paste into the design
 - Do NOT paraphrase, abbreviate, rephrase, merge, or "improve" any user-provided text
 - Do NOT invent, hallucinate, or generate ANY text that is not in the inventory
 - ABSOLUTELY NO creative slogans, taglines, promotional phrases, marketing headlines, or catchy lines — if it's not in the inventory, it MUST NOT appear on the poster
@@ -248,9 +249,15 @@ function fieldLine(label: string, value: string, langName: string, preTranslated
     : `- ${label}: "${value}" → translate to ${langName}`;
 }
 
-export function getImageDesignUserMessage(data: PostFormData, posterLanguage?: string, preTranslated?: boolean): string {
+export function getImageDesignUserMessage(
+  data: PostFormData,
+  posterLanguage?: string,
+  preTranslated?: boolean,
+  translatedDropdowns?: { offerBadgeText?: string; deliveryText?: string } | null
+): string {
   const lang = posterLanguage || data.posterLanguage || "en";
-  const cta = translateCta(data.cta, lang);
+  // When pre-translated, the CTA is already in the target language (translated by Gemini 2.5 Pro)
+  const cta = preTranslated ? data.cta : translateCta(data.cta, lang);
   const langName = langDisplayName(lang);
   const campaignLine =
     data.campaignType !== "standard"
@@ -260,6 +267,11 @@ export function getImageDesignUserMessage(data: PostFormData, posterLanguage?: s
   const inventoryHeader = preTranslated
     ? `EXACT TEXT INVENTORY — poster language: ${langName}\nALL text below is already in ${langName}. Render EXACTLY as written — do NOT translate, transliterate, or modify any text. Only these items may appear on the poster:`
     : `EXACT TEXT INVENTORY — poster language: ${langName}\nTranslate ALL text below to ${langName} before rendering. Only these items may appear on the poster:`;
+
+  // Use AI-translated dropdown values when available, fall back to static tables
+  const dataAny = data as unknown as Record<string, string | undefined>;
+  const badgeText = translatedDropdowns?.offerBadgeText || (dataAny.offerBadge ? translateBadge(dataAny.offerBadge, lang) : null);
+  const deliveryText = translatedDropdowns?.deliveryText || (dataAny.deliveryType ? translateDelivery(dataAny.deliveryType, lang) : null);
 
   switch (data.category) {
     case "restaurant":
@@ -277,7 +289,7 @@ ${inventoryHeader}
 ${fieldLine("Product name", data.mealName, langName, preTranslated)}
 ${data.description ? `${fieldLine("Description", data.description, langName, preTranslated)}\n` : ""}- New price: "${data.newPrice}"
 - Old price: "${data.oldPrice}"
-${data.offerBadge ? `- Offer badge: "${translateBadge(data.offerBadge, lang)}"\n` : ""}${data.deliveryType ? `- Delivery: "${translateDelivery(data.deliveryType, lang)}"\n` : ""}${data.offerDuration ? `${fieldLine("Offer duration", data.offerDuration, langName, preTranslated)}\n` : ""}- CTA: "${cta}"
+${badgeText ? `- Offer badge: "${badgeText}"\n` : ""}${deliveryText ? `- Delivery: "${deliveryText}"\n` : ""}${data.offerDuration ? `${fieldLine("Offer duration", data.offerDuration, langName, preTranslated)}\n` : ""}- CTA: "${cta}"
 - WhatsApp: "${data.whatsapp}"
 NOTHING else. No "menu", no extra labels, no decorative text.`;
 
