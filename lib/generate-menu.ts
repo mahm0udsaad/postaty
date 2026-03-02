@@ -102,16 +102,7 @@ export async function generateMenu(
     }
   }
 
-  // 3. Add logo image
-  if (logoPart) {
-    contentParts.push({
-      type: "image" as const,
-      image: logoPart.image,
-      mediaType: logoPart.mediaType,
-    });
-  }
-
-  // 4. Build context text explaining each image
+  // 3. Build context text explaining each image
   let contextText = "";
   if (inspirationImages.length > 0) {
     contextText += `The first ${inspirationImages.length} image(s) are professional menu/flyer references — match their layout quality, grid structure, and composition style.\n`;
@@ -128,7 +119,7 @@ export async function generateMenu(
   contextText += `Display each product photo EXACTLY as provided. Do NOT redraw or stylize them.\n\n`;
 
   if (logoPart) {
-    contextText += `The last image is the business logo — embed it as-is like pasting a sticker. Do NOT redraw, recreate, or re-render the logo. Place the logo EXACTLY ONCE.\n\n`;
+    contextText += `IMPORTANT: Do NOT draw or recreate any logo yourself.\n\n`;
   }
 
   // Inject design brief
@@ -202,10 +193,25 @@ export async function generateMenu(
 
   // Resize to A4 dimensions and output as JPEG to keep file size under 10MB
   const sharp = await getSharp();
-  const resizedBuffer = await sharp(Buffer.from(imageFile.uint8Array))
+  let resizedBuffer = await sharp(Buffer.from(imageFile.uint8Array))
     .resize(formatConfig.width, formatConfig.height, { fit: "fill" })
     .jpeg({ quality: 92 })
     .toBuffer();
+
+  // Hard guarantee: place the exact uploaded logo file onto the final image.
+  if (logoPart) {
+    const logoWidth = Math.round(formatConfig.width * 0.18);
+    const logoInset = Math.round(formatConfig.width * 0.03);
+    const logoOverlay = await sharp(logoPart.image)
+      .resize({ width: logoWidth, fit: "inside", withoutEnlargement: true })
+      .png()
+      .toBuffer();
+
+    resizedBuffer = await sharp(resizedBuffer)
+      .composite([{ input: logoOverlay, top: logoInset, left: logoInset }])
+      .jpeg({ quality: 92 })
+      .toBuffer();
+  }
 
   const base64 = resizedBuffer.toString("base64");
   const base64DataUrl = `data:image/jpeg;base64,${base64}`;

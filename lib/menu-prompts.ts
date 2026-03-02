@@ -61,7 +61,7 @@ Generate a SINGLE high-quality A4 portrait menu image (${fmt.width}x${fmt.height
 - Do NOT add objects, ingredients, or decorations not present in the original product images
 - Maintain each product's original shape, colors, and proportions
 - Products should look like real photographs placed into a designed layout
-- Include the business logo EXACTLY as given — do NOT redraw or restyle it
+- Do NOT draw or recreate any logo yourself
 
 ${MENU_CATEGORY_STYLES[data.menuCategory]}
 ${MENU_CAMPAIGN_GUIDANCE[data.campaignType] ? `\n${MENU_CAMPAIGN_GUIDANCE[data.campaignType]}\n` : `\nIMPORTANT: This is a STANDARD (non-seasonal) campaign. Do NOT use any religious, seasonal, or holiday motifs.
