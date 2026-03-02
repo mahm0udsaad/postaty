@@ -944,7 +944,7 @@ function CreatePageContent() {
                       className="hidden sm:flex items-center gap-2 px-3 py-1 rounded-full text-xs font-bold"
                       style={{ backgroundColor: `${CATEGORY_THEMES[category].accent}15`, color: CATEGORY_THEMES[category].accent }}
                     >
-                        <Image src="/icon_logo_svg.svg" alt="postaty" width={12} height={12} className="object-contain" />
+                        <Image src="/icon_logo.png" alt="postaty" width={12} height={12} className="object-contain" />
                         <span>{locale === "ar" ? CATEGORY_LABELS[category] : CATEGORY_LABELS_EN[category]}</span>
                     </div>
                   )}

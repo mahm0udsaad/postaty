@@ -402,7 +402,7 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
                          <div className="absolute top-2 right-2 bg-black/60 text-white text-[10px] px-2 py-0.5 rounded">{t("قبل", "Before")}</div>
                       </div>
                       <div className="flex-1 h-full relative rounded-xl overflow-hidden border border-primary/30 rotate-[2deg] z-10 shadow-2xl group-hover:scale-105 transition-all duration-500">
-                         <Image src="/showcase/image.png" alt={t("بعد", "After")} fill sizes="(max-width: 768px) 42vw, 26vw" className="object-cover" />
+                         <Image src="/showcase/image.webp" alt={t("بعد", "After")} fill sizes="(max-width: 768px) 42vw, 26vw" className="object-cover" />
                          <div className="absolute top-2 right-2 bg-primary text-white text-[10px] px-2 py-0.5 rounded">{t("بعد", "After")}</div>
                       </div>
                   </div>

@@ -10,6 +10,7 @@ import { Footer } from "./components/footer";
 import { AccountStatusGate } from "./components/account-status-gate";
 import { LocaleProvider } from "./components/locale-provider";
 import { isRtlLocale, LOCALE_COOKIE, normalizeLocale } from "@/lib/i18n";
+import { prefetchLayoutData } from "@/lib/prefetch-layout";
 import { Toaster } from "sonner";
 import "./globals.css";
 
@@ -104,7 +105,10 @@ export default async function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const cookieStore = await cookies();
+  const [cookieStore, layoutData] = await Promise.all([
+    cookies(),
+    prefetchLayoutData(),
+  ]);
   const locale = normalizeLocale(cookieStore.get(LOCALE_COOKIE)?.value);
   const dir = isRtlLocale(locale) ? "rtl" : "ltr";
 
@@ -123,8 +127,8 @@ export default async function RootLayout({
           <SupabaseProvider>
             <ScrollToTop />
             <AuthSync />
-            <AccountStatusGate>
-              <NavBar locale={locale} />
+            <AccountStatusGate initialUser={layoutData.user}>
+              <NavBar locale={locale} initialCreditState={layoutData.creditState} />
               <main className="pb-20 md:pb-0 min-h-screen">{children}</main>
               <Footer locale={locale} />
               <BottomDock />

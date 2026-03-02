@@ -4,22 +4,32 @@ import useSWR from "swr";
 import { useAuth } from "@/hooks/use-auth";
 import { ShieldX, Ban, LogOut } from "lucide-react";
 import { useLocale } from "@/hooks/use-locale";
+import type { PrefetchedUser } from "@/lib/prefetch-layout";
 
 const fetcher = (url: string) => fetch(url).then(r => {
   if (!r.ok) throw new Error('API error');
   return r.json();
 });
 
-export function AccountStatusGate({ children }: { children: React.ReactNode }) {
-  return <AccountStatusGateInner>{children}</AccountStatusGateInner>;
+type AccountStatusGateProps = {
+  children: React.ReactNode;
+  initialUser?: PrefetchedUser;
+};
+
+export function AccountStatusGate({ children, initialUser }: AccountStatusGateProps) {
+  return <AccountStatusGateInner initialUser={initialUser}>{children}</AccountStatusGateInner>;
 }
 
-function AccountStatusGateInner({ children }: { children: React.ReactNode }) {
+function AccountStatusGateInner({ children, initialUser }: AccountStatusGateProps) {
   const { t } = useLocale();
   const { userId, isSignedIn, signOut } = useAuth();
   const { data: currentUser } = useSWR(
     isSignedIn ? '/api/users/me' : null,
-    fetcher
+    fetcher,
+    {
+      fallbackData: initialUser ? { status: initialUser.status, statusReason: initialUser.statusReason } : undefined,
+      revalidateOnMount: !initialUser,
+    }
   );
 
   // Not signed in, loading, or no user record yet -> render normally

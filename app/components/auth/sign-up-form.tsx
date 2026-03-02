@@ -76,7 +76,7 @@ export function SignUpForm() {
       <div className="flex flex-col items-center gap-4 mb-8">
         <Link href="/" className="hover:opacity-80 transition-opacity">
           <Image
-            src="/name_logo_svg.svg"
+            src="/name_logo.png"
             alt="Postaty Logo"
             width={360}
             height={96}

@@ -23,7 +23,6 @@ const COPY = {
     pricing: "الأسعار",
     showcase: "أعمالنا",
     about: "من نحن",
-    blog: "المدونة",
     contactUs: "اتصل بنا",
     location: "دبي، الإمارات العربية المتحدة",
     rights: "جميع الحقوق محفوظة.",
@@ -40,7 +39,6 @@ const COPY = {
     pricing: "Pricing",
     showcase: "Showcase",
     about: "About",
-    blog: "Blog",
     contactUs: "Contact Us",
     location: "Dubai, United Arab Emirates",
     rights: "All rights reserved.",
@@ -65,7 +63,7 @@ export function Footer({ locale }: FooterProps) {
             <Link href="/" className="flex items-center gap-2 group">
               <div className="relative size-24 transition-transform duration-300 group-hover:rotate-12">
                 <Image
-                  src="/name_logo_svg.svg"
+                  src="/name_logo.png"
                   alt="Postaty Symbol"
                   fill
                   className="object-contain"
@@ -104,11 +102,6 @@ export function Footer({ locale }: FooterProps) {
               <li>
                 <Link href="/about" className="hover:text-primary transition-colors">
                   {copy.about}
-                </Link>
-              </li>
-              <li>
-                <Link href="/blog" className="hover:text-primary transition-colors">
-                  {copy.blog}
                 </Link>
               </li>
               <li>

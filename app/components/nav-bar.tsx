@@ -4,13 +4,14 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import type { MouseEvent } from "react";
-import { Palette, Clock, Plus, Loader2, Settings, Coins, Languages } from "lucide-react";
+import { Palette, Clock, Plus, Settings, Coins, Languages } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import useSWR from "swr";
 import { ThemeToggle } from "./theme-toggle";
 import { NotificationBell } from "./notification-bell";
 import type { AppLocale } from "@/lib/i18n";
 import { LOCALE_COOKIE } from "@/lib/i18n";
+import type { PrefetchedCreditState } from "@/lib/prefetch-layout";
 
 const fetcher = (url: string) => fetch(url).then(r => {
   if (!r.ok) throw new Error('API error');
@@ -48,6 +49,7 @@ const COPY = {
 
 type NavBarProps = {
   locale: AppLocale;
+  initialCreditState?: PrefetchedCreditState;
 };
 
 type AuthUserLike = {
@@ -59,16 +61,16 @@ type AuthUserLike = {
   };
 };
 
-export function NavBar({ locale }: NavBarProps) {
+export function NavBar({ locale, initialCreditState }: NavBarProps) {
   const pathname = usePathname();
   const isAuthPage = pathname.startsWith("/sign-in") || pathname.startsWith("/sign-up");
 
   if (isAuthPage) return null;
 
-  return <NavBarContent locale={locale} />;
+  return <NavBarContent locale={locale} initialCreditState={initialCreditState} />;
 }
 
-function NavBarContent({ locale }: NavBarProps) {
+function NavBarContent({ locale, initialCreditState }: NavBarProps) {
   const pathname = usePathname();
   const router = useRouter();
   const { isLoaded, isSignedIn, user } = useAuth();
@@ -105,7 +107,7 @@ function NavBarContent({ locale }: NavBarProps) {
           <Link href="/" onClick={handleLogoClick} className="flex items-center gap-2 group">
             <div className="relative size-24 md:transition-transform md:duration-300 md:group-hover:rotate-12">
               <Image
-                src="/name_logo_svg.svg"
+                src="/name_logo.png"
                 alt="Postaty Symbol"
                 fill
                 className="object-contain "
@@ -158,11 +160,17 @@ function NavBarContent({ locale }: NavBarProps) {
             </button>
 
             {!isLoaded ? (
-              <Loader2 size={20} className="animate-spin text-muted" />
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-surface-2/60 border border-card-border">
+                  <div className="w-3.5 h-3.5 rounded-full bg-muted/30 animate-pulse" />
+                  <div className="w-6 h-4 rounded bg-muted/30 animate-pulse" />
+                </div>
+                <div className="w-9 h-9 rounded-full bg-muted/30 animate-pulse border-2 border-card-border" />
+              </div>
             ) : isSignedIn ? (
               <>
                 <NotificationBell />
-                <CreditsBadge locale={locale} user={user} />
+                <CreditsBadge locale={locale} user={user} initialCreditState={initialCreditState} />
               </>
             ) : (
               <div className="hidden sm:block">
@@ -178,8 +186,11 @@ function NavBarContent({ locale }: NavBarProps) {
   );
 }
 
-function CreditsBadge({ locale, user }: NavBarProps & { user: AuthUserLike | null | undefined }) {
-  const { data: creditState } = useSWR('/api/billing', fetcher);
+function CreditsBadge({ locale, user, initialCreditState }: NavBarProps & { user: AuthUserLike | null | undefined }) {
+  const { data: creditState } = useSWR('/api/billing', fetcher, {
+    fallbackData: initialCreditState ?? undefined,
+    revalidateOnMount: !initialCreditState,
+  });
   const requiresSubscription =
     !!creditState &&
     "planKey" in creditState &&

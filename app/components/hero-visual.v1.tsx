@@ -43,7 +43,7 @@ export function HeroVisual() {
   const [lowPowerMode, setLowPowerMode] = useState(false);
 
   useEffect(() => {
-    const media = window.matchMedia("(prefers-reduced-motion: reduce), (max-width: 1024px)");
+    const media = window.matchMedia("(prefers-reduced-motion: reduce), (pointer: coarse)");
     const sync = () => setLowPowerMode(media.matches);
     sync();
     media.addEventListener("change", sync);

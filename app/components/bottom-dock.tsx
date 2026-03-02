@@ -4,8 +4,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Sparkles, Palette, Clock, Images, Settings, Plus } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { motion } from "framer-motion";
-import { SPRING } from "@/lib/animation";
 import { useLocale } from "@/hooks/use-locale";
 
 type NavItemConfig = {
@@ -38,16 +36,13 @@ export function BottomDock() {
         {/* FAB */}
         <div className="absolute bottom-[calc(4rem+env(safe-area-inset-bottom)-1.5rem)] left-1/2 -translate-x-1/2 z-50">
            <Link href="/create">
-             <motion.div
-              whileTap={{ scale: 0.85, rotate: -8 }}
-              whileHover={{ scale: 1.05 }}
-              transition={SPRING.snappy}
-              className="w-16 h-16 rounded-full bg-gradient-to-tr from-primary via-primary-hover to-accent text-primary-foreground flex items-center justify-center shadow-[0_8px_30px_rgba(139,92,246,0.4)] border-4 border-background/50 relative group overflow-hidden"
+             <div
+              className="w-16 h-16 rounded-full bg-gradient-to-tr from-primary via-primary-hover to-accent text-primary-foreground flex items-center justify-center shadow-[0_8px_30px_rgba(139,92,246,0.4)] border-4 border-background/50 relative group overflow-hidden transition-transform duration-200 active:scale-[0.85] active:rotate-[-8deg] hover:scale-105"
             >
               <div className="absolute inset-0 bg-white/20 translate-y-full group-hover:translate-y-0 transition-transform duration-300 rounded-full" />
               <Sparkles size={28} className="absolute opacity-0 scale-0 group-hover:opacity-100 group-hover:scale-100 transition-all duration-300" />
               <Plus size={32} strokeWidth={2.5} className="group-hover:opacity-0 group-hover:scale-50 transition-all duration-300" />
-            </motion.div>
+            </div>
           </Link>
         </div>
 
@@ -107,11 +102,7 @@ function NavItem({ item, pathname, t }: { item: NavItemConfig; pathname: string;
           className={`transition-all duration-300 ${isActive ? 'scale-110' : 'group-hover:scale-110'}`}
         />
         {isActive && (
-          <motion.div
-            layoutId="nav-glow"
-            className="absolute inset-0 bg-primary/20 rounded-full blur-md"
-            transition={{ type: "spring", stiffness: 300, damping: 30 }}
-          />
+          <div className="absolute inset-0 bg-primary/20 rounded-full blur-md animate-fade-in" />
         )}
       </div>
 
@@ -121,10 +112,7 @@ function NavItem({ item, pathname, t }: { item: NavItemConfig; pathname: string;
 
       {/* Active Dot */}
       {isActive && (
-         <motion.div
-            layoutId="nav-dot"
-            className="absolute -bottom-1 w-1 h-1 bg-primary rounded-full"
-         />
+         <div className="absolute -bottom-1 w-1 h-1 bg-primary rounded-full animate-fade-in" />
       )}
     </Link>
   );
