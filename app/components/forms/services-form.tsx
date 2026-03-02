@@ -123,7 +123,6 @@ export function ServicesForm({ onSubmit, onPrewarmHint, isLoading, defaultValues
     if (!priceTypeValue) newErrors.priceType = t("نوع السعر مطلوب", "Price type is required");
     if (!whatsapp) newErrors.whatsapp = t("رقم الواتساب مطلوب", "WhatsApp number is required");
     if (!logo) newErrors.logo = t("اللوجو مطلوب", "Logo is required");
-    if (!serviceImage) newErrors.serviceImage = t("صورة الخدمة مطلوبة", "Service image is required");
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -229,8 +228,17 @@ export function ServicesForm({ onSubmit, onPrewarmHint, isLoading, defaultValues
                {errors.logo && <p className="text-xs text-red-500 font-medium mt-2">{errors.logo}</p>}
              </div>
              <div>
-               <ImageUpload label={t("صورة الخدمة", "Service image")} value={serviceImage} onChange={setServiceImage} />
-               {errors.serviceImage && <p className="text-xs text-red-500 font-medium mt-2">{errors.serviceImage}</p>}
+               <div className="space-y-3">
+                 <div>
+                   <ImageUpload label={t("صورة الخدمة (اختياري)", "Service image (optional)")} value={serviceImage} onChange={setServiceImage} />
+                 </div>
+                 <p className="text-xs text-muted/70 bg-surface-1 p-3 rounded-lg border border-card-border">
+                   {t(
+                     "💡 إذا أضفت صورة الخدمة، سيتم دمج عنصر ثلاثي الأبعاد احترافي منها في التصميم. إذا لم تضف صورة، سنولد تصميماً ثلاثي الأبعاد فني يمثل خدمتك.",
+                     "💡 Add a service image to get a professional 3D element in your design. If you skip it, we'll generate an artistic 3D illustration for your service."
+                   )}
+                 </p>
+               </div>
              </div>
           </div>
 

@@ -311,7 +311,7 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
 
             <p className="text-lg text-muted max-w-xl mx-auto lg:mx-0 leading-relaxed">
               {t(
-                "بوستاتي يحول صورة منتجك إلى إعلان احترافي يركز على أهدافك البيعية، مع تحسينات ذكية لظهور أقوى (SEO) لعلامتك التجارية.",
+                "بوستاتي يحول صورة منتجك إلى إعلان احترافي يركز على زياده مبيعاتك ، مع تحسينات ذكية لظهور أقوى (SEO) لعلامتك التجارية.",
                 "Postaty turns your product image into a professional ad focused on your sales goals, with smart SEO optimizations for a stronger brand presence."
               )}
               <br className="hidden md:block" />

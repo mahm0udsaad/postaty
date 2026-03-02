@@ -148,6 +148,10 @@ export async function generateMenu(
 
   contextText += userMessage;
 
+  // Final reinforcement — the last thing the model reads is most influential
+  const itemNamesList = translatedData.items.map((item, i) => `${i + 1}. "${item.name}"`).join(", ");
+  contextText += `\n\n## FINAL VERIFICATION (read this last)\nThe menu MUST contain EXACTLY ${translatedData.items.length} product cells: ${itemNamesList}. That is the COMPLETE list. Any product not in this list is FORBIDDEN — do NOT invent, duplicate, or add extra items under any circumstances.`;
+
   contentParts.push({ type: "text" as const, text: contextText });
 
   const startTime = Date.now();

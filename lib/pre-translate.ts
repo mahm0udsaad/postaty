@@ -243,9 +243,9 @@ ${imageContext}
 
 ## YOUR TASK
 Analyze ALL provided images and write a SHORT design brief (3-5 sentences) covering:
-${inspirationImages.length > 0 ? `- **Inspiration style**: Layout style, color scheme, composition from the reference posters.` : ""}
+${inspirationImages.length > 0 ? `- **Inspiration style**: Layout structure, composition, and element placement from the reference posters. Do NOT describe or recommend the inspiration color scheme — colors must come from the logo only.` : ""}
 ${productImage ? `- **Product**: What exactly is shown in the product photo? Be specific (e.g., "a pepperoni pizza on a red ceramic plate").` : ""}
-${logoImage ? `- **Logo**: Describe the logo's visual appearance (colors, shape, text). The designer must embed this logo image as-is — NEVER redraw it.` : ""}
+${logoImage ? `- **Logo**: Describe the logo's visual appearance (colors, shape, text). The designer must embed this logo image as-is — NEVER redraw it. IMPORTANT: The logo's dominant colors MUST be the primary color palette for the entire poster design.` : ""}
 - **Layout suggestion**: A clean layout approach based on the inspiration and product.
 
 Respond with ONLY the brief text. No JSON, no headers.`;

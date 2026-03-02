@@ -188,6 +188,17 @@ You will receive reference poster designs. Match or exceed their professional qu
     }
   }
 
+  // Special instruction for services without an image
+  if (data.category === "services" && !data.serviceImage) {
+    prompt += `\n\n## IMPORTANT: Services with Generated 3D Visual
+- NO service image was provided by the user — you MUST generate a professional 3D illustration as the hero element
+- The 3D visual should represent the service type and look modern, glossy, and dimensional
+- Examples: 3D icons, isometric illustrations, rendered objects, or abstract 3D shapes related to the service
+- The 3D element is REQUIRED and should be the main visual centerpiece, not abstract shapes or patterns alone
+- Use lighting, shadows, and perspective to create depth and visual impact
+- This OVERRIDES the normal "no decorative illustrations" rule — for services without images, a generated 3D visual IS the main product image`;
+  }
+
   return prompt;
 }
 
@@ -349,7 +360,8 @@ NOTHING else. No extra labels, no decorative text.`;
 Business: ${data.businessName} | Service: ${data.serviceName} | Price: ${data.price}
 ${campaignLine}
 
-The service image and business logo are provided as images in this message.
+The business logo is provided as an image in this message.
+${data.serviceImage ? `A service image is also provided — use it as the hero element, or generate a professional 3D illustration/visual representation of this service if the image needs enhancement.` : `NO service image was provided by the user. You MUST generate a professional, artistic 3D illustration or visual representation that represents the service type "${data.serviceType}" (${data.serviceName}). The 3D element should be prominent and eye-catching, similar to modern design styles with depth, lighting, and dimensionality. This is your opportunity to create an attractive visual centerpiece for the poster.`}
 
 ${inventoryHeader}
 - Business name: "${data.businessName}" (proper noun — do NOT translate)

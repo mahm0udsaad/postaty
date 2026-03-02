@@ -99,7 +99,7 @@ export interface ServicesFormData {
   posterLanguage: string;
   businessName: string;
   logo: string; // base64
-  serviceImage: string; // base64
+  serviceImage?: string; // base64 - optional
   serviceType: string;
   serviceName: string;
   serviceDetails?: string;

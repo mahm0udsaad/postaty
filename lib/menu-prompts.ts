@@ -6,7 +6,7 @@ import type { BrandKitPromptData } from "./prompts";
 
 function getGridLayoutGuidance(itemCount: number): string {
   if (itemCount <= 2) return `  - Use a single row with ${itemCount} columns (1×${itemCount} grid)`;
-  if (itemCount === 3) return `  - Use a single row with 3 columns (1×3 grid) OR a 2+1 layout`;
+  if (itemCount === 3) return `  - Use a single row with 3 columns (1×3 grid) — exactly 3 cells, one per item`;
   if (itemCount === 4) return `  - Use a 2×2 grid (2 rows, 2 columns)`;
   if (itemCount === 5) return `  - Use a 3+2 layout (3 columns top row, 2 columns bottom row)`;
   if (itemCount === 6) return `  - Use a 2×3 grid (2 rows, 3 columns) or 3×2 grid`;
@@ -74,7 +74,7 @@ ${getGridLayoutGuidance(data.items.length)}
 - The final design MUST contain EXACTLY ${data.items.length} product cells — no more, no fewer
 - NEVER duplicate any item to fill empty grid space
 - NEVER invent or hallucinate extra products that were not provided
-- If the grid has empty cells, leave them empty or adjust the grid to fit exactly ${data.items.length} items
+- If the grid has empty cells, shrink the grid to fit exactly ${data.items.length} items — NEVER fill an empty cell with an invented product
 
 ## Product Image Rules (CRITICAL)
 - Display each product image EXACTLY as provided — do NOT redraw, stylize, or artistically reinterpret any product
