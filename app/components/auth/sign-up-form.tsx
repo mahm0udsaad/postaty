@@ -78,9 +78,9 @@ export function SignUpForm() {
           <Image
             src="/name_logo_svg.svg"
             alt="Postaty Logo"
-            width={180}
-            height={50}
-            className="h-12 w-auto object-contain"
+            width={360}
+            height={96}
+            className="h-24 w-auto object-contain"
             priority
           />
         </Link>

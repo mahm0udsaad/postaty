@@ -340,7 +340,7 @@ export function BrandKitForm({ existingKit, redirectTo }: BrandKitFormProps) {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
           {(Object.keys(PALETTE_LABELS) as (keyof BrandPalette)[]).map(
             (key) => (
-              <div key={key} className="space-y-2 rounded-xl border border-card-border/70 bg-surface-1 p-3">
+              <div key={key} className="space-y-2 rounded-xl border border-card-border/70 bg-surface-1 p-3 overflow-hidden">
                 <span className="text-xs font-medium text-muted-foreground">
                   {PALETTE_LABELS[key][locale]}
                 </span>
@@ -355,7 +355,7 @@ export function BrandKitForm({ existingKit, redirectTo }: BrandKitFormProps) {
                     type="text"
                     value={palette[key]}
                     onChange={(e) => handlePaletteChange(key, e.target.value)}
-                    className="flex-1 h-11 px-3 bg-surface-1 rounded-lg border border-card-border text-sm font-mono text-left focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary/40 transition-all"
+                    className="flex-1 min-w-0 h-11 px-3 bg-surface-1 rounded-lg border border-card-border text-sm font-mono text-left focus:outline-none focus:ring-2 focus:ring-primary/10 focus:border-primary/40 transition-all"
                     maxLength={7}
                   />
                 </div>

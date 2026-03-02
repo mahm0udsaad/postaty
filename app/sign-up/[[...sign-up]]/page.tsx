@@ -6,8 +6,6 @@ import { useRouter } from "next/navigation";
 import { SignUpForm } from "@/app/components/auth/sign-up-form";
 import { AuthVisual } from "@/app/components/auth/auth-visual";
 import { useLocale } from "@/hooks/use-locale";
-import Image from "next/image";
-
 export default function SignUpPage() {
   const { t } = useLocale();
   const { isSignedIn, isLoaded } = useAuth();
