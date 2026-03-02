@@ -1,7 +1,7 @@
 "use server";
 
 import { generateText } from "ai";
-import { google } from "@/lib/ai";
+import { google, paidImageModel } from "@/lib/ai";
 import { getMenuSystemPrompt, getMenuUserMessage } from "./menu-prompts";
 import { selectMenuRecipes, formatMenuRecipeForPrompt } from "./menu-design-recipes";
 import { getMenuInspirationImages } from "./menu-inspiration-images";
@@ -12,15 +12,31 @@ import {
   compressLogoFromDataUrl,
   getSharp,
 } from "./image-helpers";
-import { prepareMenuContext } from "./pre-translate";
+
 import type { MenuFormData } from "./types";
 import type { BrandKitPromptData } from "./prompts";
 import type { GeneratedDesign, GenerationUsage } from "./generate-designs";
 
-// ── Model ID ──────────────────────────────────────────────────────
+// ── Model IDs ─────────────────────────────────────────────────────
 
-const PAID_MODEL_ID = "gemini-3-pro-image-preview";
-const menuImageModel = google(PAID_MODEL_ID);
+const PRIMARY_MODEL_ID = "gemini-3-pro-image-preview";
+const FALLBACK_MODEL_ID = "gemini-3.1-flash-image-preview";
+const menuImageModel = google(PRIMARY_MODEL_ID);
+
+/** Check if an error is a capacity/overload issue worth retrying with a fallback model */
+function isCapacityError(err: unknown): boolean {
+  if (!(err instanceof Error)) return false;
+  const msg = err.message.toLowerCase();
+  return (
+    msg.includes("high demand") ||
+    msg.includes("overloaded") ||
+    msg.includes("capacity") ||
+    msg.includes("rate limit") ||
+    msg.includes("resource exhausted") ||
+    msg.includes("503") ||
+    msg.includes("429")
+  );
+}
 
 // ── Generate a single menu/catalog image via Gemini Pro ───────────
 
@@ -31,28 +47,20 @@ export async function generateMenu(
   // Enrich with a menu design recipe for creative direction
   const [recipe] = selectMenuRecipes(data.menuCategory, 1, data.campaignType);
 
-  // Phase 1: Load inspiration images, compress item images + logo in parallel
-  const inspirationImages = await getMenuInspirationImages(
-    data.menuCategory,
-    3,
-    data.campaignType
-  );
+  // Phase 1: Load inspiration images, compress item images + logo — ALL in parallel
+  const [inspirationImages, itemImages, logoPart] = await Promise.all([
+    getMenuInspirationImages(data.menuCategory, 3, data.campaignType),
+    Promise.all(
+      data.items.map((item) => compressImageFromDataUrl(item.image, 600, 600, 70))
+    ),
+    compressLogoFromDataUrl(data.logo),
+  ]);
 
-  const itemImages = await Promise.all(
-    data.items.map((item) => compressImageFromDataUrl(item.image, 600, 600, 70))
-  );
-  const logoPart = await compressLogoFromDataUrl(data.logo);
-
-  // Phase 2: Context prep — Gemini 2.5 Pro analyzes images + translates if needed
-  // Menu auto-detects language (no explicit selector). Pass detected language as both
-  // input and target so translation is skipped, but design brief still runs.
-  const { data: translatedData, wasTranslated, designBrief } = await prepareMenuContext(
-    data,
-    "auto",
-    inspirationImages,
-    itemImages,
-    logoPart
-  );
+  // Phase 2: Skip the extra Gemini 2.5 Pro call — the main model sees all images directly.
+  // Menu always uses "auto" language (no translation needed), and the design brief
+  // added ~15-30s latency for minimal value since only 1 item image was analyzed.
+  const translatedData = data;
+  const wasTranslated = false;
 
   // Phase 3: Build prompts using translated data
   const systemPrompt = getMenuSystemPrompt(translatedData, brandKit);
@@ -68,7 +76,7 @@ export async function generateMenu(
   const formatConfig = MENU_FORMAT_CONFIG;
 
   console.info("[generateMenu] start", {
-    model: PAID_MODEL_ID,
+    model: PRIMARY_MODEL_ID,
     recipe: recipe?.id ?? "none",
     inspirationCount: inspirationImages.length,
     itemCount: data.items.length,
@@ -114,11 +122,12 @@ export async function generateMenu(
   // 4. Build context text explaining each image
   let contextText = "";
   if (inspirationImages.length > 0) {
-    contextText += `The first ${inspirationImages.length} image(s) are professional menu/flyer references — match their layout quality, grid structure, and composition style.\n`;
+    contextText += `The first ${inspirationImages.length} image(s) are professional menu/flyer references — match their visual quality, color palette, and composition style ONLY.\n`;
+    contextText += `CRITICAL: Do NOT match the reference images' grid size or item count. The references may show 6-9 items but YOU must show EXACTLY ${translatedData.items.length} items. Ignore how many products appear in the references.\n`;
     if (data.campaignType === "standard") {
-      contextText += `IMPORTANT: If the reference images contain seasonal or religious motifs, IGNORE those motifs. Use only their general design quality and layout structure.\n`;
+      contextText += `IMPORTANT: If the reference images contain seasonal or religious motifs, IGNORE those motifs. Use only their general design quality.\n`;
     }
-    contextText += `CRITICAL: References are STYLE ONLY. Do NOT copy their products, item count, text, prices, or logo. Build content ONLY from the uploaded item photos and provided item list.\n`;
+    contextText += `CRITICAL: References are STYLE ONLY. Do NOT copy their products, item count, grid layout, text, prices, or logo. Build content ONLY from the uploaded item photos and provided item list.\n`;
     contextText += `\n`;
   }
 
@@ -133,11 +142,6 @@ export async function generateMenu(
     contextText += `The last image is the business logo. You MUST place this exact logo image as-is in the design, exactly once. Do NOT redraw, recreate, restyle, recolor, crop, retype, or modify any part of the logo.\n\n`;
   }
 
-  // Inject design brief
-  if (designBrief) {
-    contextText += `## Creative Director's Brief\n${designBrief}\n\n`;
-  }
-
   contextText += wasTranslated
     ? `CRITICAL: All text below has been pre-translated to the target language. Render EVERY text string EXACTLY as written — character-for-character. You are a LAYOUT ENGINE — paste the given text, do NOT create, modify, or translate any text yourself.\n\n`
     : ``;
@@ -148,35 +152,63 @@ export async function generateMenu(
 
   const startTime = Date.now();
   let result;
+  let usedModelId = PRIMARY_MODEL_ID;
+
+  const generateRequest = {
+    providerOptions: buildImageProviderOptions(formatConfig.aspectRatio, "2K"),
+    system: systemPrompt,
+    messages: [
+      {
+        role: "user" as const,
+        content: contentParts,
+      },
+    ],
+  };
+
   try {
-    result = await generateText({
-      model: menuImageModel,
-      providerOptions: buildImageProviderOptions(formatConfig.aspectRatio, "2K"),
-      system: systemPrompt,
-      messages: [
-        {
-          role: "user" as const,
-          content: contentParts,
-        },
-      ],
-    });
-  } catch (err) {
-    const durationMs = Date.now() - startTime;
-    console.error("[generateMenu] generateText threw", err);
-    const usage: GenerationUsage = {
-      route: "menu",
-      model: PAID_MODEL_ID,
-      inputTokens: 0,
-      outputTokens: 0,
-      imagesGenerated: 0,
-      durationMs,
-      success: false,
-      error: err instanceof Error ? err.message : String(err),
-    };
-    throw Object.assign(
-      new Error(`Menu generation failed: ${err instanceof Error ? err.message : String(err)}`),
-      { usage }
-    );
+    result = await generateText({ model: menuImageModel, ...generateRequest });
+  } catch (primaryErr) {
+    if (isCapacityError(primaryErr)) {
+      console.warn("[generateMenu] primary model overloaded, falling back to", FALLBACK_MODEL_ID);
+      try {
+        usedModelId = FALLBACK_MODEL_ID;
+        result = await generateText({ model: paidImageModel, ...generateRequest });
+      } catch (fallbackErr) {
+        const durationMs = Date.now() - startTime;
+        console.error("[generateMenu] fallback model also failed", fallbackErr);
+        const usage: GenerationUsage = {
+          route: "menu",
+          model: FALLBACK_MODEL_ID,
+          inputTokens: 0,
+          outputTokens: 0,
+          imagesGenerated: 0,
+          durationMs,
+          success: false,
+          error: fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr),
+        };
+        throw Object.assign(
+          new Error(`Menu generation failed: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`),
+          { usage }
+        );
+      }
+    } else {
+      const durationMs = Date.now() - startTime;
+      console.error("[generateMenu] generateText threw", primaryErr);
+      const usage: GenerationUsage = {
+        route: "menu",
+        model: PRIMARY_MODEL_ID,
+        inputTokens: 0,
+        outputTokens: 0,
+        imagesGenerated: 0,
+        durationMs,
+        success: false,
+        error: primaryErr instanceof Error ? primaryErr.message : String(primaryErr),
+      };
+      throw Object.assign(
+        new Error(`Menu generation failed: ${primaryErr instanceof Error ? primaryErr.message : String(primaryErr)}`),
+        { usage }
+      );
+    }
   }
 
   const durationMs = Date.now() - startTime;
@@ -191,7 +223,7 @@ export async function generateMenu(
     });
     const usage: GenerationUsage = {
       route: "menu",
-      model: PAID_MODEL_ID,
+      model: usedModelId,
       inputTokens: result.usage?.inputTokens ?? 0,
       outputTokens: result.usage?.outputTokens ?? 0,
       imagesGenerated: 0,
@@ -214,7 +246,7 @@ export async function generateMenu(
 
   const usage: GenerationUsage = {
     route: "menu",
-    model: PAID_MODEL_ID,
+    model: usedModelId,
     inputTokens: result.usage?.inputTokens ?? 0,
     outputTokens: result.usage?.outputTokens ?? 0,
     imagesGenerated: 1,
@@ -223,7 +255,7 @@ export async function generateMenu(
   };
 
   console.info("[generateMenu] success", {
-    model: PAID_MODEL_ID,
+    model: usedModelId,
     recipe: recipe?.name ?? "none",
     durationMs,
     inputTokens: usage.inputTokens,
