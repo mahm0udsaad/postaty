@@ -76,7 +76,7 @@ function extractSubType(data: PostFormData): string | undefined {
   }
 }
 
-function extractFormImages(data: PostFormData): { product: string; logo: string } {
+function extractFormImages(data: PostFormData): { product: string | undefined; logo: string } {
   switch (data.category) {
     case "restaurant":
       return { product: data.mealImage, logo: data.logo };
@@ -122,7 +122,7 @@ export async function generatePoster(
 
   const compressProduct = async () => {
     const start = Date.now();
-    const value = await compressImageFromDataUrl(formImages.product);
+    const value = formImages.product ? await compressImageFromDataUrl(formImages.product) : null;
     productCompressionMs = Date.now() - start;
     return value;
   };
@@ -400,7 +400,7 @@ export async function generateGiftImage(
     | { type: "text"; text: string }
   > = [];
 
-  const giftProductPart = await compressImageFromDataUrl(formImages.product);
+  const giftProductPart = formImages.product ? await compressImageFromDataUrl(formImages.product) : null;
   if (giftProductPart) {
     contentParts.push({
       type: "image" as const,
