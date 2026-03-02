@@ -821,7 +821,7 @@ function CreatePageContent() {
                         </h3>
                         
                         <p className="text-sm text-muted-foreground font-medium mb-6 max-w-lg leading-relaxed">
-                          {t("أضف 4-6 منتجات واحصل على تصميم احترافي جاهز للطباعة والنشر بضغطة زر.", "Add 4-6 products and get a professional print-ready design with one click.")}
+                          {t("أضف حتى 9 منتجات واحصل على تصميم احترافي جاهز للطباعة والنشر بضغطة زر.", "Add up to 9 products and get a professional print-ready design with one click.")}
                         </p>
                         
                         <div className="flex items-center mt-auto">

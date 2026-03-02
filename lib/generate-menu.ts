@@ -119,7 +119,7 @@ export async function generateMenu(
   contextText += `Display each product photo EXACTLY as provided. Do NOT redraw or stylize them.\n\n`;
 
   if (logoPart) {
-    contextText += `IMPORTANT: Do NOT draw or recreate any logo yourself.\n\n`;
+    contextText += `IMPORTANT: Do NOT draw or recreate any logo yourself. Do NOT add any icon/symbol/mark near the business name.\n\n`;
   }
 
   // Inject design brief

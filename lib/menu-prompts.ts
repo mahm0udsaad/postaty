@@ -50,7 +50,7 @@ Generate a SINGLE high-quality A4 portrait menu image (${fmt.width}x${fmt.height
 - Do NOT omit any item — every single one must appear
 
 ## Layout Structure (A4 Portrait)
-- **Top section**: Business name + logo prominently displayed
+- **Top section**: Business name prominently displayed
 - **Main section**: All items arranged in an organized grid (2-column or 3-column layout)
   - Each item gets: product photo (prominent) + name (clear text) + price (bold, visible)
   - Items should have equal visual weight — no item should dominate over others
@@ -62,6 +62,8 @@ Generate a SINGLE high-quality A4 portrait menu image (${fmt.width}x${fmt.height
 - Maintain each product's original shape, colors, and proportions
 - Products should look like real photographs placed into a designed layout
 - Do NOT draw or recreate any logo yourself
+- Do NOT add any brand icon, cart icon, basket icon, emblem, or symbol near the business name
+- The exact logo will be added separately after generation, so leave logo handling entirely out of your design
 
 ${MENU_CATEGORY_STYLES[data.menuCategory]}
 ${MENU_CAMPAIGN_GUIDANCE[data.campaignType] ? `\n${MENU_CAMPAIGN_GUIDANCE[data.campaignType]}\n` : `\nIMPORTANT: This is a STANDARD (non-seasonal) campaign. Do NOT use any religious, seasonal, or holiday motifs.
@@ -86,6 +88,7 @@ ${MENU_CAMPAIGN_GUIDANCE[data.campaignType] ? `\n${MENU_CAMPAIGN_GUIDANCE[data.c
   - Taglines or slogans (e.g. "The Best Spices", "Order Now", "اطلب الآن")
   - Old/crossed-out prices or discount percentages — ONLY show if the user explicitly provided an old price
   - CTA phrases, hashtags, or any decorative text
+- Do NOT invent any logo-like symbol, mark, or icon in the header
 - If no old prices are given, treat ALL prices as regular prices with clean styling — no discount formatting
 - The design should be visually rich and professional using colors, shapes, borders, and layout — NOT invented text
 
@@ -139,7 +142,6 @@ ${itemsList}
 
 The user has uploaded:
 - ${data.items.length} product/item photos (one per item, in the same order as the list above)
-- The business logo
 
 Arrange ALL items in a clean, organized grid layout. Each item must clearly show its photo, name, and price. Make the design professional and visually appealing.
 
