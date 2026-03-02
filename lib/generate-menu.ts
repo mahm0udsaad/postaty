@@ -1,7 +1,7 @@
 "use server";
 
 import { generateText } from "ai";
-import { paidImageModel } from "@/lib/ai";
+import { google } from "@/lib/ai";
 import { getMenuSystemPrompt, getMenuUserMessage } from "./menu-prompts";
 import { selectMenuRecipes, formatMenuRecipeForPrompt } from "./menu-design-recipes";
 import { getMenuInspirationImages } from "./menu-inspiration-images";
@@ -20,6 +20,7 @@ import type { GeneratedDesign, GenerationUsage } from "./generate-designs";
 // ── Model ID ──────────────────────────────────────────────────────
 
 const PAID_MODEL_ID = "gemini-3-pro-image-preview";
+const menuImageModel = google(PAID_MODEL_ID);
 
 // ── Generate a single menu/catalog image via Gemini Pro ───────────
 
@@ -147,7 +148,7 @@ export async function generateMenu(
   let result;
   try {
     result = await generateText({
-      model: paidImageModel,
+      model: menuImageModel,
       providerOptions: buildImageProviderOptions(formatConfig.aspectRatio, "2K"),
       system: systemPrompt,
       messages: [
