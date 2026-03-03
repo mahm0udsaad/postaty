@@ -62,25 +62,34 @@ export async function generatePosters(
 
   checkRateLimit(userId);
 
-  const validation = postFormDataSchema.safeParse(data);
+  // Sanitize: React server action serialization can convert undefined → null
+  const sanitized = Object.fromEntries(
+    Object.entries(data).map(([k, v]) => [k, v === null ? undefined : v])
+  ) as PostFormData;
+
+  const validation = postFormDataSchema.safeParse(sanitized);
   if (!validation.success) {
     console.error("[generatePosters] validation_failed", {
-      issues: validation.error.issues.map((i) => i.message),
+      issues: validation.error.issues.map((i) => ({
+        path: i.path.join("."),
+        message: i.message,
+        received: (i as any).received,
+      })),
     });
     throw new Error(
-      `Validation failed: ${validation.error.issues.map((i) => i.message).join(", ")}`
+      `Validation failed: ${validation.error.issues.map((i) => `${i.path.join(".")}: ${i.message}`).join(", ")}`
     );
   }
 
-  const format: OutputFormat = data.format;
+  const format: OutputFormat = sanitized.format;
 
-  console.info("[generatePosters] start", { category: data.category, userId });
+  console.info("[generatePosters] start", { category: sanitized.category, userId });
 
   const usages: GenerationUsage[] = [];
 
   // Generate main poster only (gift removed, marketing content generated separately)
   try {
-    const design = await generatePoster(data, brandKit);
+    const design = await generatePoster(sanitized, brandKit);
     usages.push(design.usage);
     console.info("[generatePosters] main success");
 

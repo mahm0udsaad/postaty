@@ -117,7 +117,7 @@ export function RestaurantForm({ onSubmit, onPrewarmHint, isLoading, defaultValu
       coverageAreas: (fd.get("coverageAreas") as string) || undefined,
       offerDuration: (fd.get("offerDuration") as string) || undefined,
       whatsapp: whatsapp!,
-      cta: fd.get("cta") as string,
+      cta: (fd.get("cta") as string) ?? "",
       format,
     });
   };

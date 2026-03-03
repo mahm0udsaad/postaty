@@ -116,7 +116,7 @@ export function BeautyForm({ onSubmit, onPrewarmHint, isLoading, defaultValues }
       bookingCondition: (bookingConditionMap[bookingConditionLabel as keyof typeof bookingConditionMap] as BeautyFormData["bookingCondition"]) ?? "advance",
       offerDuration: (fd.get("offerDuration") as string) || undefined,
       whatsapp: whatsapp!,
-      cta: fd.get("cta") as string,
+      cta: (fd.get("cta") as string) ?? "",
       format,
     });
   };

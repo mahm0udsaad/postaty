@@ -33,6 +33,7 @@ function isCapacityError(err: unknown): boolean {
     msg.includes("capacity") ||
     msg.includes("rate limit") ||
     msg.includes("resource exhausted") ||
+    msg.includes("quota") ||
     msg.includes("503") ||
     msg.includes("429")
   );

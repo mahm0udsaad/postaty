@@ -107,7 +107,7 @@ export function FashionForm({ onSubmit, onPrewarmHint, isLoading, defaultValues 
       offerNote: (fd.get("offerNote") as string) || undefined,
       offerDuration: (fd.get("offerDuration") as string) || undefined,
       whatsapp: whatsapp!,
-      cta: fd.get("cta") as string,
+      cta: (fd.get("cta") as string) ?? "",
       format,
     });
   };

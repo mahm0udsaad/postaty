@@ -105,7 +105,7 @@ export function EcommerceForm({ onSubmit, onPrewarmHint, isLoading, defaultValue
       shippingDuration: (fd.get("shippingDuration") as string) || undefined,
       purchaseLink: (fd.get("purchaseLink") as string) || undefined,
       whatsapp: whatsapp!,
-      cta: fd.get("cta") as string,
+      cta: (fd.get("cta") as string) ?? "",
       format,
     });
   };

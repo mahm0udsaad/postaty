@@ -148,7 +148,7 @@ export function ServicesForm({ onSubmit, onPrewarmHint, isLoading, defaultValues
       quickFeatures: (fd.get("quickFeatures") as string) || undefined,
       offerDuration: (fd.get("offerDuration") as string) || undefined,
       whatsapp: whatsapp!,
-      cta: fd.get("cta") as string,
+      cta: (fd.get("cta") as string) ?? "",
       format,
     });
   };

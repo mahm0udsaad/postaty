@@ -98,7 +98,7 @@ export function SupermarketForm({ onSubmit, onPrewarmHint, isLoading, defaultVal
       offerDuration: (fd.get("offerDuration") as string) || undefined,
       expiryDate: (fd.get("expiryDate") as string) || undefined,
       whatsapp: whatsapp!,
-      cta: fd.get("cta") as string,
+      cta: (fd.get("cta") as string) ?? "",
       format,
     });
   };
