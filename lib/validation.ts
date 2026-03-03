@@ -120,7 +120,7 @@ export const servicesFormSchema = z.object({
   campaignType: campaignTypeSchema,
   businessName: textFieldSchema("Business name"),
   logo: base64ImageSchema,
-  serviceImage: base64ImageSchema,
+  serviceImage: base64ImageSchema.optional(),
   serviceType: z.string().min(1, "Service type is required").max(50),
   serviceName: textFieldSchema("Service name"),
   serviceDetails: z.string().max(200).optional(),

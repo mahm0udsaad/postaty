@@ -137,7 +137,7 @@ export function ServicesForm({ onSubmit, onPrewarmHint, isLoading, defaultValues
       posterLanguage,
       businessName: businessName!,
       logo: logo!,
-      serviceImage: serviceImage!,
+      serviceImage: serviceImage || undefined,
       serviceType: serviceType.trim(),
       serviceName: serviceName!,
       serviceDetails: (fd.get("serviceDetails") as string) || undefined,
