@@ -903,6 +903,7 @@ function CreatePageContent() {
                         }}
                         onReset={() => { setResults([]); setGenStep("idle"); }}
                         canGenerateMore={!!lastSubmittedData && !isGenerating && canGenerate}
+                        onCreditConsumed={() => mutateCreditState()}
                     />
                 </div>
 

@@ -481,6 +481,8 @@ function MenuPageContent() {
                     setMarketingContentError(undefined);
                   }}
                   canGenerateMore={!!lastSubmittedData && !isGenerating && canGenerate && totalRemaining >= MENU_CONFIG.creditsPerMenu}
+                  generationType="menu"
+                  onCreditConsumed={() => mutateCreditState()}
                 />
               </div>
 

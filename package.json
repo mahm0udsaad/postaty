@@ -11,6 +11,7 @@
     "test:watch": "jest --watch"
   },
   "dependencies": {
+    "@ai-sdk/gateway": "^3.0.63",
     "@ai-sdk/google": "^3.0.26",
     "@remotion/cli": "^4.0.428",
     "@remotion/lambda": "^4.0.428",

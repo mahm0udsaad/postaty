@@ -42,6 +42,8 @@ interface PosterGridProps {
   onReset?: () => void;
   canGenerateMore?: boolean;
   generateMoreLabel?: string;
+  generationType?: "poster" | "menu";
+  onCreditConsumed?: () => void;
 }
 
 // ── Poster Skeleton (Advanced Generative Visualization) ───────────
@@ -407,6 +409,8 @@ export function PosterGrid({
   onReset,
   canGenerateMore = true,
   generateMoreLabel,
+  generationType,
+  onCreditConsumed,
 }: PosterGridProps) {
   const { t, locale } = useLocale();
   const [selectedResult, setSelectedResult] = useState<PosterResult | null>(null);
@@ -617,6 +621,8 @@ export function PosterGrid({
         }}
         result={selectedResult}
         onSaveAsTemplate={onSaveAsTemplate}
+        generationType={generationType}
+        onCreditConsumed={onCreditConsumed}
       />
     </div>
   );

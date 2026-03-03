@@ -1,7 +1,7 @@
 "use server";
 
 import { generateText } from "ai";
-import { google, paidImageModel } from "@/lib/ai";
+import { google, gatewayImageModel } from "@/lib/ai";
 import { getMenuSystemPrompt, getMenuUserMessage } from "./menu-prompts";
 import { selectMenuRecipes, formatMenuRecipeForPrompt } from "./menu-design-recipes";
 import { getMenuInspirationImages } from "./menu-inspiration-images";
@@ -20,24 +20,9 @@ import type { GeneratedDesign, GenerationUsage } from "./generate-designs";
 // ── Model IDs ─────────────────────────────────────────────────────
 
 const PRIMARY_MODEL_ID = "gemini-3-pro-image-preview";
-const FALLBACK_MODEL_ID = "gemini-3.1-flash-image-preview";
+const FALLBACK_MODEL_ID = "gemini-3-pro-image-preview (gateway)";
 const menuImageModel = google(PRIMARY_MODEL_ID);
 
-/** Check if an error is a capacity/overload issue worth retrying with a fallback model */
-function isCapacityError(err: unknown): boolean {
-  if (!(err instanceof Error)) return false;
-  const msg = err.message.toLowerCase();
-  return (
-    msg.includes("high demand") ||
-    msg.includes("overloaded") ||
-    msg.includes("capacity") ||
-    msg.includes("rate limit") ||
-    msg.includes("resource exhausted") ||
-    msg.includes("quota") ||
-    msg.includes("503") ||
-    msg.includes("429")
-  );
-}
 
 // ── Generate a single menu/catalog image via Gemini Pro ───────────
 
@@ -174,45 +159,25 @@ export async function generateMenu(
     // maxRetries: 0 = single attempt, no retries. Fail fast so we reach fallback quickly.
     result = await generateText({ model: menuImageModel, maxRetries: 0, ...generateRequest });
   } catch (primaryErr) {
-    if (isCapacityError(primaryErr)) {
-      console.warn("[generateMenu] primary model overloaded, falling back to", FALLBACK_MODEL_ID);
-      try {
-        usedModelId = FALLBACK_MODEL_ID;
-        // Fallback gets default retries (2 retries = 3 total attempts)
-        result = await generateText({ model: paidImageModel, ...generateRequest });
-      } catch (fallbackErr) {
-        const durationMs = Date.now() - startTime;
-        console.error("[generateMenu] fallback model also failed", fallbackErr);
-        const usage: GenerationUsage = {
-          route: "menu",
-          model: FALLBACK_MODEL_ID,
-          inputTokens: 0,
-          outputTokens: 0,
-          imagesGenerated: 0,
-          durationMs,
-          success: false,
-          error: fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr),
-        };
-        throw Object.assign(
-          new Error(`Menu generation failed: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`),
-          { usage }
-        );
-      }
-    } else {
+    console.warn("[generateMenu] primary model failed, falling back to gateway", primaryErr instanceof Error ? primaryErr.message : primaryErr);
+    try {
+      usedModelId = FALLBACK_MODEL_ID;
+      result = await generateText({ model: gatewayImageModel, ...generateRequest });
+    } catch (fallbackErr) {
       const durationMs = Date.now() - startTime;
-      console.error("[generateMenu] generateText threw", primaryErr);
+      console.error("[generateMenu] gateway fallback also failed", fallbackErr);
       const usage: GenerationUsage = {
         route: "menu",
-        model: PRIMARY_MODEL_ID,
+        model: FALLBACK_MODEL_ID,
         inputTokens: 0,
         outputTokens: 0,
         imagesGenerated: 0,
         durationMs,
         success: false,
-        error: primaryErr instanceof Error ? primaryErr.message : String(primaryErr),
+        error: fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr),
       };
       throw Object.assign(
-        new Error(`Menu generation failed: ${primaryErr instanceof Error ? primaryErr.message : String(primaryErr)}`),
+        new Error(`Menu generation failed: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`),
         { usage }
       );
     }

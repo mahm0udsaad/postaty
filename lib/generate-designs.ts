@@ -2,7 +2,7 @@
 
 import { generateText } from "ai";
 import { randomUUID } from "node:crypto";
-import { primaryImageModel, paidImageModel, freeImageModel, marketingContentModel, google } from "@/lib/ai";
+import { primaryImageModel, gatewayImageModel, freeImageModel, marketingContentModel, google } from "@/lib/ai";
 import {
   getImageDesignSystemPrompt,
   getImageDesignUserMessage,
@@ -17,7 +17,6 @@ import { getInspirationImages } from "./inspiration-images";
 import { FORMAT_CONFIGS } from "./constants";
 import { buildImageProviderOptions, compressImageFromDataUrl, compressLogoFromDataUrl, getSharp } from "./image-helpers";
 import { resolvePosterLanguage } from "./resolved-language";
-import { prepareContext } from "./pre-translate";
 import type { PostFormData, MarketingContentHub, SocialPlatform, PlatformContent } from "./types";
 import type { BrandKitPromptData } from "./prompts";
 
@@ -43,24 +42,10 @@ export type GenerationUsage = {
 // ── Model IDs ───────────────────────────────────────────────────────
 
 const PRIMARY_MODEL_ID = "gemini-3-pro-image-preview";
-const FALLBACK_MODEL_ID = "gemini-3.1-flash-image-preview";
+const FALLBACK_MODEL_ID = "gemini-3-pro-image-preview (gateway)";
 const FREE_MODEL_ID = "gemini-2.5-flash-image";
 
-/** Check if an error is a capacity/overload issue worth retrying with a fallback model */
-function isCapacityError(err: unknown): boolean {
-  if (!(err instanceof Error)) return false;
-  const msg = err.message.toLowerCase();
-  return (
-    msg.includes("high demand") ||
-    msg.includes("overloaded") ||
-    msg.includes("capacity") ||
-    msg.includes("rate limit") ||
-    msg.includes("resource exhausted") ||
-    msg.includes("quota") ||
-    msg.includes("503") ||
-    msg.includes("429")
-  );
-}
+
 const GEN_PARALLEL_PREP_ENABLED = process.env.GEN_PARALLEL_PREP !== "0";
 const VERBOSE_TIMING = process.env.NODE_ENV !== "production";
 
@@ -140,16 +125,13 @@ export async function generatePoster(
     ? await Promise.all([loadInspiration(), compressProduct(), compressLogo()])
     : [await loadInspiration(), await compressProduct(), await compressLogo()];
 
-  // Phase 2: Context prep — Gemini 2.5 Pro analyzes all images + translates text
-  const { data: translatedData, wasTranslated, designBrief, translatedDropdowns } = await prepareContext(
-    data,
-    resolvedLanguage,
-    inspirationImages,
-    productPart,
-    logoPart
-  );
+  // Phase 2 removed — no pre-translation or design brief; Gemini handles translation inline
+  const translatedData = data;
+  const wasTranslated = false;
+  const designBrief: string | null = null;
+  const translatedDropdowns: { offerBadgeText?: string; deliveryText?: string } | null = null;
 
-  // Phase 3: Build prompts using translated data + design brief
+  // Build prompts using original data (Gemini will translate inline if needed)
   const promptBuildStart = Date.now();
   const systemPrompt = getImageDesignSystemPrompt(translatedData, resolvedLanguage, brandKit, wasTranslated);
   let userMessage = getImageDesignUserMessage(translatedData, resolvedLanguage, wasTranslated, translatedDropdowns);
@@ -273,46 +255,27 @@ export async function generatePoster(
     result = await generateText({ model: primaryImageModel, maxRetries: 0, ...generateRequest });
     aiCallMs = Date.now() - aiStart;
   } catch (primaryErr) {
-    if (isCapacityError(primaryErr)) {
-      console.warn("[generatePoster] primary model overloaded, falling back to", FALLBACK_MODEL_ID);
-      try {
-        usedModelId = FALLBACK_MODEL_ID;
-        const aiStart = Date.now();
-        result = await generateText({ model: paidImageModel, ...generateRequest });
-        aiCallMs = Date.now() - aiStart;
-      } catch (fallbackErr) {
-        const durationMs = Date.now() - startTime;
-        console.error("[generatePoster] fallback model also failed", fallbackErr);
-        const usage: GenerationUsage = {
-          route: "poster",
-          model: FALLBACK_MODEL_ID,
-          inputTokens: 0,
-          outputTokens: 0,
-          imagesGenerated: 0,
-          durationMs,
-          success: false,
-          error: fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr),
-        };
-        throw Object.assign(
-          new Error(`Image generation failed: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`),
-          { usage }
-        );
-      }
-    } else {
+    console.warn("[generatePoster] primary model failed, falling back to gateway", primaryErr instanceof Error ? primaryErr.message : primaryErr);
+    try {
+      usedModelId = FALLBACK_MODEL_ID;
+      const aiStart = Date.now();
+      result = await generateText({ model: gatewayImageModel, ...generateRequest });
+      aiCallMs = Date.now() - aiStart;
+    } catch (fallbackErr) {
       const durationMs = Date.now() - startTime;
-      console.error("[generatePoster] generateText threw", primaryErr);
+      console.error("[generatePoster] gateway fallback also failed", fallbackErr);
       const usage: GenerationUsage = {
         route: "poster",
-        model: PRIMARY_MODEL_ID,
+        model: FALLBACK_MODEL_ID,
         inputTokens: 0,
         outputTokens: 0,
         imagesGenerated: 0,
         durationMs,
         success: false,
-        error: primaryErr instanceof Error ? primaryErr.message : String(primaryErr),
+        error: fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr),
       };
       throw Object.assign(
-        new Error(`Image generation failed: ${primaryErr instanceof Error ? primaryErr.message : String(primaryErr)}`),
+        new Error(`Image generation failed: ${fallbackErr instanceof Error ? fallbackErr.message : String(fallbackErr)}`),
         { usage }
       );
     }

@@ -13,12 +13,15 @@ import {
   ThumbsDown,
   WandSparkles,
   AlertTriangle,
+  Send,
+  Undo2,
 } from "lucide-react";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { removeOverlayBackground } from "@/app/actions-v2";
+import { editDesignAction } from "@/app/actions-edit";
 import { renderEditedGiftToBlob } from "@/lib/gift-editor/export-edited-gift";
-import type { GiftEditorState, PosterResult } from "@/lib/types";
+import type { GiftEditorState, PosterResult, OutputFormat } from "@/lib/types";
 import { useLocale } from "@/hooks/use-locale";
 
 const GiftEditorCanvas = dynamic(
@@ -40,6 +43,8 @@ interface PosterModalProps {
   model?: string;
   generationId?: string;
   imageStorageId?: string;
+  generationType?: "poster" | "menu";
+  onCreditConsumed?: () => void;
 }
 
 type ModalTab = "preview" | "edit";
@@ -107,6 +112,8 @@ export function PosterModal({
   model,
   generationId,
   imageStorageId,
+  generationType = "poster",
+  onCreditConsumed,
 }: PosterModalProps) {
   const { locale, t } = useLocale();
   const [isExporting, setIsExporting] = useState(false);
@@ -124,6 +131,14 @@ export function PosterModal({
   const [showReportForm, setShowReportForm] = useState(false);
   const [reportMessage, setReportMessage] = useState("");
   const [reportState, setReportState] = useState<"idle" | "sending" | "sent">("idle");
+
+  // AI Edit state
+  const [editPrompt, setEditPrompt] = useState("");
+  const [isEditing, setIsEditing] = useState(false);
+  const [displayImage, setDisplayImage] = useState<string | undefined>(undefined);
+  const [previousImage, setPreviousImage] = useState<string | null>(null);
+  const [editError, setEditError] = useState<string | null>(null);
+  const editInputRef = useRef<HTMLTextAreaElement>(null);
 
   const { isSignedIn } = useAuth();
 
@@ -154,6 +169,12 @@ export function PosterModal({
     setShowReportForm(false);
     setReportMessage("");
     setReportState("idle");
+    // Reset AI edit state
+    setEditPrompt("");
+    setIsEditing(false);
+    setDisplayImage(result?.imageBase64);
+    setPreviousImage(null);
+    setEditError(null);
   }, [result, isOpen, defaultGiftLabel]);
 
   useEffect(() => {
@@ -190,12 +211,14 @@ export function PosterModal({
     }
   };
 
+  const currentImage = displayImage || result.imageBase64;
+
   const getExportBlob = async (): Promise<Blob | null> => {
-    if (!result.imageBase64) return null;
-    if (isGift && tab === "edit") {
+    if (!currentImage) return null;
+    if (isGift && tab === "edit" && result.imageBase64) {
       return renderEditedGiftToBlob(result.imageBase64, editorState);
     }
-    return base64ToBlob(result.imageBase64);
+    return base64ToBlob(currentImage);
   };
 
   const handleExport = async () => {
@@ -285,6 +308,51 @@ export function PosterModal({
     }
   };
 
+  const handleEditDesign = async () => {
+    if (!editPrompt.trim() || !currentImage || isEditing) return;
+    setIsEditing(true);
+    setEditError(null);
+
+    const format: OutputFormat | "menu" = generationType === "menu" ? "menu" : result.format;
+
+    try {
+      const editResult = await editDesignAction(currentImage, editPrompt.trim(), format);
+
+      if (editResult.status === "complete") {
+        setPreviousImage(currentImage);
+        setDisplayImage(editResult.imageBase64);
+        setEditPrompt("");
+
+        // Consume 1 credit
+        try {
+          const idempotencyKey = `edit_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+          await fetch("/api/billing/consume-credit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ idempotencyKey, amount: 0.5 }),
+          });
+          onCreditConsumed?.();
+        } catch (creditErr) {
+          console.error("[handleEditDesign] credit consumption error", creditErr);
+          onCreditConsumed?.();
+        }
+      } else {
+        setEditError(editResult.error);
+      }
+    } catch (err) {
+      console.error("[handleEditDesign] failed", err);
+      setEditError(t("حدث خطأ أثناء التعديل. حاول مرة أخرى.", "An error occurred during editing. Please try again."));
+    } finally {
+      setIsEditing(false);
+    }
+  };
+
+  const handleUndoEdit = () => {
+    if (!previousImage) return;
+    setDisplayImage(previousImage);
+    setPreviousImage(null);
+  };
+
   return (
     <AnimatePresence>
       {isOpen && (
@@ -339,12 +407,25 @@ export function PosterModal({
                   layoutId={`poster-img-${result.designIndex}`}
                   className="relative max-h-full max-w-full shadow-2xl rounded-lg overflow-hidden z-10"
                 >
-                  {result.imageBase64 ? (
-                    <img
-                      src={result.imageBase64}
-                      alt="Full Preview"
-                      className="max-h-[calc(90vh-4rem)] md:max-h-[80vh] w-auto object-contain"
-                    />
+                  {currentImage ? (
+                    <>
+                      <img
+                        src={currentImage}
+                        alt="Full Preview"
+                        className={`max-h-[calc(90vh-4rem)] md:max-h-[80vh] w-auto object-contain transition-opacity duration-300 ${isEditing ? "opacity-40" : "opacity-100"}`}
+                      />
+                      {isEditing && (
+                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
+                          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5 animate-pulse" />
+                          <div className="relative flex items-center gap-2 px-4 py-2.5 bg-surface-1/90 backdrop-blur-sm rounded-xl shadow-lg border border-card-border">
+                            <Loader2 size={18} className="animate-spin text-primary" />
+                            <span className="text-sm font-medium text-foreground">
+                              {t("جاري تعديل التصميم...", "Editing design...")}
+                            </span>
+                          </div>
+                        </div>
+                      )}
+                    </>
                   ) : (
                     <div className="w-64 h-64 flex items-center justify-center bg-surface-3 text-muted-foreground">
                       No Image
@@ -421,6 +502,68 @@ export function PosterModal({
                       <div className="text-sm font-medium text-muted">{t("التنسيق", "Format")}</div>
                       <div className="font-bold text-foreground uppercase">{result.format}</div>
                     </div>
+
+                    {/* AI Edit */}
+                    {isSignedIn && currentImage && (
+                      <div className="p-4 bg-surface-2 rounded-2xl border border-card-border space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm font-medium text-muted flex items-center gap-1.5">
+                            <WandSparkles size={14} />
+                            {t("تعديل بالذكاء الاصطناعي", "AI Edit")}
+                          </div>
+                          {previousImage && !isEditing && (
+                            <button
+                              onClick={handleUndoEdit}
+                              className="flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors"
+                            >
+                              <Undo2 size={12} />
+                              {t("تراجع", "Undo")}
+                            </button>
+                          )}
+                        </div>
+                        <div className="flex gap-2">
+                          <textarea
+                            ref={editInputRef}
+                            value={editPrompt}
+                            onChange={(e) => setEditPrompt(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                handleEditDesign();
+                              }
+                            }}
+                            placeholder={t("مثال: غيّر لون الخلفية إلى أزرق", "e.g. Change the background color to blue")}
+                            rows={2}
+                            disabled={isEditing}
+                            className="flex-1 px-3 py-2 bg-surface-1 border border-card-border rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
+                          />
+                          <button
+                            onClick={handleEditDesign}
+                            disabled={isEditing || !editPrompt.trim()}
+                            className="self-end p-2.5 bg-primary text-white rounded-xl hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                          >
+                            {isEditing ? (
+                              <Loader2 size={16} className="animate-spin" />
+                            ) : (
+                              <Send size={16} />
+                            )}
+                          </button>
+                        </div>
+                        {isEditing && (
+                          <div className="text-xs text-muted animate-pulse">
+                            {t("جاري تعديل التصميم...", "Editing design...")}
+                          </div>
+                        )}
+                        {editError && (
+                          <div className="text-xs text-destructive">
+                            {editError}
+                          </div>
+                        )}
+                        <div className="text-[11px] text-muted/60">
+                          {t("كل تعديل يستهلك نصف رصيد", "Each edit costs 0.5 credits")}
+                        </div>
+                      </div>
+                    )}
 
                     {isSignedIn && (
                       <div className="p-4 bg-surface-2 rounded-2xl border border-card-border space-y-3">
@@ -555,7 +698,7 @@ export function PosterModal({
                   className="w-full flex items-center justify-center gap-2 py-3.5 px-4 bg-primary hover:bg-primary-hover text-white rounded-xl font-semibold transition-all shadow-lg shadow-primary/20 active:scale-95 disabled:opacity-70 disabled:cursor-not-allowed"
                 >
                   {isExporting ? <Loader2 size={20} className="animate-spin" /> : <Download size={20} />}
-                  <span>{isGift && tab === "edit" ? t("تحميل النسخة المعدلة", "Download edited version") : t("تحميل الصورة", "Download image")}</span>
+                  <span>{isGift && tab === "edit" ? t("تحميل النسخة المعدلة", "Download edited version") : previousImage ? t("تحميل النسخة المعدلة", "Download edited version") : t("تحميل الصورة", "Download image")}</span>
                 </button>
 
                 <div className="grid grid-cols-2 gap-3">
