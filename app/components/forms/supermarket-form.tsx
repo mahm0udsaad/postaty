@@ -6,7 +6,6 @@ import type { SupermarketFormData, OutputFormat, CampaignType } from "@/lib/type
 import { validatePostForm } from "@/lib/validation-client";
 import { SUPERMARKET_CTA_OPTIONS } from "@/lib/constants";
 import { ImageUpload } from "../image-upload";
-import { MultiImageUpload } from "../multi-image-upload";
 import { FormatSelector } from "../format-selector";
 import { CampaignTypeSelector } from "../campaign-type-selector";
 import { PosterLanguageSelector, usePosterLanguage } from "../poster-language-selector";
@@ -27,7 +26,7 @@ const CTA_EN = ["Order now", "Add to cart on WhatsApp", "Offer valid today"] as 
 export function SupermarketForm({ onSubmit, onPrewarmHint, isLoading, defaultValues }: SupermarketFormProps) {
   const { locale, t } = useLocale();
   const [logoOverride, setLogoOverride] = useState<string | null | undefined>(undefined);
-  const [productImages, setProductImages] = useState<string[]>([]);
+  const [productImage, setProductImage] = useState<string | null>(null);
   const [format, setFormat] = useState<OutputFormat>("instagram-square");
   const [campaignType, setCampaignType] = useState<CampaignType>("standard");
   const [posterLanguage, setPosterLanguage] = usePosterLanguage();
@@ -72,7 +71,7 @@ export function SupermarketForm({ onSubmit, onPrewarmHint, isLoading, defaultVal
     if (!oldPrice) newErrors.oldPrice = t("السعر القديم مطلوب", "Old price is required");
     if (!whatsapp) newErrors.whatsapp = t("رقم الواتساب مطلوب", "WhatsApp number is required");
     if (!logo) newErrors.logo = t("اللوجو مطلوب", "Logo is required");
-    if (productImages.length === 0) newErrors.productImages = t("صورة المنتج مطلوبة", "At least one product image is required");
+    if (!productImage) newErrors.productImages = t("صورة المنتج مطلوبة", "Product image is required");
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -88,7 +87,7 @@ export function SupermarketForm({ onSubmit, onPrewarmHint, isLoading, defaultVal
       posterLanguage,
       supermarketName: supermarketName!,
       logo: logo!,
-      productImages,
+      productImages: [productImage!],
       postType: (postTypeMap[postTypeLabel as keyof typeof postTypeMap] as SupermarketFormData["postType"]) ?? "product",
       productName: productName!,
       quantity: (fd.get("quantity") as string) || undefined,
@@ -148,7 +147,7 @@ export function SupermarketForm({ onSubmit, onPrewarmHint, isLoading, defaultVal
                {errors.logo && <p className="text-xs text-red-500 font-medium mt-2">{errors.logo}</p>}
              </div>
              <div>
-               <MultiImageUpload label={t("صور المنتج (يمكن رفع أكثر من صورة)", "Product images (multiple allowed)")} values={productImages} onChange={setProductImages} />
+               <ImageUpload label={t("صورة المنتج", "Product image")} value={productImage} onChange={setProductImage} />
                {errors.productImages && <p className="text-xs text-red-500 font-medium mt-2">{errors.productImages}</p>}
              </div>
           </div>

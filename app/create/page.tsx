@@ -249,6 +249,7 @@ function CreatePageContent() {
   const [marketingContentError, setMarketingContentError] = useState<string>();
   const [marketingLanguage, setMarketingLanguage] = useState<string>("auto");
   const [defaultLogo, setDefaultLogo] = useState<string | null>(null);
+  const [currentGenerationId, setCurrentGenerationId] = useState<string | undefined>();
   const generatingRef = useRef(false);
   const prewarmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prewarmedKeysRef = useRef<Set<string>>(new Set());
@@ -509,6 +510,7 @@ function CreatePageContent() {
     setError(undefined);
     setIsGenerating(true);
     setResults([]);
+    setCurrentGenerationId(undefined);
     setMarketingContent(null);
     setMarketingContentStatus("idle");
     setMarketingContentError(undefined);
@@ -672,6 +674,7 @@ function CreatePageContent() {
         resolvedGenerationId = await createGenerationRecord(data);
       }
       if (!resolvedGenerationId) throw new Error("Failed to create generation");
+      setCurrentGenerationId(resolvedGenerationId);
 
       const uploadResult = await uploadImageToStorage(posterResult.imageBase64!);
       const { publicUrl } = uploadResult;
@@ -904,6 +907,7 @@ function CreatePageContent() {
                         onReset={() => { setResults([]); setGenStep("idle"); }}
                         canGenerateMore={!!lastSubmittedData && !isGenerating && canGenerate}
                         onCreditConsumed={() => mutateCreditState()}
+                        generationId={currentGenerationId}
                     />
                 </div>
 

@@ -117,6 +117,7 @@ function MenuPageContent() {
   const [marketingContentStatus, setMarketingContentStatus] = useState<MarketingContentStatus>("idle");
   const [marketingContentError, setMarketingContentError] = useState<string>();
   const [marketingLanguage, setMarketingLanguage] = useState<string>("auto");
+  const [currentGenerationId, setCurrentGenerationId] = useState<string | undefined>();
 
   // Billing
   const { data: creditState, mutate: mutateCreditState } = useSWR(
@@ -272,6 +273,7 @@ function MenuPageContent() {
       const [createRes, uploadResult] = await Promise.all([createGenerationPromise, uploadPromise]);
       if (!createRes.ok) throw new Error("Failed to create generation");
       const { id: generationId } = await createRes.json();
+      setCurrentGenerationId(generationId);
       const { publicUrl } = uploadResult;
 
       await fetch(`/api/generations/${generationId}`, {
@@ -315,6 +317,7 @@ function MenuPageContent() {
     setError(undefined);
     setIsGenerating(true);
     setResults([]);
+    setCurrentGenerationId(undefined);
     setMarketingContent(null);
     setMarketingContentStatus("idle");
     setMarketingContentError(undefined);
@@ -483,6 +486,7 @@ function MenuPageContent() {
                   canGenerateMore={!!lastSubmittedData && !isGenerating && canGenerate && totalRemaining >= MENU_CONFIG.creditsPerMenu}
                   generationType="menu"
                   onCreditConsumed={() => mutateCreditState()}
+                  generationId={currentGenerationId}
                 />
               </div>
 

@@ -11,11 +11,14 @@ import {
   Image as ImageIcon,
   Gift,
   Megaphone,
+  WandSparkles,
+  Loader2,
 } from "lucide-react";
 import { CATEGORY_LABELS, FORMAT_CONFIGS } from "@/lib/constants";
-import type { Category, OutputFormat } from "@/lib/types";
+import type { Category, OutputFormat, PosterResult } from "@/lib/types";
 import { useLocale } from "@/hooks/use-locale";
 import { MarketingContentModal } from "./marketing-content-modal";
+import { PosterModal } from "@/app/components/poster-modal";
 
 interface GenerationOutput {
   format: string;
@@ -55,6 +58,38 @@ export function GenerationCard({ generation, imageType = "all" }: GenerationCard
   const { locale, t } = useLocale();
   const [expanded, setExpanded] = useState(false);
   const [marketingOutput, setMarketingOutput] = useState<{ url: string } | null>(null);
+  const [editData, setEditData] = useState<{ base64: string; format: string } | null>(null);
+  const [isLoadingEdit, setIsLoadingEdit] = useState(false);
+
+  const handleEditClick = async (url: string, format: string) => {
+    setIsLoadingEdit(true);
+    try {
+      const res = await fetch(url);
+      const blob = await res.blob();
+      const base64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(blob);
+      });
+      setEditData({ base64, format });
+    } catch (err) {
+      console.error("Failed to load image for editing:", err);
+    } finally {
+      setIsLoadingEdit(false);
+    }
+  };
+
+  const editPosterResult: PosterResult | null = editData
+    ? {
+        designIndex: 0,
+        format: (editData.format as OutputFormat) || "square",
+        html: "",
+        imageBase64: editData.base64,
+        status: "complete",
+        designName: generation.business_name,
+        designNameAr: generation.business_name,
+      }
+    : null;
 
   const STATUS_LABELS: Record<string, { label: string; classes: string }> = {
     complete: {
@@ -219,6 +254,16 @@ export function GenerationCard({ generation, imageType = "all" }: GenerationCard
                     </div>
                     {output.url && (
                       <div className="p-3 border-t border-card-border bg-surface-1 flex gap-2">
+                        {!isGiftOutput && (
+                          <button
+                            onClick={() => handleEditClick(output.url!, output.format)}
+                            disabled={isLoadingEdit}
+                            className="flex-1 flex items-center justify-center gap-2 py-2 bg-primary/5 hover:bg-primary hover:text-white text-primary rounded-lg text-xs font-bold transition-all disabled:opacity-50"
+                          >
+                            {isLoadingEdit ? <Loader2 size={14} className="animate-spin" /> : <WandSparkles size={14} />}
+                            {t("تعديل", "Edit")}
+                          </button>
+                        )}
                         {generation.inputs && !isGiftOutput && (
                           <button
                             onClick={() => setMarketingOutput({ url: output.url! })}
@@ -244,6 +289,14 @@ export function GenerationCard({ generation, imageType = "all" }: GenerationCard
           )}
         </div>
       )}
+
+      {/* AI Edit Modal */}
+      <PosterModal
+        isOpen={!!editData}
+        onClose={() => setEditData(null)}
+        result={editPosterResult}
+        generationId={generation.id}
+      />
 
       {marketingOutput && generation.inputs && (
         <MarketingContentModal

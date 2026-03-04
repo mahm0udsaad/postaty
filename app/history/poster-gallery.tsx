@@ -3,11 +3,12 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import useSWR from "swr";
-import { Download, Calendar, Tag, Loader2, Image as ImageIcon, Gift, Megaphone, X, Maximize2 } from "lucide-react";
+import { Download, Calendar, Tag, Loader2, Image as ImageIcon, Gift, Megaphone, X, Maximize2, WandSparkles } from "lucide-react";
 import { CATEGORY_LABELS, FORMAT_CONFIGS } from "@/lib/constants";
-import type { Category, OutputFormat } from "@/lib/types";
+import type { Category, OutputFormat, PosterResult } from "@/lib/types";
 import { useLocale } from "@/hooks/use-locale";
 import { MarketingContentModal } from "./marketing-content-modal";
+import { PosterModal } from "@/app/components/poster-modal";
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
 import Image from "next/image";
@@ -116,12 +117,45 @@ export function PosterGallery({ category, imageType = "all", onCountChange }: Po
 
   const [selectedImage, setSelectedImage] = useState<PosterImageData | null>(null);
   const [marketingImage, setMarketingImage] = useState<PosterImageData | null>(null);
+  const [editImage, setEditImage] = useState<{ image: PosterImageData; base64: string } | null>(null);
+  const [isLoadingEdit, setIsLoadingEdit] = useState(false);
 
   const loadMore = useCallback(() => {
     if (hasMore && !isLoading) {
       setOffset(prev => prev + pageSize);
     }
   }, [hasMore, isLoading]);
+
+  const handleEditClick = async (image: PosterImageData) => {
+    setIsLoadingEdit(true);
+    setSelectedImage(null);
+    try {
+      const res = await fetch(image.url);
+      const blob = await res.blob();
+      const base64 = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(blob);
+      });
+      setEditImage({ image, base64 });
+    } catch (err) {
+      console.error("Failed to load image for editing:", err);
+    } finally {
+      setIsLoadingEdit(false);
+    }
+  };
+
+  const editPosterResult: PosterResult | null = editImage
+    ? {
+        designIndex: 0,
+        format: (editImage.image.format as OutputFormat) || "square",
+        html: "",
+        imageBase64: editImage.base64,
+        status: "complete",
+        designName: editImage.image.businessName,
+        designNameAr: editImage.image.businessName,
+      }
+    : null;
 
   const allImages: PosterImageData[] = [];
   if (allResults) {
@@ -236,6 +270,16 @@ export function PosterGallery({ category, imageType = "all", onCountChange }: Po
                       <div
                         className="absolute inset-0 bg-black/55 opacity-0 group-hover:opacity-100 pointer-events-none group-hover:pointer-events-auto transition-opacity duration-300 flex items-center justify-center gap-2 p-3"
                       >
+                        {image.format !== "gift" && (
+                          <button
+                            type="button"
+                            onClick={e => { e.stopPropagation(); handleEditClick(image); }}
+                            className="flex items-center gap-1.5 px-3 py-2 bg-primary text-white rounded-lg text-xs font-bold hover:bg-primary/90 transition-colors shadow-lg"
+                          >
+                            <WandSparkles size={13} />
+                            {t("تعديل", "Edit")}
+                          </button>
+                        )}
                         {image.inputs && image.format !== "gift" && (
                           <button
                             type="button"
@@ -329,6 +373,15 @@ export function PosterGallery({ category, imageType = "all", onCountChange }: Po
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-center gap-2">
+              {selectedImage.format !== "gift" && (
+                <button
+                  onClick={() => handleEditClick(selectedImage)}
+                  className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-bold transition-all"
+                >
+                  <WandSparkles size={15} />
+                  {t("تعديل", "Edit")}
+                </button>
+              )}
               {selectedImage.inputs && selectedImage.format !== "gift" && (
                 <button
                   onClick={() => { setMarketingImage(selectedImage); setSelectedImage(null); }}
@@ -384,6 +437,31 @@ export function PosterGallery({ category, imageType = "all", onCountChange }: Po
         </div>,
         document.body
       )}
+
+      {/* Loading overlay when fetching image for edit */}
+      {isLoadingEdit && mounted && createPortal(
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9999] flex items-center justify-center">
+          <div className="flex items-center gap-3 px-6 py-4 bg-surface-1 rounded-2xl shadow-2xl border border-card-border">
+            <Loader2 size={20} className="animate-spin text-primary" />
+            <span className="text-sm font-medium text-foreground">{t("جاري تحميل الصورة للتعديل...", "Loading image for editing...")}</span>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* AI Edit Modal */}
+      <PosterModal
+        isOpen={!!editImage}
+        onClose={() => {
+          setEditImage(null);
+          // Revalidate to show updated image in gallery
+          setOffset(0);
+          setAllResults([]);
+          setHasMore(true);
+        }}
+        result={editPosterResult}
+        generationId={editImage?.image.generationId}
+      />
 
       {marketingImage && marketingImage.inputs && (
         <MarketingContentModal

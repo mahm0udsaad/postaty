@@ -44,6 +44,7 @@ interface PosterGridProps {
   generateMoreLabel?: string;
   generationType?: "poster" | "menu";
   onCreditConsumed?: () => void;
+  generationId?: string;
 }
 
 // ── Poster Skeleton (Advanced Generative Visualization) ───────────
@@ -411,6 +412,7 @@ export function PosterGrid({
   generateMoreLabel,
   generationType,
   onCreditConsumed,
+  generationId,
 }: PosterGridProps) {
   const { t, locale } = useLocale();
   const [selectedResult, setSelectedResult] = useState<PosterResult | null>(null);
@@ -623,6 +625,7 @@ export function PosterGrid({
         onSaveAsTemplate={onSaveAsTemplate}
         generationType={generationType}
         onCreditConsumed={onCreditConsumed}
+        generationId={generationId}
       />
     </div>
   );

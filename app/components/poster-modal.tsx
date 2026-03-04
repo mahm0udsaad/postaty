@@ -15,8 +15,10 @@ import {
   AlertTriangle,
   Send,
   Undo2,
+  Maximize,
 } from "lucide-react";
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect, useRef, type ReactPortal } from "react";
+import { createPortal } from "react-dom";
 import { useAuth } from "@/hooks/use-auth";
 import { removeOverlayBackground } from "@/app/actions-v2";
 import { editDesignAction } from "@/app/actions-edit";
@@ -139,6 +141,9 @@ export function PosterModal({
   const [previousImage, setPreviousImage] = useState<string | null>(null);
   const [editError, setEditError] = useState<string | null>(null);
   const editInputRef = useRef<HTMLTextAreaElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
 
   const { isSignedIn } = useAuth();
 
@@ -184,7 +189,7 @@ export function PosterModal({
     };
   }, [isOpen]);
 
-  if (!isOpen || !result) return null;
+  if (!isOpen || !result || !mounted) return null;
 
   const handleRemoveBackground = async (overlayBase64: string, overlayIndex: number) => {
     setRemoveBgLoading(true);
@@ -323,7 +328,7 @@ export function PosterModal({
         setDisplayImage(editResult.imageBase64);
         setEditPrompt("");
 
-        // Consume 1 credit
+        // Consume 0.5 credit
         try {
           const idempotencyKey = `edit_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
           await fetch("/api/billing/consume-credit", {
@@ -335,6 +340,39 @@ export function PosterModal({
         } catch (creditErr) {
           console.error("[handleEditDesign] credit consumption error", creditErr);
           onCreditConsumed?.();
+        }
+
+        // Update generation history with the edited image
+        if (generationId && editResult.imageBase64) {
+          try {
+            const uploadRes = await fetch("/api/storage/upload", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                base64: editResult.imageBase64,
+                bucket: "generations",
+                prefix: "poster-edited",
+              }),
+            });
+            if (uploadRes.ok) {
+              const { publicUrl } = await uploadRes.json();
+              // Replace outputs so history shows the latest edited version
+              await fetch(`/api/generations/${generationId}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  outputs: [
+                    {
+                      format: generationType === "menu" ? "a4-portrait" : result.format,
+                      url: publicUrl,
+                    },
+                  ],
+                }),
+              });
+            }
+          } catch (uploadErr) {
+            console.error("[handleEditDesign] failed to update generation history", uploadErr);
+          }
         }
       } else {
         setEditError(editResult.error);
@@ -353,7 +391,7 @@ export function PosterModal({
     setPreviousImage(null);
   };
 
-  return (
+  return createPortal(
     <AnimatePresence>
       {isOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-6">
@@ -403,35 +441,132 @@ export function PosterModal({
                   />
                 </div>
               ) : (
-                <motion.div
-                  layoutId={`poster-img-${result.designIndex}`}
-                  className="relative max-h-full max-w-full shadow-2xl rounded-lg overflow-hidden z-10"
-                >
-                  {currentImage ? (
-                    <>
-                      <img
-                        src={currentImage}
-                        alt="Full Preview"
-                        className={`max-h-[calc(90vh-4rem)] md:max-h-[80vh] w-auto object-contain transition-opacity duration-300 ${isEditing ? "opacity-40" : "opacity-100"}`}
-                      />
-                      {isEditing && (
-                        <div className="absolute inset-0 flex flex-col items-center justify-center gap-3">
-                          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/5 animate-pulse" />
-                          <div className="relative flex items-center gap-2 px-4 py-2.5 bg-surface-1/90 backdrop-blur-sm rounded-xl shadow-lg border border-card-border">
-                            <Loader2 size={18} className="animate-spin text-primary" />
-                            <span className="text-sm font-medium text-foreground">
-                              {t("جاري تعديل التصميم...", "Editing design...")}
-                            </span>
-                          </div>
+                <div className="relative w-full h-full flex flex-col items-center justify-center gap-4 py-4">
+                  <div className="flex-1 min-h-0 w-full flex items-center justify-center">
+                    <motion.div
+                      layoutId={`poster-img-${result.designIndex}`}
+                      className="relative max-h-full max-w-full shadow-2xl rounded-lg overflow-hidden z-10 flex shrink-0 group"
+                    >
+                      {currentImage ? (
+                        <>
+                          <img
+                            src={currentImage}
+                            alt="Full Preview"
+                            style={{ maxHeight: '100%' }}
+                            className={`max-w-full w-auto object-contain transition-opacity duration-500 ${isEditing ? "opacity-0" : "opacity-100"}`}
+                          />
+                          {!isEditing && (
+                            <button
+                              onClick={() => setIsFullscreen(true)}
+                              className="absolute top-4 right-4 p-2.5 bg-black/40 hover:bg-black/60 text-white rounded-full backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all duration-300 transform hover:scale-105 active:scale-95"
+                              title={t("تكبير الصورة", "Fullscreen")}
+                            >
+                              <Maximize size={18} />
+                            </button>
+                          )}
+                          {isEditing && (
+                            <div className="absolute inset-0 bg-surface-2 overflow-hidden">
+                              <div 
+                                 className="absolute inset-0 bg-cover bg-center opacity-30 blur-xl scale-110 transition-transform duration-1000"
+                                 style={{ backgroundImage: `url(${currentImage})` }} 
+                              />
+                              
+                              <motion.div 
+                                className="absolute top-0 left-0 right-0 h-1 bg-primary shadow-[0_0_20px_5px_rgba(var(--primary),0.6)] z-20"
+                                animate={{ top: ["0%", "100%", "0%"] }}
+                                transition={{ duration: 3, ease: "linear", repeat: Infinity }}
+                              />
+
+                              <div className="absolute inset-0 z-10 bg-gradient-to-r from-transparent via-white/10 dark:via-white/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
+                              
+                              <div className="absolute inset-0 flex flex-col items-center justify-center z-30">
+                                <div className="relative flex items-center gap-3 px-6 py-4 bg-background/60 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 dark:border-white/10">
+                                  <Loader2 size={24} className="animate-spin text-primary" />
+                                                                  <div className="flex flex-col">
+                                                                    <span className="text-base font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-500">
+                                                                      {t("جاري التعديل بواسطة Postaty AI...", "Editing with Postaty AI...")}
+                                                                    </span>
+                                                                    <span className="text-xs text-muted-foreground font-medium">
+                                                                      {t("قد يستغرق هذا بضع ثوانٍ", "This may take a few seconds")}
+                                                                    </span>
+                                                                  </div>                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <div className="w-64 h-64 flex items-center justify-center bg-surface-3 text-muted-foreground">
+                          No Image
                         </div>
                       )}
-                    </>
-                  ) : (
-                    <div className="w-64 h-64 flex items-center justify-center bg-surface-3 text-muted-foreground">
-                      No Image
+                    </motion.div>
+                  </div>
+
+                  {/* Floating AI Edit Input */}
+                  {isSignedIn && currentImage && (
+                    <div className="w-full max-w-xl px-4 z-50 shrink-0 transition-all duration-300 transform translate-y-0 opacity-100">
+                      <div className="bg-background/80 backdrop-blur-2xl border border-white/20 dark:border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.12)] rounded-2xl p-2.5 flex flex-col gap-2 relative overflow-hidden">
+                        
+                        {isEditing && (
+                          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-primary/5 to-transparent -translate-x-full animate-[shimmer_1.5s_infinite]" />
+                        )}
+
+                        <div className="flex items-center justify-between px-2">
+                          <div className="text-xs font-semibold text-foreground/80 flex items-center gap-1.5">
+                            <WandSparkles size={14} className="text-primary animate-pulse" />
+                            {t("تعديل بواسطة Postaty AI", "Edit with Postaty AI")}
+                          </div>
+                          <div className="flex items-center gap-3">
+                            {editError && (
+                              <span className="text-[10px] text-destructive font-medium bg-destructive/10 px-2 py-0.5 rounded-full">
+                                {editError}
+                              </span>
+                            )}
+                            {previousImage && !isEditing && (
+                              <button
+                                onClick={handleUndoEdit}
+                                className="flex items-center gap-1 text-[11px] font-medium text-muted hover:text-foreground transition-colors bg-surface-2 hover:bg-surface-3 px-2 py-1 rounded-md"
+                              >
+                                <Undo2 size={12} />
+                                {t("تراجع", "Undo")}
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                        
+                        <div className="flex gap-2 relative z-10 items-end">
+                          <textarea
+                            ref={editInputRef}
+                            value={editPrompt}
+                            onChange={(e) => setEditPrompt(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" && !e.shiftKey) {
+                                e.preventDefault();
+                                handleEditDesign();
+                              }
+                            }}
+                            placeholder={t("مثال: غيّر لون الخلفية إلى أزرق...", "e.g. Change the background color to blue...")}
+                            disabled={isEditing}
+                            rows={1}
+                            style={{ minHeight: '44px', maxHeight: '120px' }}
+                            className="flex-1 bg-surface-2/50 hover:bg-surface-2 focus:bg-surface-2 border border-transparent focus:border-primary/30 text-sm rounded-xl px-3 py-2.5 resize-none focus:outline-none focus:ring-4 focus:ring-primary/10 transition-all disabled:opacity-50 text-foreground placeholder:text-muted-foreground/70"
+                          />
+                          <button
+                            onClick={handleEditDesign}
+                            disabled={isEditing || !editPrompt.trim()}
+                            className="p-3 bg-primary text-white rounded-xl hover:bg-primary-hover hover:scale-105 active:scale-95 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-primary/25 h-[44px] w-[44px] flex items-center justify-center shrink-0"
+                          >
+                            {isEditing ? (
+                              <Loader2 size={18} className="animate-spin" />
+                            ) : (
+                              <Send size={18} className={locale === 'ar' ? "rotate-180" : ""} />
+                            )}
+                          </button>
+                        </div>
+                      </div>
                     </div>
                   )}
-                </motion.div>
+                </div>
               )}
             </div>
 
@@ -503,67 +638,7 @@ export function PosterModal({
                       <div className="font-bold text-foreground uppercase">{result.format}</div>
                     </div>
 
-                    {/* AI Edit */}
-                    {isSignedIn && currentImage && (
-                      <div className="p-4 bg-surface-2 rounded-2xl border border-card-border space-y-3">
-                        <div className="flex items-center justify-between">
-                          <div className="text-sm font-medium text-muted flex items-center gap-1.5">
-                            <WandSparkles size={14} />
-                            {t("تعديل بالذكاء الاصطناعي", "AI Edit")}
-                          </div>
-                          {previousImage && !isEditing && (
-                            <button
-                              onClick={handleUndoEdit}
-                              className="flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors"
-                            >
-                              <Undo2 size={12} />
-                              {t("تراجع", "Undo")}
-                            </button>
-                          )}
-                        </div>
-                        <div className="flex gap-2">
-                          <textarea
-                            ref={editInputRef}
-                            value={editPrompt}
-                            onChange={(e) => setEditPrompt(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter" && !e.shiftKey) {
-                                e.preventDefault();
-                                handleEditDesign();
-                              }
-                            }}
-                            placeholder={t("مثال: غيّر لون الخلفية إلى أزرق", "e.g. Change the background color to blue")}
-                            rows={2}
-                            disabled={isEditing}
-                            className="flex-1 px-3 py-2 bg-surface-1 border border-card-border rounded-xl text-sm resize-none focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-50"
-                          />
-                          <button
-                            onClick={handleEditDesign}
-                            disabled={isEditing || !editPrompt.trim()}
-                            className="self-end p-2.5 bg-primary text-white rounded-xl hover:bg-primary-hover transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                          >
-                            {isEditing ? (
-                              <Loader2 size={16} className="animate-spin" />
-                            ) : (
-                              <Send size={16} />
-                            )}
-                          </button>
-                        </div>
-                        {isEditing && (
-                          <div className="text-xs text-muted animate-pulse">
-                            {t("جاري تعديل التصميم...", "Editing design...")}
-                          </div>
-                        )}
-                        {editError && (
-                          <div className="text-xs text-destructive">
-                            {editError}
-                          </div>
-                        )}
-                        <div className="text-[11px] text-muted/60">
-                          {t("كل تعديل يستهلك نصف رصيد", "Each edit costs 0.5 credits")}
-                        </div>
-                      </div>
-                    )}
+
 
                     {isSignedIn && (
                       <div className="p-4 bg-surface-2 rounded-2xl border border-card-border space-y-3">
@@ -727,6 +802,28 @@ export function PosterModal({
           </motion.div>
         </div>
       )}
-    </AnimatePresence>
+
+      {/* Fullscreen Image Modal */}
+      {isFullscreen && currentImage && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/95 backdrop-blur-sm p-4 md:p-8">
+          <button
+            onClick={() => setIsFullscreen(false)}
+            className="absolute top-6 right-6 z-50 p-3 bg-white/10 hover:bg-white/20 text-white rounded-full backdrop-blur-md transition-all duration-200"
+          >
+            <X size={24} />
+          </button>
+          <motion.img
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            transition={{ type: "spring", damping: 25, stiffness: 300 }}
+            src={currentImage}
+            alt="Fullscreen Preview"
+            className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+          />
+        </div>
+      )}
+    </AnimatePresence>,
+    document.body
   );
 }
