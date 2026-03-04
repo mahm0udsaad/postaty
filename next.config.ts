@@ -80,6 +80,10 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  outputFileTracingIncludes: {
+    "/create": ["./public/inspirations/**/*"],
+    "/create/menu": ["./public/menu-inspiration/**/*"],
+  },
   experimental: {
     serverActions: {
       bodySizeLimit: "10mb",

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import useSWR from "swr";
 import { useAuth } from "@/hooks/use-auth";
 import { PosterGallery } from "./poster-gallery";
@@ -60,6 +60,13 @@ export default function HistoryPage() {
   const [selectedCategory, setSelectedCategory] = useState<"all" | Category>("all");
   const [imageType, setImageType] = useState<ImageTypeFilter>("all");
   const [galleryInfo, setGalleryInfo] = useState<{ count: number; total: number } | null>(null);
+
+  const handleCountChange = useCallback((count: number, total: number) => {
+    setGalleryInfo(prev => {
+      if (prev && prev.count === count && prev.total === total) return prev;
+      return { count, total };
+    });
+  }, []);
 
   const categoryFilter = selectedCategory === "all" ? undefined : selectedCategory;
 
@@ -175,7 +182,7 @@ export default function HistoryPage() {
             </Link>
           </div>
         ) : viewMode === "gallery" ? (
-          <PosterGallery category={categoryFilter} imageType={imageType} onCountChange={(count, total) => setGalleryInfo({ count, total })} />
+          <PosterGallery category={categoryFilter} imageType={imageType} onCountChange={handleCountChange} />
         ) : (
           <div className="max-w-5xl mx-auto space-y-4">
             {!isLoaded || isListLoading || generations === undefined ? (

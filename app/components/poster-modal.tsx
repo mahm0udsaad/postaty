@@ -18,7 +18,7 @@ import {
   Maximize,
   Coins,
 } from "lucide-react";
-import { useMemo, useState, useEffect, useRef } from "react";
+import { useMemo, useState, useEffect, useRef, useCallback } from "react";
 import useSWR from "swr";
 import { createPortal } from "react-dom";
 import { useAuth } from "@/hooks/use-auth";
@@ -162,6 +162,7 @@ export function PosterModal({
   const [selectedFormat, setSelectedFormat] = useState<OutputFormat>(result?.format ?? "instagram-square");
   const [previousFormat, setPreviousFormat] = useState<OutputFormat | null>(null);
   const [isResizing, setIsResizing] = useState(false);
+  const prevOpenRef = useRef(false);
   useEffect(() => { setMounted(true); }, []);
 
   const { isSignedIn } = useAuth();
@@ -182,7 +183,18 @@ export function PosterModal({
     return `poster-${name}-${selectedFormat}.jpg`;
   }, [result, selectedFormat]);
 
+  // Only reset state when the modal transitions from closed → open.
+  // This prevents edits (which update result.imageBase64 via onEditComplete)
+  // from wiping out previousImage / displayImage mid-session.
   useEffect(() => {
+    if (!isOpen) {
+      prevOpenRef.current = false;
+      return;
+    }
+    // Already open — skip reset (result may have changed due to onEditComplete)
+    if (prevOpenRef.current) return;
+    prevOpenRef.current = true;
+
     setIsExporting(false);
     setFeedbackState("idle");
     setShowCommentBox(false);
