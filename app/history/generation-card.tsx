@@ -321,17 +321,19 @@ export function GenerationCard({ generation, imageType = "all", onDeleted }: Gen
         </div>
       )}
 
-      {/* AI Edit Modal */}
-      <PosterModal
-        isOpen={!!editData}
-        onClose={() => setEditData(null)}
-        result={editPosterResult}
-        generationId={generation.id}
-        generationType="poster"
-        onEditComplete={(newBase64) =>
-          setEditData((prev) => prev ? { ...prev, base64: newBase64 } : null)
-        }
-      />
+      {/* AI Edit Modal — only mount when open to avoid keeping 50 instances in memory */}
+      {editPosterResult && (
+        <PosterModal
+          isOpen={true}
+          onClose={() => setEditData(null)}
+          result={editPosterResult}
+          generationId={generation.id}
+          generationType="poster"
+          onEditComplete={(newBase64) =>
+            setEditData((prev) => prev ? { ...prev, base64: newBase64 } : null)
+          }
+        />
+      )}
 
       {marketingOutput && generation.inputs && (
         <MarketingContentModal

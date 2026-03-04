@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import {
   motion,
   useMotionValue,
@@ -419,6 +419,7 @@ export function PosterGrid({
   const { t, locale } = useLocale();
   const [selectedResult, setSelectedResult] = useState<PosterResult | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const pendingEditRef = useRef<{ designIndex: number; base64: string } | null>(null);
   const [exportingAll, setExportingAll] = useState(false);
   const lowMotionMode = useReducedMotion() ?? false;
 
@@ -620,6 +621,10 @@ export function PosterGrid({
       <PosterModal
         isOpen={isModalOpen}
         onClose={() => {
+          if (pendingEditRef.current) {
+            onResultUpdated?.(pendingEditRef.current.designIndex, pendingEditRef.current.base64);
+            pendingEditRef.current = null;
+          }
           setIsModalOpen(false);
           setSelectedResult(null);
         }}
@@ -630,8 +635,7 @@ export function PosterGrid({
         generationId={generationId}
         onEditComplete={(newBase64) => {
           if (selectedResult) {
-            setSelectedResult((prev) => prev ? { ...prev, imageBase64: newBase64 } : null);
-            onResultUpdated?.(selectedResult.designIndex, newBase64);
+            pendingEditRef.current = { designIndex: selectedResult.designIndex, base64: newBase64 };
           }
         }}
       />

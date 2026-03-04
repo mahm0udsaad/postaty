@@ -18,7 +18,7 @@ import {
   Maximize,
   Coins,
 } from "lucide-react";
-import { useMemo, useState, useEffect, useRef, type ReactPortal } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import useSWR from "swr";
 import { createPortal } from "react-dom";
 import { useAuth } from "@/hooks/use-auth";
@@ -632,7 +632,7 @@ export function PosterModal({
                             )}
                           </div>
                         </div>
-                        
+
                         {editHistory.length > 0 && (
                           <div className="flex flex-wrap gap-1.5 px-1">
                             {editHistory.map((prompt, i) => (
