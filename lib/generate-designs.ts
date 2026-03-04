@@ -241,10 +241,7 @@ export async function generatePoster(
   let usedModelId = PRIMARY_MODEL_ID;
 
   const generateRequest = {
-    providerOptions: buildImageProviderOptions(
-      formatConfig.aspectRatio,
-      Math.max(formatConfig.width, formatConfig.height) > 1080 ? "2K" : "1K"
-    ),
+    providerOptions: buildImageProviderOptions(formatConfig.aspectRatio, "1K"),
     system: systemPrompt,
     messages: [{ role: "user" as const, content: contentParts }],
   };

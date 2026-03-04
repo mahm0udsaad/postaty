@@ -243,6 +243,22 @@ const DELIVERY_TRANSLATIONS: Record<string, Record<string, string>> = {
   paid: { ar: "توصيل مدفوع", en: "Paid Delivery", he: "משלוח בתשלום", fr: "Livraison payante", de: "Kostenpflichtige Lieferung", tr: "Ücretli Teslimat" },
 };
 
+const AVAILABILITY_TRANSLATIONS: Record<string, Record<string, string>> = {
+  "in-stock": { ar: "متوفر", en: "In Stock", he: "במלאי", fr: "En stock", de: "Auf Lager", tr: "Stokta" },
+  "out-of-stock": { ar: "غير متوفر", en: "Out of Stock", he: "אזל מהמלאי", fr: "Rupture de stock", de: "Nicht vorrätig", tr: "Stokta Yok" },
+  preorder: { ar: "طلب مسبق", en: "Pre-order", he: "הזמנה מוקדמת", fr: "Précommande", de: "Vorbestellung", tr: "Ön Sipariş" },
+};
+
+const PRICE_TYPE_TRANSLATIONS: Record<string, Record<string, string>> = {
+  fixed: { ar: "سعر ثابت", en: "Fixed Price", he: "מחיר קבוע", fr: "Prix fixe", de: "Festpreis", tr: "Sabit Fiyat" },
+  "starting-from": { ar: "يبدأ من", en: "Starting from", he: "החל מ-", fr: "À partir de", de: "Ab", tr: "Başlangıç" },
+};
+
+const BOOKING_CONDITION_TRANSLATIONS: Record<string, Record<string, string>> = {
+  advance: { ar: "حجز مسبق", en: "Advance Booking", he: "הזמנה מראש", fr: "Réservation préalable", de: "Vorab buchen", tr: "Ön Rezervasyon" },
+  "available-now": { ar: "متاح الآن", en: "Available Now", he: "זמין עכשיו", fr: "Disponible maintenant", de: "Sofort verfügbar", tr: "Hemen Müsait" },
+};
+
 function translateCta(cta: string, posterLanguage: string): string {
   if (posterLanguage === "ar") return cta; // Already Arabic
   const translations = CTA_TRANSLATIONS[cta];
@@ -259,6 +275,21 @@ function translateBadge(badge: string, posterLanguage: string): string {
 function translateDelivery(type: string, posterLanguage: string): string {
   const lang = posterLanguage === "ar" ? "ar" : posterLanguage === "he" ? "he" : posterLanguage === "fr" ? "fr" : posterLanguage === "de" ? "de" : posterLanguage === "tr" ? "tr" : "en";
   return DELIVERY_TRANSLATIONS[type]?.[lang] || type;
+}
+
+function translateAvailability(value: string, posterLanguage: string): string {
+  const lang = posterLanguage === "ar" ? "ar" : posterLanguage === "he" ? "he" : posterLanguage === "fr" ? "fr" : posterLanguage === "de" ? "de" : posterLanguage === "tr" ? "tr" : "en";
+  return AVAILABILITY_TRANSLATIONS[value]?.[lang] || value;
+}
+
+function translatePriceType(value: string, posterLanguage: string): string {
+  const lang = posterLanguage === "ar" ? "ar" : posterLanguage === "he" ? "he" : posterLanguage === "fr" ? "fr" : posterLanguage === "de" ? "de" : posterLanguage === "tr" ? "tr" : "en";
+  return PRICE_TYPE_TRANSLATIONS[value]?.[lang] || value;
+}
+
+function translateBookingCondition(value: string, posterLanguage: string): string {
+  const lang = posterLanguage === "ar" ? "ar" : posterLanguage === "he" ? "he" : posterLanguage === "fr" ? "fr" : posterLanguage === "de" ? "de" : posterLanguage === "tr" ? "tr" : "en";
+  return BOOKING_CONDITION_TRANSLATIONS[value]?.[lang] || value;
 }
 
 // ── Image Generation User Message ─────────────────────────────────
@@ -279,7 +310,7 @@ export function getImageDesignUserMessage(
   data: PostFormData,
   posterLanguage?: string,
   preTranslated?: boolean,
-  translatedDropdowns?: { offerBadgeText?: string; deliveryText?: string } | null
+  translatedDropdowns?: { offerBadgeText?: string; deliveryText?: string; availabilityText?: string; priceTypeText?: string; bookingConditionText?: string } | null
 ): string {
   const lang = posterLanguage || data.posterLanguage || "en";
   // When pre-translated, the CTA is already in the target language (translated by Gemini 2.5 Pro)
@@ -298,6 +329,9 @@ export function getImageDesignUserMessage(
   const dataAny = data as unknown as Record<string, string | undefined>;
   const badgeText = translatedDropdowns?.offerBadgeText || (dataAny.offerBadge ? translateBadge(dataAny.offerBadge, lang) : null);
   const deliveryText = translatedDropdowns?.deliveryText || (dataAny.deliveryType ? translateDelivery(dataAny.deliveryType, lang) : null);
+  const availabilityText = translatedDropdowns?.availabilityText || (dataAny.availability ? translateAvailability(dataAny.availability, lang) : null);
+  const priceTypeText = translatedDropdowns?.priceTypeText || (dataAny.priceType ? translatePriceType(dataAny.priceType, lang) : null);
+  const bookingConditionText = translatedDropdowns?.bookingConditionText || (dataAny.bookingCondition ? translateBookingCondition(dataAny.bookingCondition, lang) : null);
 
   switch (data.category) {
     case "restaurant":
@@ -315,7 +349,7 @@ ${inventoryHeader}
 ${fieldLine("Product name", data.mealName, langName, preTranslated)}
 ${data.description ? `${fieldLine("Description", data.description, langName, preTranslated)}\n` : ""}- New price: "${data.newPrice}"
 - Old price: "${data.oldPrice}"
-${badgeText ? `- Offer badge: "${badgeText}"\n` : ""}${deliveryText ? `- Delivery: "${deliveryText}"\n` : ""}${data.offerDuration ? `${fieldLine("Offer duration", data.offerDuration, langName, preTranslated)}\n` : ""}- CTA: "${cta}"
+${badgeText ? `- Offer badge: "${badgeText}"\n` : ""}${deliveryText ? `- Delivery: "${deliveryText}"\n` : ""}${data.deliveryTime ? `${fieldLine("Delivery time", data.deliveryTime, langName, preTranslated)}\n` : ""}${data.coverageAreas ? `${fieldLine("Coverage areas", data.coverageAreas, langName, preTranslated)}\n` : ""}${data.offerDuration ? `${fieldLine("Offer duration", data.offerDuration, langName, preTranslated)}\n` : ""}- CTA: "${cta}"
 - WhatsApp: "${data.whatsapp}"
 NOTHING else. No "menu", no extra labels, no decorative text.`;
 
@@ -331,7 +365,7 @@ The product photo and supermarket logo are provided as images in this message.
 ${inventoryHeader}
 - Business name: "${data.supermarketName}" (proper noun — do NOT translate)
 ${fieldLine("Product name", data.productName, langName, preTranslated)}
-- New price: "${data.newPrice}"
+${data.quantity ? `${fieldLine("Quantity", data.quantity, langName, preTranslated)}\n` : ""}- New price: "${data.newPrice}"
 - Old price: "${data.oldPrice}"
 ${data.discountPercentage ? `- Discount: "${data.discountPercentage}%"\n` : ""}${data.offerDuration ? `${fieldLine("Offer duration", data.offerDuration, langName, preTranslated)}\n` : ""}${data.offerLimit ? `${fieldLine("Offer limit", data.offerLimit, langName, preTranslated)}\n` : ""}${data.expiryDate ? `- Expiry date: "${data.expiryDate}"\n` : ""}- CTA: "${cta}"
 - WhatsApp: "${data.whatsapp}"
@@ -351,7 +385,7 @@ ${inventoryHeader}
 ${fieldLine("Product name", data.productName, langName, preTranslated)}
 ${data.features ? `${fieldLine("Features", data.features, langName, preTranslated)}\n` : ""}- New price: "${data.newPrice}"
 - Old price: "${data.oldPrice}"
-${data.shippingDuration ? `${fieldLine("Shipping", data.shippingDuration, langName, preTranslated)}\n` : ""}${data.purchaseLink ? `- Purchase link: "${data.purchaseLink}"\n` : ""}- CTA: "${cta}"
+${data.colorSize ? `${fieldLine("Color/Size", data.colorSize, langName, preTranslated)}\n` : ""}${availabilityText ? `- Availability: "${availabilityText}"\n` : ""}${data.shippingDuration ? `${fieldLine("Shipping", data.shippingDuration, langName, preTranslated)}\n` : ""}${data.purchaseLink ? `- Purchase link: "${data.purchaseLink}"\n` : ""}- CTA: "${cta}"
 - WhatsApp: "${data.whatsapp}"
 NOTHING else. No extra labels, no decorative text.`;
 
@@ -368,7 +402,7 @@ ${data.serviceImage ? `A service image is also provided — use it as the hero e
 ${inventoryHeader}
 - Business name: "${data.businessName}" (proper noun — do NOT translate)
 ${fieldLine("Service name", data.serviceName, langName, preTranslated)}
-${data.serviceDetails ? `${fieldLine("Details", data.serviceDetails, langName, preTranslated)}\n` : ""}- Price: "${data.price}"
+${data.serviceDetails ? `${fieldLine("Details", data.serviceDetails, langName, preTranslated)}\n` : ""}${priceTypeText ? `- Price type: "${priceTypeText}"\n` : ""}- Price: "${data.price}"
 ${data.executionTime ? `${fieldLine("Execution time", data.executionTime, langName, preTranslated)}\n` : ""}${data.coverageArea ? `${fieldLine("Coverage", data.coverageArea, langName, preTranslated)}\n` : ""}${data.warranty ? `${fieldLine("Warranty", data.warranty, langName, preTranslated)}\n` : ""}${data.quickFeatures ? `${fieldLine("Features", data.quickFeatures, langName, preTranslated)}\n` : ""}${data.offerDuration ? `${fieldLine("Offer duration", data.offerDuration, langName, preTranslated)}\n` : ""}- CTA: "${cta}"
 - WhatsApp: "${data.whatsapp}"
 NOTHING else. No extra labels, no decorative text.`;
@@ -387,7 +421,7 @@ ${inventoryHeader}
 ${fieldLine("Item name", data.itemName, langName, preTranslated)}
 ${data.description ? `${fieldLine("Description", data.description, langName, preTranslated)}\n` : ""}- New price: "${data.newPrice}"
 - Old price: "${data.oldPrice}"
-${data.availableSizes ? `${fieldLine("Sizes", data.availableSizes, langName, preTranslated)}\n` : ""}${data.availableColors ? `${fieldLine("Colors", data.availableColors, langName, preTranslated)}\n` : ""}${data.offerNote ? `${fieldLine("Offer note", data.offerNote, langName, preTranslated)}\n` : ""}- CTA: "${cta}"
+${data.availableSizes ? `${fieldLine("Sizes", data.availableSizes, langName, preTranslated)}\n` : ""}${data.availableColors ? `${fieldLine("Colors", data.availableColors, langName, preTranslated)}\n` : ""}${data.offerNote ? `${fieldLine("Offer note", data.offerNote, langName, preTranslated)}\n` : ""}${data.offerDuration ? `${fieldLine("Offer duration", data.offerDuration, langName, preTranslated)}\n` : ""}- CTA: "${cta}"
 - WhatsApp: "${data.whatsapp}"
 NOTHING else. No extra labels, no decorative text.`;
 
@@ -405,7 +439,7 @@ ${inventoryHeader}
 ${fieldLine("Service name", data.serviceName, langName, preTranslated)}
 ${data.benefit ? `${fieldLine("Benefit", data.benefit, langName, preTranslated)}\n` : ""}- New price: "${data.newPrice}"
 - Old price: "${data.oldPrice}"
-${data.sessionDuration ? `${fieldLine("Duration", data.sessionDuration, langName, preTranslated)}\n` : ""}${data.suitableFor ? `${fieldLine("Suitable for", data.suitableFor, langName, preTranslated)}\n` : ""}- CTA: "${cta}"
+${data.sessionDuration ? `${fieldLine("Duration", data.sessionDuration, langName, preTranslated)}\n` : ""}${data.suitableFor ? `${fieldLine("Suitable for", data.suitableFor, langName, preTranslated)}\n` : ""}${bookingConditionText ? `- Booking: "${bookingConditionText}"\n` : ""}${data.offerDuration ? `${fieldLine("Offer duration", data.offerDuration, langName, preTranslated)}\n` : ""}- CTA: "${cta}"
 - WhatsApp: "${data.whatsapp}"
 NOTHING else. No extra labels, no decorative text.`;
   }

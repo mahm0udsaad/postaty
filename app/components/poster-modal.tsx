@@ -24,7 +24,17 @@ import { removeOverlayBackground } from "@/app/actions-v2";
 import { editDesignAction } from "@/app/actions-edit";
 import { renderEditedGiftToBlob } from "@/lib/gift-editor/export-edited-gift";
 import type { GiftEditorState, PosterResult, OutputFormat } from "@/lib/types";
+import { FORMAT_CONFIGS, POSTER_GENERATION_FORMATS } from "@/lib/constants";
 import { useLocale } from "@/hooks/use-locale";
+
+const FORMAT_LABELS: Record<OutputFormat, { ar: string; en: string }> = {
+  "instagram-square": { ar: "انستجرام بوست", en: "Instagram Post" },
+  "instagram-story":  { ar: "انستجرام ستوري", en: "Instagram Story" },
+  "facebook-post":    { ar: "فيسبوك بوست", en: "Facebook Post" },
+  "facebook-cover":   { ar: "غلاف فيسبوك", en: "Facebook Cover" },
+  "twitter-post":     { ar: "تويتر / X", en: "X / Twitter" },
+  "whatsapp-status":  { ar: "حالة واتساب", en: "WhatsApp Status" },
+};
 
 const GiftEditorCanvas = dynamic(
   () => import("./gift-editor/gift-editor-canvas").then((mod) => mod.GiftEditorCanvas),
@@ -47,6 +57,7 @@ interface PosterModalProps {
   imageStorageId?: string;
   generationType?: "poster" | "menu";
   onCreditConsumed?: () => void;
+  onEditComplete?: (newImageBase64: string) => void;
 }
 
 type ModalTab = "preview" | "edit";
@@ -116,6 +127,7 @@ export function PosterModal({
   imageStorageId,
   generationType = "poster",
   onCreditConsumed,
+  onEditComplete,
 }: PosterModalProps) {
   const { locale, t } = useLocale();
   const [isExporting, setIsExporting] = useState(false);
@@ -145,6 +157,8 @@ export function PosterModal({
   const editInputRef = useRef<HTMLTextAreaElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [mounted, setMounted] = useState(false);
+  const [selectedFormat, setSelectedFormat] = useState<OutputFormat>(result?.format ?? "instagram-square");
+  const [isResizing, setIsResizing] = useState(false);
   useEffect(() => { setMounted(true); }, []);
 
   const { isSignedIn } = useAuth();
@@ -157,9 +171,8 @@ export function PosterModal({
 
   const fileName = useMemo(() => {
     const name = result?.designNameAr || (result ? `${result.designIndex + 1}` : "poster");
-    const format = result?.format || "image";
-    return `poster-${name}-${format}.png`;
-  }, [result]);
+    return `poster-${name}-${selectedFormat}.jpg`;
+  }, [result, selectedFormat]);
 
   useEffect(() => {
     setIsExporting(false);
@@ -184,6 +197,8 @@ export function PosterModal({
     setIsViewingOriginal(false);
     setEditError(null);
     setEditHistory([]);
+    setSelectedFormat(result?.format ?? "instagram-square");
+    setIsResizing(false);
   }, [result, isOpen, defaultGiftLabel]);
 
   useEffect(() => {
@@ -332,6 +347,7 @@ export function PosterModal({
         setDisplayImage(editResult.imageBase64);
         setEditHistory((prev) => [...prev, editPrompt.trim()]);
         setEditPrompt("");
+        onEditComplete?.(editResult.imageBase64);
 
         // Consume 0.5 credit
         try {
@@ -397,6 +413,40 @@ export function PosterModal({
     setIsViewingOriginal(false);
   };
 
+  const handleFormatChange = async (fmt: OutputFormat) => {
+    if (fmt === selectedFormat || isResizing || !currentImage) return;
+    setIsResizing(true);
+    try {
+      const cfg = FORMAT_CONFIGS[fmt];
+      const label = FORMAT_LABELS[fmt];
+      const reframePrompt = locale === "ar"
+        ? `أعد تأطير هذا التصميم ليناسب تنسيق ${label.ar} (${cfg.width}×${cfg.height} بكسل، نسبة ${cfg.aspectRatio}). حافظ على نفس المحتوى والنصوص والألوان والعلامة التجارية مع تعديل التخطيط ليملأ الأبعاد الجديدة بشكل مناسب.`
+        : `Reframe this design for ${label.en} format (${cfg.width}×${cfg.height}px, ${cfg.aspectRatio} ratio). Keep the same content, text, colors, and branding but adapt the layout composition to properly fill the new dimensions.`;
+
+      const editResult = await editDesignAction(currentImage, reframePrompt, fmt, "free");
+      if (editResult.status === "complete") {
+        setDisplayImage(editResult.imageBase64);
+        setSelectedFormat(fmt);
+        try {
+          const idempotencyKey = `reframe_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+          await fetch("/api/billing/consume-credit", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ idempotencyKey, amount: 0.5 }),
+          });
+          onCreditConsumed?.();
+        } catch (creditErr) {
+          console.error("[handleFormatChange] credit error", creditErr);
+          onCreditConsumed?.();
+        }
+      }
+    } catch (err) {
+      console.error("[handleFormatChange] failed", err);
+    } finally {
+      setIsResizing(false);
+    }
+  };
+
   return createPortal(
     <AnimatePresence>
       {isOpen && (
@@ -459,14 +509,14 @@ export function PosterModal({
                             src={currentImage}
                             alt="Full Preview"
                             style={{ maxHeight: '100%' }}
-                            className={`max-w-full w-auto object-contain transition-opacity duration-500 ${isEditing ? "opacity-0" : "opacity-100"}`}
+                            className={`max-w-full w-auto object-contain transition-opacity duration-500 ${isEditing || isResizing ? "opacity-0" : "opacity-100"}`}
                           />
-                          {!isEditing && previousImage && (
+                          {!isEditing && !isResizing && previousImage && (
                             <div className={`absolute top-3 left-3 px-2.5 py-1 rounded-full text-[11px] font-bold shadow-md backdrop-blur-sm ${isViewingOriginal ? "bg-black/60 text-white/90" : "bg-primary text-white"}`}>
                               {isViewingOriginal ? t("قبل التعديل", "Before") : t("بعد التعديل", "After")}
                             </div>
                           )}
-                          {!isEditing && (
+                          {!isEditing && !isResizing && (
                             <button
                               onClick={() => setIsFullscreen(true)}
                               className="absolute top-4 right-4 p-2.5 bg-black/40 hover:bg-black/60 text-white rounded-full backdrop-blur-md opacity-0 group-hover:opacity-100 transition-all duration-300 transform hover:scale-105 active:scale-95"
@@ -475,32 +525,32 @@ export function PosterModal({
                               <Maximize size={18} />
                             </button>
                           )}
-                          {isEditing && (
+                          {(isEditing || isResizing) && (
                             <div className="absolute inset-0 bg-surface-2 overflow-hidden">
-                              <div 
-                                 className="absolute inset-0 bg-cover bg-center opacity-30 blur-xl scale-110 transition-transform duration-1000"
-                                 style={{ backgroundImage: `url(${currentImage})` }} 
+                              <div
+                                className="absolute inset-0 bg-cover bg-center opacity-30 blur-xl scale-110 transition-transform duration-1000"
+                                style={{ backgroundImage: `url(${currentImage})` }}
                               />
-                              
-                              <motion.div 
+                              <motion.div
                                 className="absolute top-0 left-0 right-0 h-1 bg-primary shadow-[0_0_20px_5px_rgba(var(--primary),0.6)] z-20"
                                 animate={{ top: ["0%", "100%", "0%"] }}
                                 transition={{ duration: 3, ease: "linear", repeat: Infinity }}
                               />
-
                               <div className="absolute inset-0 z-10 bg-gradient-to-r from-transparent via-white/10 dark:via-white/5 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
-                              
                               <div className="absolute inset-0 flex flex-col items-center justify-center z-30">
                                 <div className="relative flex items-center gap-3 px-6 py-4 bg-background/60 backdrop-blur-xl rounded-2xl shadow-2xl border border-white/20 dark:border-white/10">
                                   <Loader2 size={24} className="animate-spin text-primary" />
-                                                                  <div className="flex flex-col">
-                                                                    <span className="text-base font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-500">
-                                                                      {t("جاري التعديل بواسطة Postaty AI...", "Editing with Postaty AI...")}
-                                                                    </span>
-                                                                    <span className="text-xs text-muted-foreground font-medium">
-                                                                      {t("قد يستغرق هذا بضع ثوانٍ", "This may take a few seconds")}
-                                                                    </span>
-                                                                  </div>                                </div>
+                                  <div className="flex flex-col">
+                                    <span className="text-base font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-purple-500">
+                                      {isResizing
+                                        ? t("جاري تغيير الأبعاد بواسطة Postaty AI...", "Resizing with Postaty AI...")
+                                        : t("جاري التعديل بواسطة Postaty AI...", "Editing with Postaty AI...")}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground font-medium">
+                                      {t("قد يستغرق هذا بضع ثوانٍ", "This may take a few seconds")}
+                                    </span>
+                                  </div>
+                                </div>
                               </div>
                             </div>
                           )}
@@ -674,12 +724,45 @@ export function PosterModal({
                   <>
                     <div className="p-4 bg-surface-2 rounded-2xl border border-card-border space-y-3">
                       <div className="text-sm font-medium text-muted">{t("العنوان المقترح", "Suggested title")}</div>
-                      <div className="font-bold text-foreground">{result.designNameAr || t("بدون عنوان", "Untitled")}</div>
+                      <div className="font-bold text-foreground">
+                        {result.designNameAr || t("بدون عنوان", "Untitled")}
+                        <span className="text-primary"> | Postaty AI</span>
+                      </div>
                     </div>
 
                     <div className="p-4 bg-surface-2 rounded-2xl border border-card-border space-y-3">
-                      <div className="text-sm font-medium text-muted">{t("التنسيق", "Format")}</div>
-                      <div className="font-bold text-foreground uppercase">{result.format}</div>
+                      <div className="flex items-center justify-between">
+                        <div className="text-sm font-medium text-muted">{t("الأبعاد", "Dimensions")}</div>
+                        {isResizing
+                          ? <Loader2 size={13} className="animate-spin text-primary" />
+                          : <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-md font-bold border border-primary/20">0.5 {t("رصيد", "credit")}</span>
+                        }
+                      </div>
+                      <div className="grid grid-cols-2 gap-1.5">
+                        {POSTER_GENERATION_FORMATS.map((fmt) => {
+                          const cfg = FORMAT_CONFIGS[fmt];
+                          const label = FORMAT_LABELS[fmt];
+                          const isSelected = selectedFormat === fmt;
+                          return (
+                            <button
+                              key={fmt}
+                              type="button"
+                              onClick={() => handleFormatChange(fmt)}
+                              disabled={isResizing}
+                              className={`flex flex-col items-start p-2.5 rounded-xl border text-left transition-all disabled:opacity-50 ${
+                                isSelected
+                                  ? "border-primary bg-primary/5 text-primary"
+                                  : "border-card-border hover:border-primary/30 hover:bg-surface-1"
+                              }`}
+                            >
+                              <span className={`text-[11px] font-bold leading-tight ${isSelected ? "text-primary" : "text-foreground"}`}>
+                                {locale === "ar" ? label.ar : label.en}
+                              </span>
+                              <span className="text-[10px] text-muted-foreground mt-0.5">{cfg.width}×{cfg.height}</span>
+                            </button>
+                          );
+                        })}
+                      </div>
                     </div>
 
 

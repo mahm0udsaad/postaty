@@ -45,6 +45,7 @@ interface PosterGridProps {
   generationType?: "poster" | "menu";
   onCreditConsumed?: () => void;
   generationId?: string;
+  onResultUpdated?: (designIndex: number, newImageBase64: string) => void;
 }
 
 // ── Poster Skeleton (Advanced Generative Visualization) ───────────
@@ -413,6 +414,7 @@ export function PosterGrid({
   generationType,
   onCreditConsumed,
   generationId,
+  onResultUpdated,
 }: PosterGridProps) {
   const { t, locale } = useLocale();
   const [selectedResult, setSelectedResult] = useState<PosterResult | null>(null);
@@ -626,6 +628,12 @@ export function PosterGrid({
         generationType={generationType}
         onCreditConsumed={onCreditConsumed}
         generationId={generationId}
+        onEditComplete={(newBase64) => {
+          if (selectedResult) {
+            setSelectedResult((prev) => prev ? { ...prev, imageBase64: newBase64 } : null);
+            onResultUpdated?.(selectedResult.designIndex, newBase64);
+          }
+        }}
       />
     </div>
   );

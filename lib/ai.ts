@@ -38,5 +38,8 @@ export const translationModel = google("gemini-2.5-pro");
 /** Edit image model — Gemini 3.1 Flash Image for fast image-to-image editing */
 export const editImageModel = google("gemini-3.1-flash-image-preview");
 
+/** Fallback edit model — same model routed through Vercel AI Gateway */
+export const gatewayEditImageModel = gateway("google/gemini-3.1-flash-image-preview");
+
 /** Google provider instance for accessing tools (e.g. googleSearch) */
 export { google };

@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { editDesign } from "@/lib/edit-design";
 import { FORMAT_CONFIGS, MENU_FORMAT_CONFIG } from "@/lib/constants";
+import { getSharp } from "@/lib/image-helpers";
 import type { OutputFormat } from "@/lib/types";
 
 // Simple in-memory rate limiter: max 5 edits per minute per user
@@ -30,7 +31,8 @@ export type EditDesignResult =
 export async function editDesignAction(
   imageBase64: string,
   editPrompt: string,
-  format: OutputFormat | "menu"
+  format: OutputFormat | "menu",
+  model: "edit" | "free" = "edit"
 ): Promise<EditDesignResult> {
   // Auth gate
   const supabase = await createClient();
@@ -74,6 +76,7 @@ export async function editDesignAction(
       aspectRatio: formatConfig.aspectRatio,
       width: formatConfig.width,
       height: formatConfig.height,
+      model,
     });
 
     return { status: "complete", imageBase64: result.imageBase64 };
@@ -88,5 +91,33 @@ export async function editDesignAction(
     }
 
     return { status: "error", error: errorMessage, errorType };
+  }
+}
+
+export async function resizeImageAction(
+  imageBase64: string,
+  targetFormat: OutputFormat
+): Promise<{ status: "complete"; imageBase64: string } | { status: "error"; error: string }> {
+  const supabase = await createClient();
+  const { data: { user } } = await supabase.auth.getUser();
+  if (!user?.id) return { status: "error", error: "يجب تسجيل الدخول" };
+
+  const formatConfig = FORMAT_CONFIGS[targetFormat];
+  if (!formatConfig) return { status: "error", error: "تنسيق غير صالح" };
+
+  const match = imageBase64.match(/^data:(image\/[^;]+);base64,(.+)$/);
+  if (!match) return { status: "error", error: "صورة غير صالحة" };
+
+  try {
+    const raw = Buffer.from(match[2], "base64");
+    const sharp = await getSharp();
+    const resizedBuffer = await sharp(raw)
+      .resize(formatConfig.width, formatConfig.height, { fit: "fill" })
+      .jpeg({ quality: 90 })
+      .toBuffer();
+    return { status: "complete", imageBase64: `data:image/jpeg;base64,${resizedBuffer.toString("base64")}` };
+  } catch (err) {
+    console.error("[resizeImageAction] failed", err);
+    return { status: "error", error: "فشل تغيير الحجم" };
   }
 }

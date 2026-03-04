@@ -487,6 +487,13 @@ function MenuPageContent() {
                   generationType="menu"
                   onCreditConsumed={() => mutateCreditState()}
                   generationId={currentGenerationId}
+                  onResultUpdated={(designIndex, newBase64) => {
+                    setResults((prev) =>
+                      prev.map((r) =>
+                        r.designIndex === designIndex ? { ...r, imageBase64: newBase64 } : r
+                      )
+                    );
+                  }}
                 />
               </div>
 

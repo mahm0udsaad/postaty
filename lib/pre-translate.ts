@@ -13,9 +13,9 @@ import type { ResolvedLanguage } from "@/lib/resolved-language";
 const SHARED_DROPDOWN_FIELDS = ["cta"];
 
 const CATEGORY_FIELDS: Record<string, string[]> = {
-  restaurant: ["mealName", "description", "newPrice", "oldPrice", "offerDuration"],
-  supermarket: ["productName", "newPrice", "oldPrice", "offerDuration", "offerLimit", "expiryDate"],
-  ecommerce: ["productName", "features", "newPrice", "oldPrice", "shippingDuration"],
+  restaurant: ["mealName", "description", "newPrice", "oldPrice", "deliveryTime", "coverageAreas", "offerDuration"],
+  supermarket: ["productName", "quantity", "newPrice", "oldPrice", "offerDuration", "offerLimit", "expiryDate"],
+  ecommerce: ["productName", "features", "newPrice", "oldPrice", "colorSize", "shippingDuration"],
   services: [
     "serviceName",
     "serviceDetails",
@@ -58,6 +58,9 @@ export type ContextPrepResult = {
   translatedDropdowns: {
     offerBadgeText?: string;
     deliveryText?: string;
+    availabilityText?: string;
+    priceTypeText?: string;
+    bookingConditionText?: string;
   } | null;
 };
 
@@ -75,6 +78,22 @@ const BADGE_TEXT: Record<string, string> = {
 const DELIVERY_TEXT: Record<string, string> = {
   free: "توصيل مجاني",
   paid: "توصيل مدفوع",
+};
+
+const AVAILABILITY_TEXT: Record<string, string> = {
+  "in-stock": "متوفر",
+  "out-of-stock": "غير متوفر",
+  preorder: "طلب مسبق",
+};
+
+const PRICE_TYPE_TEXT: Record<string, string> = {
+  fixed: "سعر ثابت",
+  "starting-from": "يبدأ من",
+};
+
+const BOOKING_CONDITION_TEXT: Record<string, string> = {
+  advance: "حجز مسبق",
+  "available-now": "متاح الآن",
 };
 
 function extractTranslatableFields(data: PostFormData): Record<string, string> {
@@ -97,6 +116,15 @@ function extractTranslatableFields(data: PostFormData): Record<string, string> {
   }
   if (typeof dataAny.deliveryType === "string" && DELIVERY_TEXT[dataAny.deliveryType]) {
     result["_deliveryText"] = DELIVERY_TEXT[dataAny.deliveryType];
+  }
+  if (typeof dataAny.availability === "string" && AVAILABILITY_TEXT[dataAny.availability]) {
+    result["_availabilityText"] = AVAILABILITY_TEXT[dataAny.availability];
+  }
+  if (typeof dataAny.priceType === "string" && PRICE_TYPE_TEXT[dataAny.priceType]) {
+    result["_priceTypeText"] = PRICE_TYPE_TEXT[dataAny.priceType];
+  }
+  if (typeof dataAny.bookingCondition === "string" && BOOKING_CONDITION_TEXT[dataAny.bookingCondition]) {
+    result["_bookingConditionText"] = BOOKING_CONDITION_TEXT[dataAny.bookingCondition];
   }
 
   return result;
@@ -314,6 +342,18 @@ export async function prepareContext(
       if (translations["_deliveryText"]) {
         dropdowns.deliveryText = translations["_deliveryText"];
         delete translations["_deliveryText"];
+      }
+      if (translations["_availabilityText"]) {
+        dropdowns.availabilityText = translations["_availabilityText"];
+        delete translations["_availabilityText"];
+      }
+      if (translations["_priceTypeText"]) {
+        dropdowns.priceTypeText = translations["_priceTypeText"];
+        delete translations["_priceTypeText"];
+      }
+      if (translations["_bookingConditionText"]) {
+        dropdowns.bookingConditionText = translations["_bookingConditionText"];
+        delete translations["_bookingConditionText"];
       }
       if (Object.keys(dropdowns).length > 0) {
         translatedDropdowns = dropdowns;
