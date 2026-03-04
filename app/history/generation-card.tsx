@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import Image from "next/image";
 import {
   ChevronDown,
@@ -79,17 +79,21 @@ export function GenerationCard({ generation, imageType = "all" }: GenerationCard
     }
   };
 
-  const editPosterResult: PosterResult | null = editData
-    ? {
-        designIndex: 0,
-        format: (editData.format as OutputFormat) || "square",
-        html: "",
-        imageBase64: editData.base64,
-        status: "complete",
-        designName: generation.business_name,
-        designNameAr: generation.business_name,
-      }
-    : null;
+  const editPosterResult: PosterResult | null = useMemo(
+    () =>
+      editData
+        ? {
+            designIndex: 0,
+            format: (editData.format as OutputFormat) || "square",
+            html: "",
+            imageBase64: editData.base64,
+            status: "complete",
+            designName: generation.business_name,
+            designNameAr: generation.business_name,
+          }
+        : null,
+    [editData, generation.business_name]
+  );
 
   const STATUS_LABELS: Record<string, { label: string; classes: string }> = {
     complete: {

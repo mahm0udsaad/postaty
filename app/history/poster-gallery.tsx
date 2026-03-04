@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import useSWR from "swr";
 import { Download, Calendar, Tag, Loader2, Image as ImageIcon, Gift, Megaphone, X, Maximize2, WandSparkles } from "lucide-react";
@@ -85,7 +85,7 @@ export function PosterGallery({ category, imageType = "all", onCountChange }: Po
   });
   if (category) params.set('category', category);
 
-  const { data, isLoading } = useSWR(
+  const { data, isLoading, mutate } = useSWR(
     `/api/generations?${params.toString()}`,
     fetcher,
     { keepPreviousData: true }
@@ -145,17 +145,21 @@ export function PosterGallery({ category, imageType = "all", onCountChange }: Po
     }
   };
 
-  const editPosterResult: PosterResult | null = editImage
-    ? {
-        designIndex: 0,
-        format: (editImage.image.format as OutputFormat) || "square",
-        html: "",
-        imageBase64: editImage.base64,
-        status: "complete",
-        designName: editImage.image.businessName,
-        designNameAr: editImage.image.businessName,
-      }
-    : null;
+  const editPosterResult: PosterResult | null = useMemo(
+    () =>
+      editImage
+        ? {
+            designIndex: 0,
+            format: (editImage.image.format as OutputFormat) || "square",
+            html: "",
+            imageBase64: editImage.base64,
+            status: "complete",
+            designName: editImage.image.businessName,
+            designNameAr: editImage.image.businessName,
+          }
+        : null,
+    [editImage]
+  );
 
   const allImages: PosterImageData[] = [];
   if (allResults) {
@@ -454,10 +458,6 @@ export function PosterGallery({ category, imageType = "all", onCountChange }: Po
         isOpen={!!editImage}
         onClose={() => {
           setEditImage(null);
-          // Revalidate to show updated image in gallery
-          setOffset(0);
-          setAllResults([]);
-          setHasMore(true);
         }}
         result={editPosterResult}
         generationId={editImage?.image.generationId}

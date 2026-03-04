@@ -14,7 +14,7 @@ const SHARED_DROPDOWN_FIELDS = ["cta"];
 
 const CATEGORY_FIELDS: Record<string, string[]> = {
   restaurant: ["mealName", "description", "newPrice", "oldPrice", "offerDuration"],
-  supermarket: ["productName", "newPrice", "oldPrice", "offerDuration"],
+  supermarket: ["productName", "newPrice", "oldPrice", "offerDuration", "offerLimit", "expiryDate"],
   ecommerce: ["productName", "features", "newPrice", "oldPrice", "shippingDuration"],
   services: [
     "serviceName",

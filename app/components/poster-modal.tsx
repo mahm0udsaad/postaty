@@ -139,7 +139,9 @@ export function PosterModal({
   const [isEditing, setIsEditing] = useState(false);
   const [displayImage, setDisplayImage] = useState<string | undefined>(undefined);
   const [previousImage, setPreviousImage] = useState<string | null>(null);
+  const [isViewingOriginal, setIsViewingOriginal] = useState(false);
   const [editError, setEditError] = useState<string | null>(null);
+  const [editHistory, setEditHistory] = useState<string[]>([]);
   const editInputRef = useRef<HTMLTextAreaElement>(null);
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [mounted, setMounted] = useState(false);
@@ -179,7 +181,9 @@ export function PosterModal({
     setIsEditing(false);
     setDisplayImage(result?.imageBase64);
     setPreviousImage(null);
+    setIsViewingOriginal(false);
     setEditError(null);
+    setEditHistory([]);
   }, [result, isOpen, defaultGiftLabel]);
 
   useEffect(() => {
@@ -216,7 +220,7 @@ export function PosterModal({
     }
   };
 
-  const currentImage = displayImage || result.imageBase64;
+  const currentImage = (isViewingOriginal && previousImage) ? previousImage : (displayImage || result.imageBase64);
 
   const getExportBlob = async (): Promise<Blob | null> => {
     if (!currentImage) return null;
@@ -326,6 +330,7 @@ export function PosterModal({
       if (editResult.status === "complete") {
         setPreviousImage(currentImage);
         setDisplayImage(editResult.imageBase64);
+        setEditHistory((prev) => [...prev, editPrompt.trim()]);
         setEditPrompt("");
 
         // Consume 0.5 credit
@@ -389,6 +394,7 @@ export function PosterModal({
     if (!previousImage) return;
     setDisplayImage(previousImage);
     setPreviousImage(null);
+    setIsViewingOriginal(false);
   };
 
   return createPortal(
@@ -455,6 +461,11 @@ export function PosterModal({
                             style={{ maxHeight: '100%' }}
                             className={`max-w-full w-auto object-contain transition-opacity duration-500 ${isEditing ? "opacity-0" : "opacity-100"}`}
                           />
+                          {!isEditing && previousImage && (
+                            <div className={`absolute top-3 left-3 px-2.5 py-1 rounded-full text-[11px] font-bold shadow-md backdrop-blur-sm ${isViewingOriginal ? "bg-black/60 text-white/90" : "bg-primary text-white"}`}>
+                              {isViewingOriginal ? t("قبل التعديل", "Before") : t("بعد التعديل", "After")}
+                            </div>
+                          )}
                           {!isEditing && (
                             <button
                               onClick={() => setIsFullscreen(true)}
@@ -512,9 +523,12 @@ export function PosterModal({
                         )}
 
                         <div className="flex items-center justify-between px-2">
-                          <div className="text-xs font-semibold text-foreground/80 flex items-center gap-1.5">
+                          <div className="text-xs font-semibold text-foreground/80 flex items-center gap-1.5 flex-wrap">
                             <WandSparkles size={14} className="text-primary animate-pulse" />
-                            {t("تعديل بواسطة Postaty AI", "Edit with Postaty AI")}
+                            <span>{t("تعديل بواسطة Postaty AI", "Edit with Postaty AI")}</span>
+                            <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-md font-bold border border-primary/20">
+                              ({t("التعديل يستهلك 0.5 رصيد", "Edit costs 0.5 credits")})
+                            </span>
                           </div>
                           <div className="flex items-center gap-3">
                             {editError && (
@@ -523,17 +537,47 @@ export function PosterModal({
                               </span>
                             )}
                             {previousImage && !isEditing && (
-                              <button
-                                onClick={handleUndoEdit}
-                                className="flex items-center gap-1 text-[11px] font-medium text-muted hover:text-foreground transition-colors bg-surface-2 hover:bg-surface-3 px-2 py-1 rounded-md"
-                              >
-                                <Undo2 size={12} />
-                                {t("تراجع", "Undo")}
-                              </button>
+                              <div className="flex items-center gap-1">
+                                <div className="flex items-center bg-surface-2 rounded-lg p-0.5 border border-card-border/50 text-[11px] font-bold">
+                                  <button
+                                    onClick={() => setIsViewingOriginal(false)}
+                                    className={`px-2 py-1 rounded-md transition-all ${!isViewingOriginal ? "bg-primary text-white shadow-sm" : "text-muted hover:text-foreground"}`}
+                                  >
+                                    {t("بعد", "After")}
+                                  </button>
+                                  <button
+                                    onClick={() => setIsViewingOriginal(true)}
+                                    className={`px-2 py-1 rounded-md transition-all ${isViewingOriginal ? "bg-background text-foreground shadow-sm" : "text-muted hover:text-foreground"}`}
+                                  >
+                                    {t("قبل", "Before")}
+                                  </button>
+                                </div>
+                                <button
+                                  onClick={handleUndoEdit}
+                                  className="flex items-center gap-1 text-[11px] font-medium text-muted hover:text-foreground transition-colors bg-surface-2 hover:bg-surface-3 px-2 py-1 rounded-md border border-card-border/50"
+                                >
+                                  <Undo2 size={12} />
+                                  {t("تراجع", "Undo")}
+                                </button>
+                              </div>
                             )}
                           </div>
                         </div>
                         
+                        {editHistory.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 px-1">
+                            {editHistory.map((prompt, i) => (
+                              <span
+                                key={i}
+                                className="inline-flex items-center gap-1 text-[10px] text-muted-foreground bg-surface-2/80 px-2 py-0.5 rounded-full border border-card-border/50 max-w-[200px] truncate"
+                              >
+                                <span className="text-[9px] text-primary font-bold shrink-0">{i + 1}</span>
+                                {prompt}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+
                         <div className="flex gap-2 relative z-10 items-end">
                           <textarea
                             ref={editInputRef}

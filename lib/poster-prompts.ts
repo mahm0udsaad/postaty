@@ -333,7 +333,7 @@ ${inventoryHeader}
 ${fieldLine("Product name", data.productName, langName, preTranslated)}
 - New price: "${data.newPrice}"
 - Old price: "${data.oldPrice}"
-${data.discountPercentage ? `- Discount: "${data.discountPercentage}%"\n` : ""}${data.offerDuration ? `${fieldLine("Offer duration", data.offerDuration, langName, preTranslated)}\n` : ""}- CTA: "${cta}"
+${data.discountPercentage ? `- Discount: "${data.discountPercentage}%"\n` : ""}${data.offerDuration ? `${fieldLine("Offer duration", data.offerDuration, langName, preTranslated)}\n` : ""}${data.offerLimit ? `${fieldLine("Offer limit", data.offerLimit, langName, preTranslated)}\n` : ""}${data.expiryDate ? `- Expiry date: "${data.expiryDate}"\n` : ""}- CTA: "${cta}"
 - WhatsApp: "${data.whatsapp}"
 NOTHING else. No extra labels, no decorative text.`;
 
