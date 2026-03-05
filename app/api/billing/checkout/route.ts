@@ -21,7 +21,9 @@ const ADDON_CONFIG: Record<AddonKey, { credits: number }> = {
 };
 
 function getStripe() {
-  return new Stripe(process.env.STRIPE_SECRET_KEY!);
+  return new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    timeout: 15_000, // 15s timeout on all Stripe API calls
+  });
 }
 
 export async function POST(request: Request) {

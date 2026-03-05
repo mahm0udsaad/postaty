@@ -14,7 +14,11 @@ export async function getSharp() {
 
 // ── Google provider options for image responses ────────────────────
 
-export function buildImageProviderOptions(aspectRatio: string, imageSize?: "1K" | "2K" | "4K") {
+export function buildImageProviderOptions(
+  aspectRatio: string,
+  imageSize?: "1K" | "2K" | "4K",
+  mediaResolution?: "low" | "medium" | "high"
+) {
   return {
     google: {
       responseModalities: ["TEXT", "IMAGE"],
@@ -22,6 +26,7 @@ export function buildImageProviderOptions(aspectRatio: string, imageSize?: "1K" 
         aspectRatio,
         ...(imageSize ? { imageSize } : {}),
       },
+      ...(mediaResolution ? { mediaResolution } : {}),
     },
   };
 }

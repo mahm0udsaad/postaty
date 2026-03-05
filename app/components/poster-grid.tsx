@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, memo } from "react";
 import {
   motion,
   useMotionValue,
@@ -401,7 +401,7 @@ function Card3DHover({
 
 // ── Main Component ────────────────────────────────────────────────
 
-export function PosterGrid({
+export const PosterGrid = memo(function PosterGrid({
   results,
   genStep,
   error,
@@ -641,7 +641,7 @@ export function PosterGrid({
       />
     </div>
   );
-}
+});
 
 // ── Export Helper ─────────────────────────────────────────────────
 

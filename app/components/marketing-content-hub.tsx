@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, memo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Copy,
@@ -131,7 +131,7 @@ interface MarketingContentHubProps {
   error?: string;
 }
 
-export function MarketingContentHub({
+export const MarketingContentHub = memo(function MarketingContentHub({
   content,
   status,
   posterImageBase64,
@@ -331,7 +331,7 @@ export function MarketingContentHub({
       </AnimatePresence>
     </motion.div>
   );
-}
+});
 
 // ── Language Toggle ────────────────────────────────────────────────
 

@@ -62,7 +62,9 @@ const MUTABLE_BILLING_STATUSES = new Set([
 // ── Helpers ──────────────────────────────────────────────────────────
 
 function getStripe() {
-  return new Stripe(process.env.STRIPE_SECRET_KEY!);
+  return new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    timeout: 15_000,
+  });
 }
 
 function extractStripeCustomerId(

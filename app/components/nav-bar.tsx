@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
-import type { MouseEvent } from "react";
+import { memo, type MouseEvent } from "react";
 import { Palette, Clock, Plus, Settings, Coins, Languages } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import useSWR from "swr";
@@ -186,7 +186,7 @@ function NavBarContent({ locale, initialCreditState }: NavBarProps) {
   );
 }
 
-function CreditsBadge({ locale, user, initialCreditState }: NavBarProps & { user: AuthUserLike | null | undefined }) {
+const CreditsBadge = memo(function CreditsBadge({ locale, user, initialCreditState }: NavBarProps & { user: AuthUserLike | null | undefined }) {
   const { data: creditState } = useSWR('/api/billing', fetcher, {
     fallbackData: initialCreditState ?? undefined,
     revalidateOnMount: !initialCreditState,
@@ -246,4 +246,4 @@ function CreditsBadge({ locale, user, initialCreditState }: NavBarProps & { user
       </Link>
     </div>
   );
-}
+});

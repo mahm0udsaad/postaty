@@ -361,7 +361,8 @@ export function PosterModal({
     const format: OutputFormat | "menu" = generationType === "menu" ? "menu" : result.format;
 
     try {
-      const editResult = await editDesignAction(currentImage, editPrompt.trim(), format);
+      // Pass generationId so upload+DB update happens server-side (no extra round-trip)
+      const editResult = await editDesignAction(currentImage, editPrompt.trim(), format, "edit", generationId);
 
       if (editResult.status === "complete") {
         setPreviousImage(currentImage);
@@ -370,52 +371,15 @@ export function PosterModal({
         setEditPrompt("");
         onEditComplete?.(editResult.imageBase64);
 
-        // Consume 0.5 credit
-        try {
-          const idempotencyKey = `edit_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-          await fetch("/api/billing/consume-credit", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ idempotencyKey, amount: 0.5 }),
-          });
-          onCreditConsumed?.();
-        } catch (creditErr) {
-          console.error("[handleEditDesign] credit consumption error", creditErr);
-          onCreditConsumed?.();
-        }
-
-        // Update generation history with the edited image
-        if (generationId && editResult.imageBase64) {
-          try {
-            const uploadRes = await fetch("/api/storage/upload", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                base64: editResult.imageBase64,
-                bucket: "generations",
-                prefix: "poster-edited",
-              }),
-            });
-            if (uploadRes.ok) {
-              const { publicUrl } = await uploadRes.json();
-              // Replace outputs so history shows the latest edited version
-              await fetch(`/api/generations/${generationId}`, {
-                method: "PATCH",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  outputs: [
-                    {
-                      format: generationType === "menu" ? "a4-portrait" : result.format,
-                      url: publicUrl,
-                    },
-                  ],
-                }),
-              });
-            }
-          } catch (uploadErr) {
-            console.error("[handleEditDesign] failed to update generation history", uploadErr);
-          }
-        }
+        // Consume credit (fire-and-forget, don't block UI)
+        const idempotencyKey = `edit_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+        fetch("/api/billing/consume-credit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ idempotencyKey, amount: 0.5 }),
+        })
+          .catch((err) => console.error("[handleEditDesign] credit error", err))
+          .finally(() => onCreditConsumed?.());
       } else {
         setEditError(editResult.error);
       }
@@ -445,27 +409,27 @@ export function PosterModal({
       const cfg = FORMAT_CONFIGS[fmt];
       const label = FORMAT_LABELS[fmt];
       const reframePrompt = locale === "ar"
-        ? `أعد تأطير هذا التصميم ليناسب تنسيق ${label.ar} (${cfg.width}×${cfg.height} بكسل، نسبة ${cfg.aspectRatio}). حافظ على نفس المحتوى والنصوص والألوان والعلامة التجارية مع تعديل التخطيط ليملأ الأبعاد الجديدة بشكل مناسب.`
-        : `Reframe this design for ${label.en} format (${cfg.width}×${cfg.height}px, ${cfg.aspectRatio} ratio). Keep the same content, text, colors, and branding but adapt the layout composition to properly fill the new dimensions.`;
+        ? `أعد تأطير التصميم لتنسيق ${cfg.aspectRatio}. حافظ على كل المحتوى والألوان.`
+        : `Reframe this design to ${cfg.aspectRatio} ratio. Keep all content, text, and colors.`;
 
-      const editResult = await editDesignAction(currentImage, reframePrompt, fmt, "edit");
+      // Pass generationId so upload+DB update happens server-side (no extra round-trip)
+      const editResult = await editDesignAction(currentImage, reframePrompt, fmt, "edit", generationId);
       if (editResult.status === "complete") {
         setPreviousImage(currentImage);
         setPreviousFormat(selectedFormat);
         setDisplayImage(editResult.imageBase64);
         setSelectedFormat(fmt);
-        try {
-          const idempotencyKey = `reframe_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
-          await fetch("/api/billing/consume-credit", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ idempotencyKey, amount: 0.5 }),
-          });
-          onCreditConsumed?.();
-        } catch (creditErr) {
-          console.error("[handleFormatChange] credit error", creditErr);
-          onCreditConsumed?.();
-        }
+        onEditComplete?.(editResult.imageBase64);
+
+        // Consume credit (fire-and-forget, don't block UI)
+        const idempotencyKey = `reframe_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+        fetch("/api/billing/consume-credit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ idempotencyKey, amount: 0.5 }),
+        })
+          .catch((err) => console.error("[handleFormatChange] credit error", err))
+          .finally(() => onCreditConsumed?.());
       }
     } catch (err) {
       console.error("[handleFormatChange] failed", err);

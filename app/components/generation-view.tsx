@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import {
   Loader2,
   CheckCircle2,
@@ -26,21 +26,21 @@ function SkeletonLoader() {
   const { t } = useLocale();
   const [activeStep, setActiveStep] = useState(0);
   const [tipIndex, setTipIndex] = useState(0);
-  const generationSteps = [
+  const generationSteps = useMemo(() => [
     { icon: Wand2, label: t("تحليل بيانات العرض", "Analyzing offer details"), sublabel: t("فهم تفاصيل المنتج والعرض", "Understanding product and offer details") },
     { icon: Palette, label: t("اختيار الألوان والتصميم", "Choosing colors and style"), sublabel: t("تصميم هوية بصرية جذابة", "Crafting an attractive visual identity") },
     { icon: Type, label: t("كتابة النصوص الإبداعية", "Writing creative copy"), sublabel: t("صياغة نص تسويقي مؤثر", "Composing persuasive marketing text") },
     { icon: ImageIcon, label: t("معالجة الصور", "Processing images"), sublabel: t("تحسين جودة صور المنتج", "Enhancing product image quality") },
     { icon: LayoutGrid, label: t("تنسيق البوستر", "Arranging poster layout"), sublabel: t("ترتيب العناصر بشكل احترافي", "Organizing elements professionally") },
     { icon: Sparkles, label: t("اللمسات النهائية", "Final touches"), sublabel: t("إضافة تأثيرات بصرية مميزة", "Adding standout visual effects") },
-  ];
-  const tips = [
+  ], [t]);
+  const tips = useMemo(() => [
     t("البوسترات المصممة باحترافية تزيد التفاعل بنسبة 80%", "Professionally designed posters can increase engagement by up to 80%"),
     t("الألوان الدافئة تجذب انتباه المتسوقين أكثر", "Warm colors draw more shopper attention"),
     t("العروض المحدودة الوقت تحقق مبيعات أعلى بـ 3 أضعاف", "Limited-time offers can drive up to 3x higher sales"),
     t("صور المنتجات عالية الجودة تزيد الثقة لدى العملاء", "High-quality product images build customer trust"),
     t("إضافة السعر القديم مع الجديد يبرز قيمة العرض", "Showing old and new prices highlights offer value"),
-  ];
+  ], [t]);
 
   useEffect(() => {
     const stepInterval = setInterval(() => {

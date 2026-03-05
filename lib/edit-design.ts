@@ -35,11 +35,12 @@ export async function editDesign(input: {
   }
   const imageBuffer = Buffer.from(match[2], "base64");
 
-  // Compress input image to reduce upload payload (faster API call)
+  // Compress input image — 512px is enough for the model to understand layout
+  // (output is always re-generated at 1K by Gemini, then resized to target by Sharp)
   const sharp = await getSharp();
   const compressedInput = await sharp(imageBuffer)
-    .resize(800, 800, { fit: "inside", withoutEnlargement: true })
-    .jpeg({ quality: 80 })
+    .resize(512, 512, { fit: "inside", withoutEnlargement: true })
+    .jpeg({ quality: 70 })
     .toBuffer();
 
   const contentParts: Array<
@@ -55,14 +56,14 @@ export async function editDesign(input: {
 
   const startTime = Date.now();
   const editRequest = {
-    providerOptions: buildImageProviderOptions(aspectRatio, "1K"),
+    providerOptions: buildImageProviderOptions(aspectRatio, "1K", "low"),
     system: EDIT_SYSTEM_PROMPT,
     messages: [{ role: "user" as const, content: contentParts }],
   };
 
   let result;
   try {
-    result = await generateText({ model: aiModel, maxRetries: 0, ...editRequest });
+    result = await generateText({ model: aiModel, maxRetries: 0, abortSignal: AbortSignal.timeout(90_000), ...editRequest });
   } catch (primaryErr) {
     if (model !== "edit") throw primaryErr;
     console.warn("[editDesign] primary failed, falling back to direct", primaryErr instanceof Error ? primaryErr.message : primaryErr);

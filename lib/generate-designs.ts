@@ -248,8 +248,8 @@ export async function generatePoster(
 
   try {
     const aiStart = Date.now();
-    // maxRetries: 0 — fail fast on primary so we reach the fallback quickly
-    result = await generateText({ model: primaryImageModel, maxRetries: 0, ...generateRequest });
+    // maxRetries: 0 + 90s timeout — fail fast on primary so we reach the fallback quickly
+    result = await generateText({ model: primaryImageModel, maxRetries: 0, abortSignal: AbortSignal.timeout(90_000), ...generateRequest });
     aiCallMs = Date.now() - aiStart;
   } catch (primaryErr) {
     console.warn("[generatePoster] primary model failed, falling back to gateway", primaryErr instanceof Error ? primaryErr.message : primaryErr);

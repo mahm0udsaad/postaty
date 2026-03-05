@@ -41,115 +41,39 @@ export async function POST(request: Request) {
       ? rawAmount
       : 1;
 
-    // Check if already consumed (idempotency)
-    const { data: existingLedger } = await admin
-      .from("credit_ledger")
-      .select("id")
-      .eq("idempotency_key", idempotencyKey)
-      .single();
+    // Atomic credit consumption via Postgres function (uses FOR UPDATE row locking)
+    const { data: result, error: rpcError } = await admin.rpc("consume_credits", {
+      p_user_auth_id: user.id,
+      p_idempotency_key: idempotencyKey,
+      p_amount: amount,
+    });
 
-    if (existingLedger) {
-      return NextResponse.json({ ok: true, alreadyConsumed: true });
-    }
-
-    // Get billing record
-    const { data: billing, error: billingError } = await admin
-      .from("billing")
-      .select("*")
-      .eq("user_auth_id", user.id)
-      .single();
-
-    if (billingError || !billing) {
-      return NextResponse.json(
-        { error: "Billing record not found" },
-        { status: 404 }
-      );
-    }
-
-    // Check subscription status
-    if (
-      ["past_due", "canceled", "unpaid", "incomplete_expired"].includes(
-        billing.status
-      )
-    ) {
-      return NextResponse.json(
-        { error: "Subscription is not active" },
-        { status: 403 }
-      );
-    }
-
-    const monthlyRemaining = Math.max(
-      billing.monthly_credit_limit - billing.monthly_credits_used,
-      0
-    );
-    const addonRemaining = billing.addon_credits_balance;
-
-    if (monthlyRemaining + addonRemaining < amount) {
-      return NextResponse.json(
-        { error: "No credits remaining" },
-        { status: 403 }
-      );
-    }
-
-    // Determine which credits to consume (monthly first, then addon)
-    let monthlyCreditsUsed = billing.monthly_credits_used;
-    let addonCreditsBalance = billing.addon_credits_balance;
-    let source: "monthly" | "addon" = "monthly";
-
-    let remaining = amount;
-
-    // Consume from monthly first
-    const fromMonthly = Math.min(remaining, monthlyRemaining);
-    if (fromMonthly > 0) {
-      monthlyCreditsUsed += fromMonthly;
-      remaining -= fromMonthly;
-      source = "monthly";
-    }
-
-    // Overflow to addon credits
-    if (remaining > 0) {
-      addonCreditsBalance -= remaining;
-      source = remaining === amount ? "addon" : "monthly"; // primary source
-    }
-
-    const now = Date.now();
-
-    // Update billing record
-    const { error: updateError } = await admin
-      .from("billing")
-      .update({
-        monthly_credits_used: monthlyCreditsUsed,
-        addon_credits_balance: addonCreditsBalance,
-        updated_at: now,
-      })
-      .eq("id", billing.id);
-
-    if (updateError) {
-      console.error("Failed to update billing:", updateError);
+    if (rpcError) {
+      console.error("consume_credits RPC error:", rpcError);
       return NextResponse.json(
         { error: "Failed to consume credit" },
         { status: 500 }
       );
     }
 
-    // Insert ledger entry
-    await admin.from("credit_ledger").insert({
-      user_auth_id: user.id,
-      billing_id: billing.id,
-      amount: -amount,
-      reason: "usage",
-      source,
-      idempotency_key: idempotencyKey,
-      monthly_credits_used_after: monthlyCreditsUsed,
-      addon_credits_balance_after: addonCreditsBalance,
-      created_at: now,
-    });
+    // Handle RPC result
+    if (!result.ok) {
+      const statusCode = result.error_code ?? 500;
+      return NextResponse.json(
+        { error: result.error },
+        { status: statusCode }
+      );
+    }
 
-    // Check low-credit thresholds and insert notification if needed
-    const newMonthlyRemaining = Math.max(
-      billing.monthly_credit_limit - monthlyCreditsUsed,
-      0
-    );
+    if (result.already_consumed) {
+      return NextResponse.json({ ok: true, alreadyConsumed: true });
+    }
+
+    // Non-critical: check low-credit thresholds and send notification
+    const monthlyCreditsUsed = result.monthly_credits_used;
+    const addonCreditsBalance = result.addon_credits_balance;
+    const monthlyLimit = result.monthly_credit_limit;
+    const newMonthlyRemaining = Math.max(monthlyLimit - monthlyCreditsUsed, 0);
     const newTotalRemaining = newMonthlyRemaining + addonCreditsBalance;
 
     const matchedThreshold = CREDIT_THRESHOLDS.find(
@@ -157,7 +81,7 @@ export async function POST(request: Request) {
     );
 
     if (matchedThreshold) {
-      const periodStart = billing.current_period_start ?? 0;
+      const periodStart = result.current_period_start ?? 0;
 
       // Check if this threshold notification was already sent this period
       const { data: existingNotifications } = await admin
@@ -178,6 +102,7 @@ export async function POST(request: Request) {
       });
 
       if (!alreadySent) {
+        const now = Date.now();
         await admin.from("notifications").insert({
           user_auth_id: user.id,
           title: matchedThreshold.title,
@@ -196,7 +121,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: true,
       alreadyConsumed: false,
-      source,
+      source: result.source,
       monthlyCreditsUsed,
       addonCreditsBalance,
     });

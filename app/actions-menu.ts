@@ -7,24 +7,7 @@ import { menuFormDataSchema } from "@/lib/validation";
 import type { MenuFormData, PosterResult, MarketingContentHub } from "@/lib/types";
 import type { BrandKitPromptData } from "@/lib/prompts";
 import type { GenerationUsage } from "@/lib/generate-designs";
-
-// Simple in-memory rate limiter: max 3 menu requests per minute per user
-const RATE_LIMIT_WINDOW_MS = 60_000;
-const RATE_LIMIT_MAX = 3;
-const rateLimitMap = new Map<string, number[]>();
-
-function checkRateLimit(userId: string): void {
-  const now = Date.now();
-  const timestamps = rateLimitMap.get(userId) ?? [];
-  const recent = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
-
-  if (recent.length >= RATE_LIMIT_MAX) {
-    throw new Error("لقد تجاوزت الحد المسموح. حاول مرة أخرى بعد دقيقة.");
-  }
-
-  recent.push(now);
-  rateLimitMap.set(userId, recent);
-}
+import { checkRateLimit } from "@/lib/rate-limit";
 
 function extractUsageFromUnknown(value: unknown): GenerationUsage | undefined {
   if (!value || typeof value !== "object") return undefined;
@@ -59,7 +42,10 @@ export async function generateMenuAction(
     throw new Error("يجب تسجيل الدخول لإنشاء تصاميم");
   }
 
-  checkRateLimit(userId);
+  const { allowed } = await checkRateLimit(userId, "menu", 60, 3);
+  if (!allowed) {
+    throw new Error("لقد تجاوزت الحد المسموح. حاول مرة أخرى بعد دقيقة.");
+  }
 
   // Sanitize: React server action serialization can convert undefined → null
   const sanitized = Object.fromEntries(

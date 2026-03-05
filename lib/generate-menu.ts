@@ -156,8 +156,8 @@ export async function generateMenu(
   };
 
   try {
-    // maxRetries: 0 = single attempt, no retries. Fail fast so we reach fallback quickly.
-    result = await generateText({ model: menuImageModel, maxRetries: 0, ...generateRequest });
+    // maxRetries: 0 + 90s timeout = single attempt, fail fast so we reach fallback quickly.
+    result = await generateText({ model: menuImageModel, maxRetries: 0, abortSignal: AbortSignal.timeout(90_000), ...generateRequest });
   } catch (primaryErr) {
     console.warn("[generateMenu] primary model failed, falling back to gateway", primaryErr instanceof Error ? primaryErr.message : primaryErr);
     try {

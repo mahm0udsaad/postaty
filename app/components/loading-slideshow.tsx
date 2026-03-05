@@ -9,6 +9,7 @@ import {
   ImageIcon,
   LayoutGrid,
   Sparkles,
+  Clock,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useLocale } from "@/hooks/use-locale";
@@ -68,9 +69,59 @@ const SLIDES: Slide[] = [
   },
 ];
 
+const HIGH_DEMAND_SLIDE: Slide = {
+  icon: Clock,
+  title: { ar: "نشهد طلبًا مرتفعًا حاليًا", en: "Experiencing High Demand" },
+  subtitle: {
+    ar: "منصتنا تشهد إقبالاً كبيرًا الآن. تصميمك قيد المعالجة وسيكون جاهزًا قريبًا — شكرًا لصبرك!",
+    en: "Our platform is buzzing right now. Your design is being processed and will be ready soon — thanks for your patience!",
+  },
+  gradient: "from-orange-600/20 to-amber-600/20",
+  accentColor: "rgb(251 146 60)",
+};
+
+// Threshold in seconds after which the high-demand slide is shown
+const HIGH_DEMAND_THRESHOLD = 60;
+
 // ── Animated Backgrounds per Slide ─────────────────────────────────
 
-function SlideAnimation({ index, accentColor }: { index: number; accentColor: string }) {
+function HighDemandAnimation({ color }: { color: string }) {
+  return (
+    <div className="absolute inset-0 flex items-center justify-center">
+      {/* Pulsing clock rings */}
+      {[0, 1, 2].map((i) => (
+        <motion.div
+          key={i}
+          className="absolute rounded-full border-2"
+          style={{ borderColor: color }}
+          initial={{ width: 20, height: 20, opacity: 0.8 }}
+          animate={{
+            width: [20, 80 + i * 30],
+            height: [20, 80 + i * 30],
+            opacity: [0.6, 0],
+          }}
+          transition={{
+            duration: 2.5,
+            delay: i * 0.6,
+            repeat: Infinity,
+            ease: "easeOut",
+          }}
+        />
+      ))}
+      {/* Center icon glow */}
+      <motion.div
+        className="absolute w-10 h-10 rounded-full"
+        style={{ backgroundColor: color, filter: "blur(12px)" }}
+        animate={{ scale: [0.8, 1.3, 0.8], opacity: [0.2, 0.5, 0.2] }}
+        transition={{ duration: 3, repeat: Infinity }}
+      />
+    </div>
+  );
+}
+
+function SlideAnimation({ index, accentColor, isHighDemand }: { index: number; accentColor: string; isHighDemand?: boolean }) {
+  if (isHighDemand) return <HighDemandAnimation color={accentColor} />;
+
   switch (index) {
     case 0:
       return <WandAnimation color={accentColor} />;
@@ -434,14 +485,21 @@ export function LoadingSlideshow() {
   const [elapsed, setElapsed] = useState(0);
 
   const SLIDE_DURATION = 4000; // Slightly longer for better readability
+  const showHighDemand = elapsed >= HIGH_DEMAND_THRESHOLD;
+
+  // Build active slides list — append high-demand slide when threshold is crossed
+  const activeSlides = useMemo(
+    () => (showHighDemand ? [...SLIDES, HIGH_DEMAND_SLIDE] : SLIDES),
+    [showHighDemand]
+  );
 
   // Advance slides
   useEffect(() => {
     const timer = setInterval(() => {
-      setActiveSlide((prev) => (prev + 1) % SLIDES.length);
+      setActiveSlide((prev) => (prev + 1) % activeSlides.length);
     }, SLIDE_DURATION);
     return () => clearInterval(timer);
-  }, []);
+  }, [activeSlides.length]);
 
   // Track elapsed time
   useEffect(() => {
@@ -452,8 +510,9 @@ export function LoadingSlideshow() {
     return () => clearInterval(timer);
   }, []);
 
-  const slide = SLIDES[activeSlide];
-  const overallProgress = Math.min((activeSlide + 1) / SLIDES.length, 1);
+  const slide = activeSlides[activeSlide];
+  const isHighDemandSlide = showHighDemand && activeSlide === activeSlides.length - 1;
+  const overallProgress = Math.min((activeSlide + 1) / activeSlides.length, 1);
 
   return (
     <div className="w-full max-w-xl mx-auto px-4">
@@ -491,7 +550,7 @@ export function LoadingSlideshow() {
                   </span>
                   <span className="w-1 h-1 rounded-full bg-white/20" />
                   <span className="text-xs font-bold text-primary/80 uppercase tracking-widest">
-                    STEP {activeSlide + 1}/{SLIDES.length}
+                    STEP {activeSlide + 1}/{activeSlides.length}
                   </span>
                 </div>
               </div>
@@ -521,6 +580,7 @@ export function LoadingSlideshow() {
                 <SlideAnimation
                   index={activeSlide}
                   accentColor="rgba(255,255,255,0.9)"
+                  isHighDemand={isHighDemandSlide}
                 />
 
                 {/* Main Action Icon */}
@@ -569,7 +629,7 @@ export function LoadingSlideshow() {
 
           {/* Master Progress Segment Bar */}
           <div className="flex h-1.5 w-full bg-black/30">
-            {SLIDES.map((_, i) => (
+            {activeSlides.map((_, i) => (
               <div key={i} className="flex-1 relative overflow-hidden border-r border-black/10 last:border-0">
                 <motion.div
                   className="absolute inset-0"

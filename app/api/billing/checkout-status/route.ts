@@ -29,7 +29,9 @@ type StripeSubscriptionShape = {
 };
 
 function getStripe() {
-  return new Stripe(process.env.STRIPE_SECRET_KEY!);
+  return new Stripe(process.env.STRIPE_SECRET_KEY!, {
+    timeout: 15_000,
+  });
 }
 
 function planKeyFromPriceId(

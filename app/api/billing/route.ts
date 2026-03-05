@@ -46,7 +46,7 @@ export async function GET() {
 
     const canGenerate = hasEligibleStatus && totalRemaining > 0;
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       billing,
       planKey: billing.plan_key,
       status: billing.status,
@@ -60,6 +60,9 @@ export async function GET() {
       totalRemaining,
       canGenerate,
     });
+    // Short private cache — reduces DB hits when SWR revalidates
+    res.headers.set("Cache-Control", "private, max-age=5, stale-while-revalidate=10");
+    return res;
   } catch (error) {
     if (error instanceof Error && error.message === "Not authenticated") {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });

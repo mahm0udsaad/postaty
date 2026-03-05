@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, Suspense, useCallback } from "react";
+import { useState, useEffect, useRef, Suspense, useCallback, useReducer } from "react";
 import useSWR from "swr";
 import { useAuth } from "@/hooks/use-auth";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -185,6 +185,93 @@ function getProductName(data: PostFormData): string {
   }
 }
 
+// ── Generation + marketing state reducer ──────────────────────────────
+type GenState = {
+  isGenerating: boolean;
+  genStep: PosterGenStep;
+  results: PosterResult[];
+  error: string | undefined;
+  lastSubmittedData: PostFormData | null;
+  currentGenerationId: string | undefined;
+  marketingContent: MarketingContentHubType | null;
+  marketingContentStatus: MarketingContentStatus;
+  marketingContentError: string | undefined;
+};
+
+const INITIAL_GEN_STATE: GenState = {
+  isGenerating: false,
+  genStep: "idle",
+  results: [],
+  error: undefined,
+  lastSubmittedData: null,
+  currentGenerationId: undefined,
+  marketingContent: null,
+  marketingContentStatus: "idle",
+  marketingContentError: undefined,
+};
+
+type GenAction =
+  | { type: "RESET" }
+  | { type: "START_GENERATION"; data: PostFormData }
+  | { type: "GENERATION_SUCCESS"; result: PosterResult; step: PosterGenStep; error?: string }
+  | { type: "GENERATION_ERROR"; result: PosterResult; error: string }
+  | { type: "SET_GENERATION_ID"; id: string }
+  | { type: "SET_ERROR"; error: string }
+  | { type: "UPDATE_RESULT"; designIndex: number; newBase64: string }
+  | { type: "CLEAR_RESULTS" }
+  | { type: "MARKETING_LOADING" }
+  | { type: "MARKETING_SUCCESS"; content: MarketingContentHubType }
+  | { type: "MARKETING_ERROR"; error: string };
+
+function genReducer(state: GenState, action: GenAction): GenState {
+  switch (action.type) {
+    case "RESET":
+      return INITIAL_GEN_STATE;
+    case "START_GENERATION":
+      return {
+        ...INITIAL_GEN_STATE,
+        isGenerating: true,
+        genStep: "generating-designs",
+        lastSubmittedData: action.data,
+      };
+    case "GENERATION_SUCCESS":
+      return {
+        ...state,
+        results: [action.result],
+        genStep: action.step,
+        error: action.error,
+        isGenerating: false,
+      };
+    case "GENERATION_ERROR":
+      return {
+        ...state,
+        results: [action.result],
+        genStep: "error",
+        error: action.error,
+        isGenerating: false,
+      };
+    case "SET_GENERATION_ID":
+      return { ...state, currentGenerationId: action.id };
+    case "SET_ERROR":
+      return { ...state, error: action.error };
+    case "UPDATE_RESULT":
+      return {
+        ...state,
+        results: state.results.map((r) =>
+          r.designIndex === action.designIndex ? { ...r, imageBase64: action.newBase64 } : r
+        ),
+      };
+    case "CLEAR_RESULTS":
+      return { ...state, results: [], genStep: "idle" };
+    case "MARKETING_LOADING":
+      return { ...state, marketingContentStatus: "loading", marketingContentError: undefined };
+    case "MARKETING_SUCCESS":
+      return { ...state, marketingContent: action.content, marketingContentStatus: "complete" };
+    case "MARKETING_ERROR":
+      return { ...state, marketingContentStatus: "error", marketingContentError: action.error };
+  }
+}
+
 export default function CreatePage() {
   return (
     <Suspense fallback={
@@ -237,19 +324,12 @@ function CreatePageContent() {
     return message;
   };
 
-  // State
+  // State — generation + marketing grouped in reducer to prevent inconsistent intermediate states
+  const [gen, dispatch] = useReducer(genReducer, INITIAL_GEN_STATE);
+  const { isGenerating, genStep, results, error, lastSubmittedData, currentGenerationId, marketingContent, marketingContentStatus, marketingContentError } = gen;
   const [category, setCategory] = useState<Category | null>(null);
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [genStep, setGenStep] = useState<PosterGenStep>("idle");
-  const [results, setResults] = useState<PosterResult[]>([]);
-  const [error, setError] = useState<string>();
-  const [lastSubmittedData, setLastSubmittedData] = useState<PostFormData | null>(null);
-  const [marketingContent, setMarketingContent] = useState<MarketingContentHubType | null>(null);
-  const [marketingContentStatus, setMarketingContentStatus] = useState<MarketingContentStatus>("idle");
-  const [marketingContentError, setMarketingContentError] = useState<string>();
   const [marketingLanguage, setMarketingLanguage] = useState<string>("auto");
   const [defaultLogo, setDefaultLogo] = useState<string | null>(null);
-  const [currentGenerationId, setCurrentGenerationId] = useState<string | undefined>();
   const generatingRef = useRef(false);
   const prewarmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const prewarmedKeysRef = useRef<Set<string>>(new Set());
@@ -418,23 +498,20 @@ function CreatePageContent() {
 
   // Marketing content generation (called after poster completes)
   const fetchMarketingContent = async (data: PostFormData, lang: string) => {
-    setMarketingContentStatus("loading");
-    setMarketingContentError(undefined);
+    dispatch({ type: "MARKETING_LOADING" });
     try {
       const result = await generateMarketingContentAction(data, lang);
       if ("error" in result) {
-        setMarketingContentStatus("error");
-        setMarketingContentError(result.error);
+        dispatch({ type: "MARKETING_ERROR", error: result.error });
       } else {
-        setMarketingContent(result.content);
-        setMarketingContentStatus("complete");
+        dispatch({ type: "MARKETING_SUCCESS", content: result.content });
         void persistUsageEvents([result.usage]);
       }
     } catch (err) {
-      setMarketingContentStatus("error");
-      setMarketingContentError(
-        err instanceof Error ? err.message : t("فشل إنشاء المحتوى التسويقي", "Failed to generate marketing content")
-      );
+      dispatch({
+        type: "MARKETING_ERROR",
+        error: err instanceof Error ? err.message : t("فشل إنشاء المحتوى التسويقي", "Failed to generate marketing content"),
+      });
     }
   };
 
@@ -452,14 +529,7 @@ function CreatePageContent() {
   };
 
   const resetGenerationContext = useCallback(() => {
-    setResults([]);
-    setError(undefined);
-    setIsGenerating(false);
-    setGenStep("idle");
-    setLastSubmittedData(null);
-    setMarketingContent(null);
-    setMarketingContentStatus("idle");
-    setMarketingContentError(undefined);
+    dispatch({ type: "RESET" });
     generatingRef.current = false;
   }, []);
 
@@ -500,20 +570,12 @@ function CreatePageContent() {
 
     // Gate: must have credits
     if (!canGenerate) {
-      setError(t("لا يوجد لديك رصيد كافٍ. يرجى ترقية اشتراكك أو شراء رصيد إضافي.", "You don't have enough credits. Please upgrade your plan or buy additional credits."));
+      dispatch({ type: "SET_ERROR", error: t("لا يوجد لديك رصيد كافٍ. يرجى ترقية اشتراكك أو شراء رصيد إضافي.", "You don't have enough credits. Please upgrade your plan or buy additional credits.") });
       return;
     }
 
     generatingRef.current = true;
-    setLastSubmittedData(data);
-    setGenStep("generating-designs");
-    setError(undefined);
-    setIsGenerating(true);
-    setResults([]);
-    setCurrentGenerationId(undefined);
-    setMarketingContent(null);
-    setMarketingContentStatus("idle");
-    setMarketingContentError(undefined);
+    dispatch({ type: "START_GENERATION", data });
 
     const startTime = getNowMs();
     const requestId = `gen_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
@@ -556,26 +618,32 @@ function CreatePageContent() {
         void saveToSupabase(data, posterResult, startTime, requestId, generationId);
       }
 
-      setResults([posterResult]);
       logTimeline(requestId, "ui.result.rendered", { status: posterResult.status });
-      setGenStep(posterResult.status === "complete" ? "complete" : "error");
+
+      let errorMsg: string | undefined;
       if (posterResult.status === "error") {
         if (posterResult.errorType === "quota") {
-          setError(t("الخدمة مشغولة حالياً. حاول بعد دقيقة.", "Service is busy right now. Please try again in a minute."));
+          errorMsg = t("الخدمة مشغولة حالياً. حاول بعد دقيقة.", "Service is busy right now. Please try again in a minute.");
         } else if (posterResult.errorType === "capacity") {
-          setError(t("الخوادم مزدحمة. حاول مرة أخرى.", "Servers are busy. Please try again."));
+          errorMsg = t("الخوادم مزدحمة. حاول مرة أخرى.", "Servers are busy. Please try again.");
         } else {
-          setError(toLocalizedErrorMessage(new Error(posterResult.error ?? "Generation failed")));
+          errorMsg = toLocalizedErrorMessage(new Error(posterResult.error ?? "Generation failed"));
         }
       }
-      setIsGenerating(false);
+
+      dispatch({
+        type: "GENERATION_SUCCESS",
+        result: posterResult,
+        step: posterResult.status === "complete" ? "complete" : "error",
+        error: errorMsg,
+      });
       generatingRef.current = false;
     } catch (err) {
       // Server action threw — no credit consumed
       logTimeline(requestId, "server.generate.end", { error: true });
       if (generationId) {
         void patchGenerationStatus(generationId, {
-          status: "error",
+          status: "failed",
           error: err instanceof Error ? err.message : "Generation failed",
           duration_ms: getNowMs() - startTime,
         });
@@ -590,10 +658,7 @@ function CreatePageContent() {
         designName: "Design",
         designNameAr: locale === "ar" ? "تصميم" : "Design",
       };
-      setResults([errorResult]);
-      setGenStep("error");
-      setError(localizedMessage);
-      setIsGenerating(false);
+      dispatch({ type: "GENERATION_ERROR", result: errorResult, error: localizedMessage });
       generatingRef.current = false;
     }
   };
@@ -674,7 +739,7 @@ function CreatePageContent() {
         resolvedGenerationId = await createGenerationRecord(data);
       }
       if (!resolvedGenerationId) throw new Error("Failed to create generation");
-      setCurrentGenerationId(resolvedGenerationId);
+      dispatch({ type: "SET_GENERATION_ID", id: resolvedGenerationId });
 
       const uploadResult = await uploadImageToStorage(posterResult.imageBase64!);
       const { publicUrl } = uploadResult;
@@ -904,16 +969,12 @@ function CreatePageContent() {
                           if (!lastSubmittedData || isGenerating || !canGenerate) return;
                           void runGeneration(lastSubmittedData);
                         }}
-                        onReset={() => { setResults([]); setGenStep("idle"); }}
+                        onReset={() => dispatch({ type: "CLEAR_RESULTS" })}
                         canGenerateMore={!!lastSubmittedData && !isGenerating && canGenerate}
                         onCreditConsumed={() => mutateCreditState()}
                         generationId={currentGenerationId}
                         onResultUpdated={(designIndex, newBase64) => {
-                          setResults((prev) =>
-                            prev.map((r) =>
-                              r.designIndex === designIndex ? { ...r, imageBase64: newBase64 } : r
-                            )
-                          );
+                          dispatch({ type: "UPDATE_RESULT", designIndex, newBase64 });
                         }}
                     />
                 </div>

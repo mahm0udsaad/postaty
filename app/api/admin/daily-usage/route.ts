@@ -12,7 +12,7 @@ export async function GET(request: Request) {
 
     const { data: events, error } = await admin
       .from("ai_usage_events")
-      .select("*")
+      .select("created_at, estimated_cost_usd, images_generated, success")
       .gte("created_at", cutoff)
       .order("created_at", { ascending: true });
 
@@ -60,7 +60,9 @@ export async function GET(request: Request) {
       a.date.localeCompare(b.date)
     );
 
-    return NextResponse.json({ dailyUsage, periodDays });
+    const res = NextResponse.json({ dailyUsage, periodDays });
+    res.headers.set("Cache-Control", "private, max-age=30, stale-while-revalidate=60");
+    return res;
   } catch (error) {
     if (error instanceof Error && error.message === "Not authenticated") {
       return NextResponse.json(

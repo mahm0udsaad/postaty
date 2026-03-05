@@ -1,38 +1,24 @@
 "use server";
 
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { editDesign } from "@/lib/edit-design";
 import { FORMAT_CONFIGS, MENU_FORMAT_CONFIG } from "@/lib/constants";
 import { getSharp } from "@/lib/image-helpers";
+import { uploadBase64ToStorage, getPublicUrl } from "@/lib/supabase-upload";
+import { randomUUID } from "crypto";
 import type { OutputFormat } from "@/lib/types";
-
-// Simple in-memory rate limiter: max 5 edits per minute per user
-const RATE_LIMIT_WINDOW_MS = 60_000;
-const RATE_LIMIT_MAX = 5;
-const editRateLimitMap = new Map<string, number[]>();
-
-function checkEditRateLimit(userId: string): void {
-  const now = Date.now();
-  const timestamps = editRateLimitMap.get(userId) ?? [];
-  const recent = timestamps.filter((t) => now - t < RATE_LIMIT_WINDOW_MS);
-
-  if (recent.length >= RATE_LIMIT_MAX) {
-    throw new Error("لقد تجاوزت الحد المسموح. حاول مرة أخرى بعد دقيقة.");
-  }
-
-  recent.push(now);
-  editRateLimitMap.set(userId, recent);
-}
+import { checkRateLimit } from "@/lib/rate-limit";
 
 export type EditDesignResult =
-  | { status: "complete"; imageBase64: string }
+  | { status: "complete"; imageBase64: string; publicUrl?: string }
   | { status: "error"; error: string; errorType: "auth" | "rate_limit" | "validation" | "quota" | "capacity" | "generation" };
 
 export async function editDesignAction(
   imageBase64: string,
   editPrompt: string,
   format: OutputFormat | "menu",
-  model: "edit" | "free" = "edit"
+  model: "edit" | "free" = "edit",
+  generationId?: string
 ): Promise<EditDesignResult> {
   // Auth gate
   const supabase = await createClient();
@@ -43,9 +29,8 @@ export async function editDesignAction(
   }
 
   // Rate limit
-  try {
-    checkEditRateLimit(userId);
-  } catch {
+  const { allowed } = await checkRateLimit(userId, "edit", 60, 5);
+  if (!allowed) {
     return { status: "error", error: "لقد تجاوزت الحد المسموح. حاول مرة أخرى بعد دقيقة.", errorType: "rate_limit" };
   }
 
@@ -79,7 +64,25 @@ export async function editDesignAction(
       model,
     });
 
-    return { status: "complete", imageBase64: result.imageBase64 };
+    // Upload to storage + update DB in parallel (server-side, no extra round-trip)
+    let publicUrl: string | undefined;
+    if (generationId) {
+      try {
+        const path = `${userId}/poster-edited_${randomUUID()}.png`;
+        const storagePath = await uploadBase64ToStorage(result.imageBase64, "generations", path);
+        publicUrl = getPublicUrl("generations", storagePath);
+
+        const admin = createAdminClient();
+        await admin
+          .from("generations")
+          .update({ outputs: [{ format, url: publicUrl }] })
+          .eq("id", generationId);
+      } catch (uploadErr) {
+        console.error("[editDesignAction] failed to persist to history", uploadErr);
+      }
+    }
+
+    return { status: "complete", imageBase64: result.imageBase64, publicUrl };
   } catch (err) {
     console.error("[editDesignAction] failed", err);
     const errorMessage = err instanceof Error ? err.message : "Edit failed";

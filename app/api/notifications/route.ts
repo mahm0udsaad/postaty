@@ -9,9 +9,10 @@ export async function GET() {
 
     const { data: notifications, error } = await admin
       .from("notifications")
-      .select("*")
+      .select("id, type, title, body, is_read, metadata, created_at")
       .eq("user_auth_id", user.id)
-      .order("created_at", { ascending: false });
+      .order("created_at", { ascending: false })
+      .limit(50);
 
     if (error) {
       console.error("Failed to fetch notifications:", error);
@@ -25,10 +26,12 @@ export async function GET() {
       (n) => !n.is_read
     ).length;
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       notifications: notifications ?? [],
       unreadCount,
     });
+    res.headers.set("Cache-Control", "private, max-age=5, stale-while-revalidate=15");
+    return res;
   } catch (error) {
     if (error instanceof Error && error.message === "Not authenticated") {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });

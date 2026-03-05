@@ -4,6 +4,21 @@ import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { Category, CampaignType } from "./types";
 
+// Limit concurrent Sharp operations to prevent memory spikes under load
+const SHARP_CONCURRENCY = 6;
+async function mapWithLimit<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = [];
+  let idx = 0;
+  async function next(): Promise<void> {
+    const i = idx++;
+    if (i >= items.length) return;
+    results[i] = await fn(items[i]);
+    await next();
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, () => next()));
+  return results;
+}
+
 // ── Category to directory mapping ──────────────────────────────
 
 const CATEGORY_DIRS: Record<Category, string> = {
@@ -65,16 +80,14 @@ async function loadAndCacheDir(dirName: string): Promise<Buffer[]> {
 
     const sharp = (await import("sharp")).default;
 
-    const buffers = await Promise.all(
-      filenames.map(async (filename) => {
-        const filePath = join(dir, filename);
-        const raw = await readFile(filePath);
-        return sharp(raw)
-          .resize(RESIZE_WIDTH, RESIZE_HEIGHT, { fit: "cover" })
-          .jpeg({ quality: JPEG_QUALITY })
-          .toBuffer();
-      })
-    );
+    const buffers = await mapWithLimit(filenames, SHARP_CONCURRENCY, async (filename) => {
+      const filePath = join(dir, filename);
+      const raw = await readFile(filePath);
+      return sharp(raw)
+        .resize(RESIZE_WIDTH, RESIZE_HEIGHT, { fit: "cover" })
+        .jpeg({ quality: JPEG_QUALITY })
+        .toBuffer();
+    });
 
     imageCache.set(dirName, buffers);
     cachePromises.delete(dirName);

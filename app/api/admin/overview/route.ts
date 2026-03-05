@@ -13,7 +13,7 @@ export async function GET(request: Request) {
     // AI metrics
     const { data: aiEvents } = await admin
       .from("ai_usage_events")
-      .select("*")
+      .select("model, estimated_cost_usd, images_generated, duration_ms, success")
       .gte("created_at", cutoff);
 
     const periodEvents = aiEvents || [];
@@ -65,7 +65,7 @@ export async function GET(request: Request) {
     // Financial metrics
     const { data: revenueEvents } = await admin
       .from("stripe_revenue_events")
-      .select("*")
+      .select("currency, amount_cents, actual_stripe_fee_cents, estimated_stripe_fee_cents")
       .gte("created_at", cutoff);
 
     const usdRevenue = (revenueEvents || []).filter(
@@ -91,7 +91,7 @@ export async function GET(request: Request) {
       .select("id", { count: "exact", head: true });
 
     // Active subscriptions
-    const { data: allBilling } = await admin.from("billing").select("*");
+    const { data: allBilling } = await admin.from("billing").select("status, plan_key");
     const activeSubs = (allBilling || []).filter(
       (b) => b.status === "active" || b.status === "trialing"
     );
@@ -99,7 +99,7 @@ export async function GET(request: Request) {
     // MRR from country pricing (use US pricing as baseline)
     const { data: countryPrices } = await admin
       .from("country_pricing")
-      .select("*")
+      .select("plan_key, monthly_amount_cents")
       .eq("country_code", "US")
       .eq("is_active", true);
 
@@ -112,7 +112,7 @@ export async function GET(request: Request) {
       0
     );
 
-    return NextResponse.json({
+    const res = NextResponse.json({
       ai: {
         periodDays,
         totalRequests,
@@ -140,6 +140,8 @@ export async function GET(request: Request) {
         mrr,
       },
     });
+    res.headers.set("Cache-Control", "private, max-age=30, stale-while-revalidate=60");
+    return res;
   } catch (error) {
     if (error instanceof Error && error.message === "Not authenticated") {
       return NextResponse.json(
