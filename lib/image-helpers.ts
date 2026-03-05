@@ -19,6 +19,12 @@ export function buildImageProviderOptions(
   imageSize?: "1K" | "2K" | "4K",
   mediaResolution?: "low" | "medium" | "high"
 ) {
+  const resolutionMap = {
+    low: "MEDIA_RESOLUTION_LOW",
+    medium: "MEDIA_RESOLUTION_MEDIUM",
+    high: "MEDIA_RESOLUTION_HIGH",
+  } as const;
+
   return {
     google: {
       responseModalities: ["TEXT", "IMAGE"],
@@ -26,7 +32,7 @@ export function buildImageProviderOptions(
         aspectRatio,
         ...(imageSize ? { imageSize } : {}),
       },
-      ...(mediaResolution ? { mediaResolution } : {}),
+      ...(mediaResolution ? { mediaResolution: resolutionMap[mediaResolution] } : {}),
     },
   };
 }
