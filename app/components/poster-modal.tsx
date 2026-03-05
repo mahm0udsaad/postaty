@@ -59,7 +59,7 @@ interface PosterModalProps {
   imageStorageId?: string;
   generationType?: "poster" | "menu";
   onCreditConsumed?: () => void;
-  onEditComplete?: (newImageBase64: string) => void;
+  onEditComplete?: (newImageBase64: string, publicUrl?: string) => void;
 }
 
 type ModalTab = "preview" | "edit";
@@ -369,7 +369,7 @@ export function PosterModal({
         setDisplayImage(editResult.imageBase64);
         setEditHistory((prev) => [...prev, editPrompt.trim()]);
         setEditPrompt("");
-        onEditComplete?.(editResult.imageBase64);
+        onEditComplete?.(editResult.imageBase64, editResult.publicUrl);
 
         // Consume credit (fire-and-forget, don't block UI)
         const idempotencyKey = `edit_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
@@ -419,7 +419,7 @@ export function PosterModal({
         setPreviousFormat(selectedFormat);
         setDisplayImage(editResult.imageBase64);
         setSelectedFormat(fmt);
-        onEditComplete?.(editResult.imageBase64);
+        onEditComplete?.(editResult.imageBase64, editResult.publicUrl);
 
         // Consume credit (fire-and-forget, don't block UI)
         const idempotencyKey = `reframe_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;

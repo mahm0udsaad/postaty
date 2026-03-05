@@ -216,6 +216,17 @@ export default function HistoryPage() {
                     (prev: any) => prev ? { ...prev, generations: prev.generations.filter((g: any) => g.id !== gen.id) } : prev,
                     { revalidate: false }
                   )}
+                  onEdited={(genId, newUrl) => mutateList(
+                    (prev: any) => prev ? {
+                      ...prev,
+                      generations: prev.generations.map((g: any) =>
+                        g.id === genId
+                          ? { ...g, outputs: g.outputs.map((o: any, i: number) => i === 0 ? { ...o, url: newUrl } : o) }
+                          : g
+                      ),
+                    } : prev,
+                    { revalidate: false }
+                  )}
                 />
               ))
             )}

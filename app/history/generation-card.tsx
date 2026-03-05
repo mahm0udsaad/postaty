@@ -46,6 +46,7 @@ interface GenerationCardProps {
   generation: GenerationData;
   imageType?: "all" | "pro" | "gift";
   onDeleted?: () => void;
+  onEdited?: (generationId: string, newUrl: string) => void;
 }
 
 const CATEGORY_LABELS_EN: Record<Category, string> = {
@@ -57,7 +58,7 @@ const CATEGORY_LABELS_EN: Record<Category, string> = {
   beauty: "Beauty & Care",
 };
 
-export function GenerationCard({ generation, imageType = "all", onDeleted }: GenerationCardProps) {
+export function GenerationCard({ generation, imageType = "all", onDeleted, onEdited }: GenerationCardProps) {
   const { locale, t } = useLocale();
   const [expanded, setExpanded] = useState(false);
   const [marketingOutput, setMarketingOutput] = useState<{ url: string } | null>(null);
@@ -329,9 +330,10 @@ export function GenerationCard({ generation, imageType = "all", onDeleted }: Gen
           result={editPosterResult}
           generationId={generation.id}
           generationType="poster"
-          onEditComplete={(newBase64) =>
-            setEditData((prev) => prev ? { ...prev, base64: newBase64 } : null)
-          }
+          onEditComplete={(newBase64, publicUrl) => {
+            setEditData((prev) => prev ? { ...prev, base64: newBase64 } : null);
+            if (publicUrl) onEdited?.(generation.id, publicUrl);
+          }}
         />
       )}
 
