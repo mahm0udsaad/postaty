@@ -225,18 +225,18 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
   const starterFeatures =
     locale === "ar"
       ? [
-          "15 تصميم ذكي شهرياً (جاهزين للنشر خلال دقائق)",
+          "150 تصميم ذكي شهرياً (جاهزين للنشر خلال دقائق)",
           "1–2 محتوى أسبوعياً مناسب لحسابك ونشاطك",
           "مقاس تصدير واحد حسب استخدامك الأساسي",
           "نصوص تسويقية أساسية جاهزة مع كل تصميم",
           "تحميل بجودة HD للنشر بثقة",
           "معرض بسيط لترتيب أعمالك والرجوع لها بسهولة",
         ]
-      : ["15 AI designs/month (Ready in minutes)", "1-2 weekly posts tailored to your activity", "One export format for your primary use", "Basic marketing copy for every design", "High-quality HD downloads", "Simple gallery to organize your work"];
+      : ["150 AI designs/month (Ready in minutes)", "1-2 weekly posts tailored to your activity", "One export format for your primary use", "Basic marketing copy for every design", "High-quality HD downloads", "Simple gallery to organize your work"];
   const growthFeatures =
     locale === "ar"
       ? [
-          "35 تصميم ذكي شهرياً (حضور أقوى ومبيعات أكثر)",
+          "350 تصميم ذكي شهرياً (حضور أقوى ومبيعات أكثر)",
           "3–4 محتوى أسبوعياً لضمان الاستمرارية",
           "3 أحجام تصدير (بوست، ستوري، واتس)",
           "نصوص تسويقية قوية تركز على الإقناع",
@@ -244,11 +244,11 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
           "تنزيل حزمة كاملة بضغطة واحدة",
           "معرض منظم لتتبع محتواك الشهري",
         ]
-      : ["35 AI designs/month (Strong presence)", "3-4 weekly posts for consistency", "3 export formats (Post, Story, WhatsApp)", "High-converting persuasive copy", "Saved brand identity (Logo + Colors)", "Full pack download in one click", "Organized gallery to track your content"];
+      : ["350 AI designs/month (Strong presence)", "3-4 weekly posts for consistency", "3 export formats (Post, Story, WhatsApp)", "High-converting persuasive copy", "Saved brand identity (Logo + Colors)", "Full pack download in one click", "Organized gallery to track your content"];
   const dominantFeatures =
     locale === "ar"
       ? [
-          "70 تصميم ذكي شهرياً (حضور قوي طوال الشهر)",
+          "700 تصميم ذكي شهرياً (حضور قوي طوال الشهر)",
           "محتوى يومي تقريباً لزيادة التفاعل والطلبات",
           "توليد موجه بالأهداف (عرض – منتج – خدمة – موسمي)",
           "عبارات تحويل ذكية (CTA) لرفع المبيعات والرسائل",
@@ -257,7 +257,7 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
           "أولوية في التوليد لسرعة أعلى وقت الزحمة",
           "مرشحات محتوى ذكية (عروض/مواسم/أقسام/أنواع)",
         ]
-      : ["70 AI designs/month (Dominant presence)", "Near-daily content for maximum engagement", "Goal-based generation (Offer, Product, Season)", "Smart CTA copy to boost sales and messages", "Auto-export for all sizes automatically", "Advanced archive for content organization", "Priority generation during peak times", "Smart content filters (Offers/Seasons/Types)"];
+      : ["700 AI designs/month (Dominant presence)", "Near-daily content for maximum engagement", "Goal-based generation (Offer, Product, Season)", "Smart CTA copy to boost sales and messages", "Auto-export for all sizes automatically", "Advanced archive for content organization", "Priority generation during peak times", "Smart content filters (Offers/Seasons/Types)"];
   void countryCode;
 
   const renderAuthButton = (redirectUrl: string, label: string, className: string, isMotion = false) => {

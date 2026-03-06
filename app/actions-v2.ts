@@ -155,7 +155,8 @@ export async function prewarmGenerationAssets(input: {
   subType?: string;
 }): Promise<{ ok: true }> {
   try {
-    await getInspirationImages(input.category, 1, input.campaignType, input.subType);
+    const subType = input.category === "services" ? input.subType : undefined;
+    await getInspirationImages(input.category, 1, input.campaignType, subType);
   } catch (err) {
     console.warn("[prewarmGenerationAssets] non-blocking failure", err);
   }

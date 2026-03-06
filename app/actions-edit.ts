@@ -62,6 +62,9 @@ export async function editDesignAction(
       width: formatConfig.width,
       height: formatConfig.height,
       model,
+      // Menu images are A4 with many small text elements — use a larger input size
+      // so the model can read item names, prices, and descriptions accurately.
+      inputMaxPx: format === "menu" ? 1024 : 512,
     });
 
     // Upload to storage + update DB in parallel (server-side, no extra round-trip)

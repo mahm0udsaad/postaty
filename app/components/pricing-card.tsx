@@ -9,7 +9,7 @@ type PlanKey = "starter" | "growth" | "dominant";
 const PLAN_FEATURES: Record<PlanKey, { ar: string[]; en: string[] }> = {
   starter: {
     ar: [
-      "15 تصميم ذكي شهرياً (جاهزين للنشر خلال دقائق)",
+      "150 تصميم ذكي شهرياً (جاهزين للنشر خلال دقائق)",
       "1–2 محتوى أسبوعياً مناسب لحسابك ونشاطك",
       "مقاس تصدير واحد حسب استخدامك الأساسي",
       "نصوص تسويقية أساسية جاهزة مع كل تصميم",
@@ -17,7 +17,7 @@ const PLAN_FEATURES: Record<PlanKey, { ar: string[]; en: string[] }> = {
       "معرض بسيط لترتيب أعمالك والرجوع لها بسهولة",
     ],
     en: [
-      "15 AI designs/month (Ready in minutes)",
+      "150 AI designs/month (Ready in minutes)",
       "1-2 weekly posts tailored to your activity",
       "One export format for your primary use",
       "Basic marketing copy for every design",
@@ -27,7 +27,7 @@ const PLAN_FEATURES: Record<PlanKey, { ar: string[]; en: string[] }> = {
   },
   growth: {
     ar: [
-      "35 تصميم ذكي شهرياً (حضور أقوى ومبيعات أكثر)",
+      "350 تصميم ذكي شهرياً (حضور أقوى ومبيعات أكثر)",
       "3–4 محتوى أسبوعياً لضمان الاستمرارية",
       "3 أحجام تصدير (بوست، ستوري، واتس)",
       "نصوص تسويقية قوية تركز على الإقناع",
@@ -36,7 +36,7 @@ const PLAN_FEATURES: Record<PlanKey, { ar: string[]; en: string[] }> = {
       "معرض منظم لتتبع محتواك الشهري",
     ],
     en: [
-      "35 AI designs/month (Stronger presence)",
+      "350 AI designs/month (Stronger presence)",
       "3-4 weekly posts for consistency",
       "3 export formats (Post, Story, WhatsApp)",
       "High-converting persuasive copy",
@@ -47,7 +47,7 @@ const PLAN_FEATURES: Record<PlanKey, { ar: string[]; en: string[] }> = {
   },
   dominant: {
     ar: [
-      "70 تصميم ذكي شهرياً (حضور قوي طوال الشهر)",
+      "700 تصميم ذكي شهرياً (حضور قوي طوال الشهر)",
       "محتوى يومي تقريباً لزيادة التفاعل والطلبات",
       "توليد موجه بالأهداف (عرض – منتج – خدمة – موسمي)",
       "عبارات تحويل ذكية (CTA) لرفع المبيعات والرسائل",
@@ -57,7 +57,7 @@ const PLAN_FEATURES: Record<PlanKey, { ar: string[]; en: string[] }> = {
       "مرشحات محتوى ذكية (عروض/مواسم/أقسام/أنواع)",
     ],
     en: [
-      "70 AI designs/month (Dominant presence)",
+      "700 AI designs/month (Dominant presence)",
       "Near-daily content for maximum engagement",
       "Goal-based generation (Offer, Product, Season)",
       "Smart CTA copy to boost sales and messages",

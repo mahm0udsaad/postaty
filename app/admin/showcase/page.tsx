@@ -15,6 +15,7 @@ import {
   Plus,
   Filter,
 } from "lucide-react";
+import { toast } from "sonner";
 
 const fetcher = (url: string) => fetch(url).then(r => {
   if (!r.ok) throw new Error('API error');
@@ -39,31 +40,35 @@ export default function AdminShowcasePage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const handleAddToShowcase = async (
-    storageId: string,
+    imageUrl: string,
     category: string,
     title: string
   ) => {
-    setAddingStorageId(storageId);
+    setAddingStorageId(imageUrl);
     try {
       const nextOrder = showcaseImages ? showcaseImages.length : 0;
-      await fetch('/api/showcase', {
+      const res = await fetch('/api/showcase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          action: 'add',
-          storageId,
+          url: imageUrl,
           title: title || undefined,
           category,
           order: nextOrder,
         }),
       });
+      if (!res.ok) throw new Error(await res.text());
       mutateShowcase();
+      toast.success("تمت الإضافة للمعرض");
     } catch (err) {
       console.error("Failed to add to showcase:", err);
+      toast.error("فشل الإضافة للمعرض");
     } finally {
       setAddingStorageId(null);
     }
   };
+
+
 
   const handleDelete = async (id: string) => {
     setDeletingId(id);
@@ -85,12 +90,12 @@ export default function AdminShowcasePage() {
       fetch('/api/showcase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'reorder', id: current.id ?? current._id, order: prev.order }),
+        body: JSON.stringify({ action: 'reorder', id: current.id ?? current._id, order: prev.display_order }),
       }),
       fetch('/api/showcase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'reorder', id: prev.id ?? prev._id, order: current.order }),
+        body: JSON.stringify({ action: 'reorder', id: prev.id ?? prev._id, order: current.display_order }),
       }),
     ]);
     mutateShowcase();
@@ -104,12 +109,12 @@ export default function AdminShowcasePage() {
       fetch('/api/showcase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'reorder', id: current.id ?? current._id, order: next.order }),
+        body: JSON.stringify({ action: 'reorder', id: current.id ?? current._id, order: next.display_order }),
       }),
       fetch('/api/showcase', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: 'reorder', id: next.id ?? next._id, order: current.order }),
+        body: JSON.stringify({ action: 'reorder', id: next.id ?? next._id, order: current.display_order }),
       }),
     ]);
     mutateShowcase();
@@ -144,7 +149,7 @@ export default function AdminShowcasePage() {
         {showcaseImages.length > 0 ? (
           <div className="space-y-3">
             {showcaseImages.map((img: any, index: number) => {
-              const imgId = img.id ?? img._id;
+              const imgId = img.id;
               return (
                 <div
                   key={imgId}
@@ -181,7 +186,7 @@ export default function AdminShowcasePage() {
                         {(CATEGORY_LABELS as Record<string, string>)[img.category] ?? img.category}
                       </span>
                       <span className="text-xs text-muted">
-                        {new Date(img.createdAt ?? img.created_at).toLocaleDateString("ar-SA-u-nu-latn")}
+                        {new Date(img.created_at).toLocaleDateString("ar-SA-u-nu-latn")}
                       </span>
                     </div>
                   </div>
@@ -274,7 +279,7 @@ export default function AdminShowcasePage() {
             {generations.flatMap((gen: any) =>
               gen.outputs.map((output: any, idx: number) => (
                 <div
-                  key={`${gen.id}-${output.storageId ?? idx}`}
+                  key={`${gen.id}-${output.url ?? idx}`}
                   className={`relative rounded-2xl overflow-hidden border bg-surface-1 transition-all group ${
                     output.alreadyInShowcase
                       ? "border-success/40 ring-2 ring-success/20"
@@ -315,16 +320,16 @@ export default function AdminShowcasePage() {
                     <button
                       onClick={() =>
                         handleAddToShowcase(
-                          output.storageId,
+                          output.url,
                           gen.category,
                           `${gen.businessName} — ${gen.productName}`
                         )
                       }
-                      disabled={addingStorageId === output.storageId}
+                      disabled={addingStorageId === output.url}
                       className="absolute top-2 left-2 bg-primary text-primary-foreground p-1.5 rounded-full opacity-0 group-hover:opacity-100 hover:scale-110 disabled:opacity-50 transition-all shadow-lg"
                       title="إضافة للمعرض"
                     >
-                      {addingStorageId === output.storageId ? (
+                      {addingStorageId === output.url ? (
                         <Loader2 size={14} className="animate-spin" />
                       ) : (
                         <Plus size={14} />

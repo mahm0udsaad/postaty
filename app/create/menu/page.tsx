@@ -1,11 +1,11 @@
 "use client";
 
-import { useState, useRef, Suspense } from "react";
+import { useEffect, useRef, Suspense, useState } from "react";
 import useSWR from "swr";
 import { useAuth } from "@/hooks/use-auth";
 import { useRouter } from "next/navigation";
 import { AnimatePresence, motion } from "framer-motion";
-import { ArrowRight, Sparkles, LayoutGrid, LogIn, AlertCircle, UtensilsCrossed, ShoppingCart } from "lucide-react";
+import { ArrowRight, LayoutGrid, LogIn, AlertCircle, UtensilsCrossed, ShoppingCart } from "lucide-react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import { useLocale } from "@/hooks/use-locale";
@@ -34,6 +34,17 @@ const MenuForm = dynamic(
 const MarketingContentHub = dynamic(
   () => import("../../components/marketing-content-hub").then((mod) => mod.MarketingContentHub)
 );
+
+type BrandKitSummary = {
+  id: string;
+  name?: string;
+  logoUrl?: string;
+  palette?: BrandKitPromptData["palette"];
+  styleAdjectives?: string[];
+  doRules?: string[];
+  dontRules?: string[];
+  styleSeed?: BrandKitPromptData["styleSeed"];
+};
 
 function getNowMs(): number {
   return Date.now();
@@ -82,7 +93,7 @@ export default function MenuPage() {
 function MenuPageContent() {
   const router = useRouter();
   const { isSignedIn, isLoaded: isAuthLoaded, userId } = useAuth();
-  const { locale, t } = useLocale();
+  const { t } = useLocale();
 
   const toLocalizedErrorMessage = (error: unknown): string => {
     const message = error instanceof Error ? error.message : "";
@@ -132,7 +143,7 @@ function MenuPageContent() {
     isSignedIn && userId ? "/api/brand-kits" : null,
     fetcher
   );
-  const brandKits = brandKitsData?.brandKits as any[] | undefined;
+  const brandKits = brandKitsData?.brandKits as BrandKitSummary[] | undefined;
   const defaultBrandKit = brandKits?.[0];
 
   const brandKitPromptData: BrandKitPromptData | undefined =
@@ -146,13 +157,27 @@ function MenuPageContent() {
         }
       : undefined;
 
-  // Load default logo from brand kit
-  useState(() => {
-    if (!defaultBrandKit?.logoUrl) return;
+  useEffect(() => {
+    let isCancelled = false;
+
+    if (!defaultBrandKit?.logoUrl) {
+      setDefaultLogo(null);
+      return;
+    }
+
     urlToDataUrl(defaultBrandKit.logoUrl)
-      .then((dataUrl) => setDefaultLogo(dataUrl))
-      .catch(() => setDefaultLogo(null));
-  });
+      .then((dataUrl) => {
+        if (!isCancelled) setDefaultLogo(dataUrl);
+      })
+      .catch((err) => {
+        console.error("Failed to preload brand logo:", err);
+        if (!isCancelled) setDefaultLogo(null);
+      });
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [defaultBrandKit?.logoUrl]);
 
   const persistUsageEvents = async (usages: GenerationUsage[]) => {
     if (usages.length === 0) return;
@@ -415,7 +440,7 @@ function MenuPageContent() {
     );
   }
 
-  const formDisabled = isGenerating || !canGenerate;
+  const formDisabled = isGenerating || !canGenerate || totalRemaining < MENU_CONFIG.creditsPerMenu;
   const sharedDefaultValues = {
     businessName: defaultBrandKit?.name,
     logo: defaultLogo,
@@ -472,7 +497,7 @@ function MenuPageContent() {
                   error={error}
                   totalExpected={1}
                   onGenerateMore={() => {
-                    if (!lastSubmittedData || isGenerating || !canGenerate) return;
+                    if (!lastSubmittedData || isGenerating || !canGenerate || totalRemaining < MENU_CONFIG.creditsPerMenu) return;
                     void runGeneration(lastSubmittedData);
                   }}
                   generateMoreLabel={t("إنشاء قائمة إضافية بنفس المحتوى", "Create another menu with same content")}

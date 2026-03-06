@@ -18,7 +18,7 @@ import {
   Maximize,
   Coins,
 } from "lucide-react";
-import { useMemo, useState, useEffect, useRef, useCallback } from "react";
+import { useMemo, useState, useEffect, useRef } from "react";
 import useSWR from "swr";
 import { createPortal } from "react-dom";
 import { useAuth } from "@/hooks/use-auth";
@@ -26,7 +26,7 @@ import { removeOverlayBackground } from "@/app/actions-v2";
 import { editDesignAction } from "@/app/actions-edit";
 import { renderEditedGiftToBlob } from "@/lib/gift-editor/export-edited-gift";
 import type { GiftEditorState, PosterResult, OutputFormat } from "@/lib/types";
-import { FORMAT_CONFIGS, POSTER_GENERATION_FORMATS } from "@/lib/constants";
+import { FORMAT_CONFIGS, POSTER_CONFIG, POSTER_GENERATION_FORMATS } from "@/lib/constants";
 import { useLocale } from "@/hooks/use-locale";
 
 const FORMAT_LABELS: Record<OutputFormat, { ar: string; en: string }> = {
@@ -355,6 +355,15 @@ export function PosterModal({
 
   const handleEditDesign = async () => {
     if (!editPrompt.trim() || !currentImage || isEditing) return;
+    if ((creditState?.totalRemaining ?? 0) < POSTER_CONFIG.creditsPerEdit) {
+      setEditError(
+        t(
+          `تحتاج ${POSTER_CONFIG.creditsPerEdit} أرصدة على الأقل للتعديل.`,
+          `You need at least ${POSTER_CONFIG.creditsPerEdit} credits to edit.`
+        )
+      );
+      return;
+    }
     setIsEditing(true);
     setEditError(null);
 
@@ -376,7 +385,7 @@ export function PosterModal({
         fetch("/api/billing/consume-credit", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ idempotencyKey, amount: 0.5 }),
+          body: JSON.stringify({ idempotencyKey, amount: POSTER_CONFIG.creditsPerEdit }),
         })
           .catch((err) => console.error("[handleEditDesign] credit error", err))
           .finally(() => onCreditConsumed?.());
@@ -404,16 +413,24 @@ export function PosterModal({
 
   const handleFormatChange = async (fmt: OutputFormat) => {
     if (fmt === selectedFormat || isResizing || !currentImage) return;
+    if ((creditState?.totalRemaining ?? 0) < POSTER_CONFIG.creditsPerEdit) {
+      setEditError(
+        t(
+          `تحتاج ${POSTER_CONFIG.creditsPerEdit} أرصدة على الأقل لتغيير المقاس.`,
+          `You need at least ${POSTER_CONFIG.creditsPerEdit} credits to reframe.`
+        )
+      );
+      return;
+    }
     setIsResizing(true);
     try {
       const cfg = FORMAT_CONFIGS[fmt];
-      const label = FORMAT_LABELS[fmt];
       const reframePrompt = locale === "ar"
         ? `أعد تأطير التصميم لتنسيق ${cfg.aspectRatio}. حافظ على كل المحتوى والألوان.`
         : `Reframe this design to ${cfg.aspectRatio} ratio. Keep all content, text, and colors.`;
 
       // Pass generationId so upload+DB update happens server-side (no extra round-trip)
-      const editResult = await editDesignAction(currentImage, reframePrompt, fmt, "edit", generationId);
+      const editResult = await editDesignAction(currentImage, reframePrompt, generationType === "menu" ? "menu" : fmt, "edit", generationId);
       if (editResult.status === "complete") {
         setPreviousImage(currentImage);
         setPreviousFormat(selectedFormat);
@@ -426,7 +443,7 @@ export function PosterModal({
         fetch("/api/billing/consume-credit", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ idempotencyKey, amount: 0.5 }),
+          body: JSON.stringify({ idempotencyKey, amount: POSTER_CONFIG.creditsPerEdit }),
         })
           .catch((err) => console.error("[handleFormatChange] credit error", err))
           .finally(() => onCreditConsumed?.());
@@ -492,7 +509,7 @@ export function PosterModal({
                   <div className="flex-1 min-h-0 w-full flex items-center justify-center">
                     <motion.div
                       layoutId={`poster-img-${result.designIndex}`}
-                      className="relative max-h-full max-w-full shadow-2xl rounded-lg overflow-hidden z-10 flex shrink-0 group"
+                      className="relative max-h-full max-w-full  rounded-lg overflow-hidden z-10 flex shrink-0 group"
                     >
                       {currentImage ? (
                         <>
@@ -568,7 +585,7 @@ export function PosterModal({
                             <WandSparkles size={14} className="text-primary animate-pulse" />
                             <span>{t("تعديل بواسطة Postaty AI", "Edit with Postaty AI")}</span>
                             <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-md font-bold border border-primary/20">
-                              ({t("التعديل يستهلك 0.5 رصيد", "Edit costs 0.5 credits")})
+                              ({t(`التعديل يستهلك ${POSTER_CONFIG.creditsPerEdit} أرصدة`, `Edit costs ${POSTER_CONFIG.creditsPerEdit} credits`)})
                             </span>
                           </div>
                           <div className="flex items-center gap-3">
@@ -725,40 +742,51 @@ export function PosterModal({
                       </div>
                     </div>
 
-                    <div className="p-4 bg-surface-2 rounded-2xl border border-card-border space-y-3">
-                      <div className="flex items-center justify-between">
+                    {generationType !== "menu" && (
+                      <div className="p-4 bg-surface-2 rounded-2xl border border-card-border space-y-3">
+                        <div className="flex items-center justify-between">
+                          <div className="text-sm font-medium text-muted">{t("الأبعاد", "Dimensions")}</div>
+                          {isResizing
+                            ? <Loader2 size={13} className="animate-spin text-primary" />
+                            : <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-md font-bold border border-primary/20">{POSTER_CONFIG.creditsPerEdit} {t("أرصدة", "credits")}</span>
+                          }
+                        </div>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {POSTER_GENERATION_FORMATS.map((fmt) => {
+                            const cfg = FORMAT_CONFIGS[fmt];
+                            const label = FORMAT_LABELS[fmt];
+                            const isSelected = selectedFormat === fmt;
+                            return (
+                              <button
+                                key={fmt}
+                                type="button"
+                                onClick={() => handleFormatChange(fmt)}
+                                disabled={isResizing}
+                                className={`flex flex-col items-start p-2.5 rounded-xl border text-left transition-all disabled:opacity-50 ${
+                                  isSelected
+                                    ? "border-primary bg-primary/5 text-primary"
+                                    : "border-card-border hover:border-primary/30 hover:bg-surface-1"
+                                }`}
+                              >
+                                <span className={`text-[11px] font-bold leading-tight ${isSelected ? "text-primary" : "text-foreground"}`}>
+                                  {locale === "ar" ? label.ar : label.en}
+                                </span>
+                                <span className="text-[10px] text-muted-foreground mt-0.5">{cfg.width}×{cfg.height}</span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )}
+                    {generationType === "menu" && (
+                      <div className="p-4 bg-surface-2 rounded-2xl border border-card-border space-y-2">
                         <div className="text-sm font-medium text-muted">{t("الأبعاد", "Dimensions")}</div>
-                        {isResizing
-                          ? <Loader2 size={13} className="animate-spin text-primary" />
-                          : <span className="text-[10px] bg-primary/10 text-primary px-1.5 py-0.5 rounded-md font-bold border border-primary/20">0.5 {t("رصيد", "credit")}</span>
-                        }
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm font-bold text-foreground">A4 {t("عمودي", "Portrait")}</span>
+                          <span className="text-[10px] text-muted-foreground">1240×1754</span>
+                        </div>
                       </div>
-                      <div className="grid grid-cols-2 gap-1.5">
-                        {POSTER_GENERATION_FORMATS.map((fmt) => {
-                          const cfg = FORMAT_CONFIGS[fmt];
-                          const label = FORMAT_LABELS[fmt];
-                          const isSelected = selectedFormat === fmt;
-                          return (
-                            <button
-                              key={fmt}
-                              type="button"
-                              onClick={() => handleFormatChange(fmt)}
-                              disabled={isResizing}
-                              className={`flex flex-col items-start p-2.5 rounded-xl border text-left transition-all disabled:opacity-50 ${
-                                isSelected
-                                  ? "border-primary bg-primary/5 text-primary"
-                                  : "border-card-border hover:border-primary/30 hover:bg-surface-1"
-                              }`}
-                            >
-                              <span className={`text-[11px] font-bold leading-tight ${isSelected ? "text-primary" : "text-foreground"}`}>
-                                {locale === "ar" ? label.ar : label.en}
-                              </span>
-                              <span className="text-[10px] text-muted-foreground mt-0.5">{cfg.width}×{cfg.height}</span>
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </div>
+                    )}
 
 
 

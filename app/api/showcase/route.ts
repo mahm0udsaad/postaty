@@ -24,8 +24,13 @@ export async function GET() {
     const showcaseImages = (rows ?? []).map((img) => {
       let url: string | null = null;
       if (img.storage_path) {
-        const { data } = admin.storage.from("showcase").getPublicUrl(img.storage_path);
-        url = data.publicUrl;
+        // If already a full URL (e.g. from generations bucket), use directly
+        if (img.storage_path.startsWith("http")) {
+          url = img.storage_path;
+        } else {
+          const { data } = admin.storage.from("showcase").getPublicUrl(img.storage_path);
+          url = data.publicUrl;
+        }
       }
       return { ...img, url };
     });
@@ -42,15 +47,34 @@ export async function GET() {
 
 export async function POST(request: Request) {
   try {
-    await requireAdmin();
+    const dbUser = await requireAdmin();
     const body = await request.json();
     const admin = createAdminClient();
 
-    const { title, description, storage_path, category, display_order } = body;
+    const { action, id, title, storage_path, url, category, display_order, order } = body;
 
-    if (!storage_path) {
+    // Handle reorder action
+    if (action === "reorder") {
+      if (!id) {
+        return NextResponse.json({ error: "id is required for reorder" }, { status: 400 });
+      }
+      const { error } = await admin
+        .from("showcase_images")
+        .update({ display_order: order ?? 0 })
+        .eq("id", id);
+      if (error) {
+        console.error("Failed to reorder showcase image:", error);
+        return NextResponse.json({ error: "Failed to reorder" }, { status: 500 });
+      }
+      return NextResponse.json({ ok: true });
+    }
+
+    // Use url (from generation) or storage_path
+    const resolvedPath = url || storage_path;
+
+    if (!resolvedPath) {
       return NextResponse.json(
-        { error: "storage_path is required" },
+        { error: "url or storage_path is required" },
         { status: 400 }
       );
     }
@@ -59,9 +83,10 @@ export async function POST(request: Request) {
       .from("showcase_images")
       .insert({
         title: title || null,
-        storage_path,
+        storage_path: resolvedPath,
         category: category || null,
-        display_order: display_order ?? 0,
+        display_order: display_order ?? order ?? 0,
+        added_by: dbUser.id,
         created_at: Date.now(),
       })
       .select("*")

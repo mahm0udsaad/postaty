@@ -24,8 +24,9 @@ export async function editDesign(input: {
   width: number;
   height: number;
   model?: "edit" | "free";
+  inputMaxPx?: number;
 }): Promise<{ imageBase64: string }> {
-  const { imageBase64, editPrompt, aspectRatio, width, height, model = "edit" } = input;
+  const { imageBase64, editPrompt, aspectRatio, width, height, model = "edit", inputMaxPx = 512 } = input;
   const aiModel = model === "free" ? freeImageModel : gatewayEditImageModel;
 
   // Decode base64 data URL → Buffer
@@ -35,12 +36,13 @@ export async function editDesign(input: {
   }
   const imageBuffer = Buffer.from(match[2], "base64");
 
-  // Compress input image — 512px is enough for the model to understand layout
-  // (output is always re-generated at 1K by Gemini, then resized to target by Sharp)
+  // Compress input image before sending to the model.
+  // Larger images (e.g. A4 menu) need a higher limit so small text stays readable.
+  // Output is always re-generated at 1K by Gemini, then resized to target by Sharp.
   const sharp = await getSharp();
   const compressedInput = await sharp(imageBuffer)
-    .resize(512, 512, { fit: "inside", withoutEnlargement: true })
-    .jpeg({ quality: 70 })
+    .resize(inputMaxPx, inputMaxPx, { fit: "inside", withoutEnlargement: true })
+    .jpeg({ quality: 75 })
     .toBuffer();
 
   const contentParts: Array<

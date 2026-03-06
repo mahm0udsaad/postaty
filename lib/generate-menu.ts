@@ -22,6 +22,8 @@ import type { GeneratedDesign, GenerationUsage } from "./generate-designs";
 const PRIMARY_MODEL_ID = "gemini-3-pro-image-preview";
 const FALLBACK_MODEL_ID = "gemini-3-pro-image-preview (gateway)";
 const menuImageModel = google(PRIMARY_MODEL_ID);
+const MENU_PRIMARY_TIMEOUT_MS = 105_000;
+const MENU_FALLBACK_TIMEOUT_MS = 105_000;
 
 
 // ── Generate a single menu/catalog image via Gemini Pro ───────────
@@ -156,13 +158,22 @@ export async function generateMenu(
   };
 
   try {
-    // maxRetries: 0 + 90s timeout = single attempt, fail fast so we reach fallback quickly.
-    result = await generateText({ model: menuImageModel, maxRetries: 0, abortSignal: AbortSignal.timeout(90_000), ...generateRequest });
+    result = await generateText({
+      model: menuImageModel,
+      maxRetries: 0,
+      abortSignal: AbortSignal.timeout(MENU_PRIMARY_TIMEOUT_MS),
+      ...generateRequest,
+    });
   } catch (primaryErr) {
     console.warn("[generateMenu] primary model failed, falling back to gateway", primaryErr instanceof Error ? primaryErr.message : primaryErr);
     try {
       usedModelId = FALLBACK_MODEL_ID;
-      result = await generateText({ model: gatewayImageModel, ...generateRequest });
+      result = await generateText({
+        model: gatewayImageModel,
+        maxRetries: 0,
+        abortSignal: AbortSignal.timeout(MENU_FALLBACK_TIMEOUT_MS),
+        ...generateRequest,
+      });
     } catch (fallbackErr) {
       const durationMs = Date.now() - startTime;
       console.error("[generateMenu] gateway fallback also failed", fallbackErr);

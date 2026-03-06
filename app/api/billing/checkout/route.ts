@@ -10,9 +10,9 @@ const PLAN_CONFIG: Record<
   PlanKey,
   { monthlyCredits: number; firstMonthDiscountCents: number }
 > = {
-  starter: { monthlyCredits: 15, firstMonthDiscountCents: 200 },
-  growth: { monthlyCredits: 35, firstMonthDiscountCents: 400 },
-  dominant: { monthlyCredits: 70, firstMonthDiscountCents: 800 },
+  starter: { monthlyCredits: 150, firstMonthDiscountCents: 200 },
+  growth: { monthlyCredits: 350, firstMonthDiscountCents: 400 },
+  dominant: { monthlyCredits: 700, firstMonthDiscountCents: 800 },
 };
 
 const ADDON_CONFIG: Record<AddonKey, { credits: number }> = {

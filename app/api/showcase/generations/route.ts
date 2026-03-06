@@ -15,16 +15,19 @@ export async function GET(request: Request) {
 
     let query = admin
       .from("generations")
-      .select("id, inputs, outputs, created_at")
+      .select("id, business_name, product_name, category, outputs, created_at")
       .eq("status", "complete")
       .order("created_at", { ascending: false })
       .limit(limit);
 
     if (category) {
-      query = query.like("inputs", `%"category":"${category}"%`);
+      query = query.eq("category", category);
     }
 
-    const { data: generations, error } = await query;
+    const [{ data: generations, error }, { data: showcaseRows }] = await Promise.all([
+      query,
+      admin.from("showcase_images").select("storage_path"),
+    ]);
 
     if (error) {
       console.error("[showcase/generations] Failed to fetch:", error);
@@ -34,7 +37,21 @@ export async function GET(request: Request) {
       );
     }
 
-    return NextResponse.json(generations || []);
+    const showcaseUrls = new Set((showcaseRows ?? []).map((r) => r.storage_path));
+
+    const result = (generations ?? []).map((gen) => ({
+      id: gen.id,
+      businessName: gen.business_name,
+      productName: gen.product_name,
+      category: gen.category,
+      created_at: gen.created_at,
+      outputs: ((gen.outputs as any[]) ?? []).map((o) => ({
+        ...o,
+        alreadyInShowcase: !!o.url && showcaseUrls.has(o.url),
+      })),
+    }));
+
+    return NextResponse.json(result);
   } catch (error) {
     if (error instanceof Error && error.message === "Not authenticated") {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });

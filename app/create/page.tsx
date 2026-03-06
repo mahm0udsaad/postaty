@@ -18,7 +18,7 @@ import { CategorySelector } from "../components/category-selector";
 import type { Category, CampaignType, PostFormData, PosterResult, PosterGenStep, MarketingContentHub as MarketingContentHubType, MarketingContentStatus } from "@/lib/types";
 import type { BrandKitPromptData } from "@/lib/prompts";
 import type { GenerationUsage } from "@/lib/generate-designs";
-import { CATEGORY_LABELS, FORMAT_CONFIGS } from "@/lib/constants";
+import { CATEGORY_LABELS, FORMAT_CONFIGS, POSTER_CONFIG } from "@/lib/constants";
 import { CATEGORY_THEMES } from "@/lib/category-themes";
 import { generatePosters, generateMarketingContentAction, prewarmGenerationAssets } from "../actions-v2";
 import { TAP_SCALE } from "@/lib/animation";
@@ -353,6 +353,7 @@ function CreatePageContent() {
     fetcher
   );
   const canGenerate = creditState?.canGenerate ?? false;
+  const totalRemaining = creditState?.totalRemaining ?? 0;
 
   // Brand kit
   const { data: brandKitsData } = useSWR(
@@ -407,7 +408,7 @@ function CreatePageContent() {
     // Don't redirect while generating or viewing results
     if (isGenerating || results.length > 0) return;
 
-    if ("totalRemaining" in creditState && creditState.totalRemaining < 1) {
+    if ("totalRemaining" in creditState && creditState.totalRemaining < POSTER_CONFIG.creditsPerPoster) {
       router.replace("/pricing");
       return;
     }
@@ -569,8 +570,14 @@ function CreatePageContent() {
     window.scrollTo({ top: 0, behavior: "smooth" });
 
     // Gate: must have credits
-    if (!canGenerate) {
-      dispatch({ type: "SET_ERROR", error: t("لا يوجد لديك رصيد كافٍ. يرجى ترقية اشتراكك أو شراء رصيد إضافي.", "You don't have enough credits. Please upgrade your plan or buy additional credits.") });
+    if (!canGenerate || totalRemaining < POSTER_CONFIG.creditsPerPoster) {
+      dispatch({
+        type: "SET_ERROR",
+        error: t(
+          `لا يوجد لديك رصيد كافٍ. تحتاج ${POSTER_CONFIG.creditsPerPoster} أرصدة لكل تصميم. يرجى ترقية اشتراكك أو شراء رصيد إضافي.`,
+          `You need at least ${POSTER_CONFIG.creditsPerPoster} credits per poster. Please upgrade your plan or buy additional credits.`
+        ),
+      });
       return;
     }
 
@@ -601,7 +608,7 @@ function CreatePageContent() {
           const creditRes = await fetchWithTimeout('/api/billing/consume-credit', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ idempotencyKey }),
+            body: JSON.stringify({ idempotencyKey, amount: POSTER_CONFIG.creditsPerPoster }),
           });
           const creditBody = await creditRes.json();
           if (!creditRes.ok || !creditBody.ok) {
@@ -682,7 +689,7 @@ function CreatePageContent() {
             serviceImage: undefined,
           }),
           formats: [data.format],
-          creditsCharged: 1,
+          creditsCharged: POSTER_CONFIG.creditsPerPoster,
           generationType: "poster",
         }),
       });
@@ -816,7 +823,7 @@ function CreatePageContent() {
     );
   }
 
-  const formDisabled = isGenerating || !canGenerate;
+  const formDisabled = isGenerating || !canGenerate || totalRemaining < POSTER_CONFIG.creditsPerPoster;
   const sharedDefaultValues = {
     businessName: defaultBrandKit?.name,
     logo: defaultLogo,
@@ -966,11 +973,11 @@ function CreatePageContent() {
                         totalExpected={1}
                         onSaveAsTemplate={handleSaveAsTemplate}
                         onGenerateMore={() => {
-                          if (!lastSubmittedData || isGenerating || !canGenerate) return;
+                          if (!lastSubmittedData || isGenerating || !canGenerate || totalRemaining < POSTER_CONFIG.creditsPerPoster) return;
                           void runGeneration(lastSubmittedData);
                         }}
                         onReset={() => dispatch({ type: "CLEAR_RESULTS" })}
-                        canGenerateMore={!!lastSubmittedData && !isGenerating && canGenerate}
+                        canGenerateMore={!!lastSubmittedData && !isGenerating && canGenerate && totalRemaining >= POSTER_CONFIG.creditsPerPoster}
                         onCreditConsumed={() => mutateCreditState()}
                         generationId={currentGenerationId}
                         onResultUpdated={(designIndex, newBase64) => {
@@ -1023,12 +1030,17 @@ function CreatePageContent() {
                 </div>
 
                 {/* No credits banner */}
-                {creditState && !canGenerate && (
+                {creditState && (!canGenerate || totalRemaining < POSTER_CONFIG.creditsPerPoster) && (
                   <div className="flex items-center gap-3 p-4 rounded-2xl bg-red-500/10 border border-red-500/20 text-red-400">
                     <AlertCircle size={20} className="shrink-0" />
                     <div className="flex-1">
                       <p className="font-bold text-sm">{t("لا يوجد لديك رصيد كافٍ", "You don't have enough credits")}</p>
-                      <p className="text-xs mt-0.5 opacity-80">{t("يرجى ترقية اشتراكك أو شراء رصيد إضافي للمتابعة", "Please upgrade your plan or buy additional credits to continue")}</p>
+                      <p className="text-xs mt-0.5 opacity-80">
+                        {t(
+                          `تحتاج ${POSTER_CONFIG.creditsPerPoster} أرصدة على الأقل لكل تصميم. يرجى ترقية اشتراكك أو شراء رصيد إضافي للمتابعة`,
+                          `You need at least ${POSTER_CONFIG.creditsPerPoster} credits per poster. Please upgrade your plan or buy additional credits to continue`
+                        )}
+                      </p>
                     </div>
                     <Link
                       href="/pricing"

@@ -45,6 +45,8 @@ const PRIMARY_MODEL_ID = "gemini-3-pro-image-preview";
 const FALLBACK_MODEL_ID = "gemini-3-pro-image-preview (gateway)";
 const FREE_MODEL_ID = "gemini-2.5-flash-image";
 
+const POSTER_PRIMARY_TIMEOUT_MS = 75_000;
+const POSTER_FALLBACK_TIMEOUT_MS = 75_000;
 
 const GEN_PARALLEL_PREP_ENABLED = process.env.GEN_PARALLEL_PREP !== "0";
 const VERBOSE_TIMING = process.env.NODE_ENV !== "production";
@@ -54,11 +56,7 @@ const VERBOSE_TIMING = process.env.NODE_ENV !== "production";
 function extractSubType(data: PostFormData): string | undefined {
   switch (data.category) {
     case "services": return data.serviceType;
-    case "restaurant": return data.postType;
-    case "supermarket": return data.postType;
-    case "ecommerce": return data.postType;
-    case "fashion": return data.postType;
-    case "beauty": return data.postType;
+    default: return undefined;
   }
 }
 
@@ -248,15 +246,24 @@ export async function generatePoster(
 
   try {
     const aiStart = Date.now();
-    // maxRetries: 0 + 90s timeout — fail fast on primary so we reach the fallback quickly
-    result = await generateText({ model: primaryImageModel, maxRetries: 0, abortSignal: AbortSignal.timeout(90_000), ...generateRequest });
+    result = await generateText({
+      model: primaryImageModel,
+      maxRetries: 0,
+      abortSignal: AbortSignal.timeout(POSTER_PRIMARY_TIMEOUT_MS),
+      ...generateRequest,
+    });
     aiCallMs = Date.now() - aiStart;
   } catch (primaryErr) {
     console.warn("[generatePoster] primary model failed, falling back to gateway", primaryErr instanceof Error ? primaryErr.message : primaryErr);
     try {
       usedModelId = FALLBACK_MODEL_ID;
       const aiStart = Date.now();
-      result = await generateText({ model: gatewayImageModel, ...generateRequest });
+      result = await generateText({
+        model: gatewayImageModel,
+        maxRetries: 0,
+        abortSignal: AbortSignal.timeout(POSTER_FALLBACK_TIMEOUT_MS),
+        ...generateRequest,
+      });
       aiCallMs = Date.now() - aiStart;
     } catch (fallbackErr) {
       const durationMs = Date.now() - startTime;

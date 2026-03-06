@@ -266,6 +266,11 @@ export const REEL_CONFIG = {
   ttsModel: "eleven_multilingual_v2" as const,
 } as const;
 
+export const POSTER_CONFIG = {
+  creditsPerPoster: 10,
+  creditsPerEdit: 5,
+} as const;
+
 // ── Generation Type Labels ────────────────────────────────────────
 
 export const GENERATION_TYPE_LABELS: Record<string, string> = {
@@ -290,7 +295,7 @@ export const MENU_FORMAT_CONFIG = {
 } as const;
 
 export const MENU_CONFIG = {
-  creditsPerMenu: 2,
+  creditsPerMenu: 20,
   minItems: 2,
   maxItems: 9,
 } as const;
