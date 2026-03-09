@@ -674,7 +674,6 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
               <div className="text-4xl font-black mb-1">
                 {formatPrice(pricing.starter.monthly)} <span className="text-lg text-muted font-medium">{t("/ شهر", "/ month")}</span>
               </div>
-              <p className="text-muted text-sm mb-1">{t("الشهر الأول:", "First month:")} {formatPrice(pricing.starter.firstMonth)} {t("ثم", "then")} {formatPrice(pricing.starter.monthly)} {t("شهرياً", "monthly")}</p>
               
               <p className="text-sm font-medium text-foreground mt-4 mb-6 leading-relaxed">
                 {t("ابدأ بسرعة وخلّي حساباتك “شغّالة” بتصاميم جاهزة للنشر بدون تعب.", "Start quickly and keep your accounts active with ready-to-publish designs without the hassle.")}
@@ -700,7 +699,6 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
               <div className="text-4xl font-black mb-1">
                 {formatPrice(pricing.growth.monthly)} <span className="text-lg text-muted font-medium">{t("/ شهر", "/ month")}</span>
               </div>
-              <p className="text-muted text-sm mb-1">{t("الشهر الأول:", "First month:")} {formatPrice(pricing.growth.firstMonth)} {t("ثم", "then")} {formatPrice(pricing.growth.monthly)} {t("شهرياً", "monthly")}</p>
               
               <p className="text-sm font-medium text-foreground mt-4 mb-6 leading-relaxed">
                 {t("خلي ظهورك أقوى… محتوى أكثر، مقاسات أكثر، ونتيجة أحسن للمبيعات.", "Make your presence stronger... more content, more sizes, and better results for sales.")}
@@ -725,7 +723,6 @@ export default function HomeClient({ pricing, countryCode, locale }: HomeClientP
               <div className="text-4xl font-black mb-1">
                 {formatPrice(pricing.dominant.monthly)} <span className="text-lg text-muted font-medium">{t("/ شهر", "/ month")}</span>
               </div>
-              <p className="text-muted text-sm mb-1">{t("الشهر الأول:", "First month:")} {formatPrice(pricing.dominant.firstMonth)} {t("ثم", "then")} {formatPrice(pricing.dominant.monthly)} {t("شهرياً", "monthly")}</p>
               
               <p className="text-sm font-medium text-foreground mt-4 mb-6 leading-relaxed">
                 {t("أقصى إنتاجية… محتوى شبه يومي + ذكاء أعلى يركز على الهدف والتحويل.", "Maximum productivity... near-daily content + higher AI focused on goals and conversion.")}

@@ -6,15 +6,6 @@ import { requireAuth } from "@/lib/supabase/auth-helpers";
 type PlanKey = "starter" | "growth" | "dominant";
 type AddonKey = "addon_5" | "addon_10";
 
-const PLAN_CONFIG: Record<
-  PlanKey,
-  { monthlyCredits: number; firstMonthDiscountCents: number }
-> = {
-  starter: { monthlyCredits: 150, firstMonthDiscountCents: 200 },
-  growth: { monthlyCredits: 350, firstMonthDiscountCents: 400 },
-  dominant: { monthlyCredits: 700, firstMonthDiscountCents: 800 },
-};
-
 const ADDON_CONFIG: Record<AddonKey, { credits: number }> = {
   addon_5: { credits: 50 },
   addon_10: { credits: 100 },
@@ -113,21 +104,10 @@ export async function POST(request: Request) {
         );
       }
 
-      // Create first-month discount coupon
-      const discountCents = PLAN_CONFIG[planKey].firstMonthDiscountCents;
-      const coupon = await stripe.coupons.create({
-        duration: "once",
-        amount_off: discountCents,
-        currency: "usd",
-        name: `First month ${planKey}`,
-        metadata: { userAuthId: user.id, planKey },
-      });
-
       const session = await stripe.checkout.sessions.create({
         mode: "subscription",
         customer: stripeCustomerId,
         line_items: [{ price: priceId, quantity: 1 }],
-        discounts: [{ coupon: coupon.id }],
         allow_promotion_codes: true,
         success_url: successUrl,
         cancel_url: cancelUrl,

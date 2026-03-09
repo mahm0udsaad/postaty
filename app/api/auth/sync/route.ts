@@ -89,8 +89,9 @@ export async function POST(request: Request) {
       );
     }
 
-    // Initialize billing with 0 credits (admin can add credits manually)
-    await admin
+    // Initialize billing with 10 free credits for new users
+    const FREE_TIER_CREDITS = 10;
+    const { data: billing } = await admin
       .from("billing")
       .insert({
         user_auth_id: user.id,
@@ -98,10 +99,27 @@ export async function POST(request: Request) {
         status: "none",
         monthly_credit_limit: 0,
         monthly_credits_used: 0,
-        addon_credits_balance: 0,
+        addon_credits_balance: FREE_TIER_CREDITS,
         updated_at: now,
         created_at: now,
+      })
+      .select("id")
+      .single();
+
+    // Record the free credits in the ledger
+    if (billing) {
+      await admin.from("credit_ledger").insert({
+        user_auth_id: user.id,
+        billing_id: billing.id,
+        amount: FREE_TIER_CREDITS,
+        reason: "manual_adjustment",
+        source: "addon",
+        idempotency_key: `free_tier_${user.id}`,
+        monthly_credits_used_after: 0,
+        addon_credits_balance_after: FREE_TIER_CREDITS,
+        created_at: now,
       });
+    }
 
     // Track referral if a referral code was provided
     if (referralCode && typeof referralCode === "string") {

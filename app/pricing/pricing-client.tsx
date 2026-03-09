@@ -8,15 +8,17 @@ import { ArrowLeft, Zap } from "lucide-react";
 import Link from "next/link";
 import { useLocale } from "@/hooks/use-locale";
 import type { AppLocale } from "@/lib/i18n";
+import VodafoneCashSection from "./vodafone-cash-section";
 
 type PlanKey = "starter" | "growth" | "dominant";
 
 type PricingClientProps = {
   countryCode: string;
   fallbackPricing: PricingSet;
+  isEgypt?: boolean;
 };
 
-export default function PricingClient({ countryCode, fallbackPricing }: PricingClientProps) {
+export default function PricingClient({ countryCode, fallbackPricing, isEgypt }: PricingClientProps) {
   const router = useRouter();
   const { locale, t } = useLocale();
 
@@ -35,12 +37,14 @@ export default function PricingClient({ countryCode, fallbackPricing }: PricingC
             <span className="text-sm font-medium">{t("العودة", "Back")}</span>
           </Link>
           <h1 className="text-4xl md:text-5xl font-black mb-4 text-center">
-            {t("اختر خطتك —", "Choose your plan -")} <span className="text-gradient">{t("الشهر الأول مخفض", "first month discounted")}</span>
+            {t("اختر خطتك —", "Choose your plan -")} <span className="text-gradient">{t("10 أرصدة مجانية عند التسجيل", "10 free credits on sign up")}</span>
           </h1>
           <p className="text-muted text-lg text-center">
             {t("جميع الخطط مع ضمان استرجاع الأموال 30 يوم", "All plans include a 30-day money-back guarantee")}
           </p>
         </div>
+
+        {isEgypt && <VodafoneCashSection />}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
           {(["starter", "growth", "dominant"] as const).map((planKey) => (
@@ -48,7 +52,6 @@ export default function PricingClient({ countryCode, fallbackPricing }: PricingC
               key={planKey}
               planKey={planKey}
               monthlyPrice={prices[planKey].monthly}
-              firstMonthPrice={prices[planKey].firstMonth}
               isPopular={planKey === "growth"}
               locale={locale}
               ctaButton={

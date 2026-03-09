@@ -8,15 +8,6 @@ type PlanKey = "starter" | "growth" | "dominant";
 type AddonKey = "addon_5" | "addon_10";
 type CheckoutTheme = "dark" | "light";
 
-const PLAN_CONFIG: Record<
-  PlanKey,
-  { monthlyCredits: number; firstMonthDiscountCents: number }
-> = {
-  starter: { monthlyCredits: 150, firstMonthDiscountCents: 200 },
-  growth: { monthlyCredits: 350, firstMonthDiscountCents: 400 },
-  dominant: { monthlyCredits: 700, firstMonthDiscountCents: 800 },
-};
-
 const ADDON_CONFIG: Record<AddonKey, { credits: number }> = {
   addon_5: { credits: 50 },
   addon_10: { credits: 100 },
@@ -144,21 +135,8 @@ export async function POST(request: Request) {
 
       const discounts: Stripe.Checkout.SessionCreateParams.Discount[] = [];
 
-      // Skip first-month discount for regional pricing (already discounted)
       if (couponId) {
         discounts.push({ coupon: couponId });
-      } else if (!region) {
-        const discountCents = PLAN_CONFIG[planKey].firstMonthDiscountCents;
-        if (discountCents > 0) {
-          const coupon = await stripe.coupons.create({
-            duration: "once",
-            amount_off: discountCents,
-            currency: "usd",
-            name: `First month ${planKey}`,
-            metadata: { userAuthId: user.id, planKey },
-          });
-          discounts.push({ coupon: coupon.id });
-        }
       }
 
       const session = await stripe.checkout.sessions.create({

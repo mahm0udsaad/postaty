@@ -15,5 +15,6 @@ async function getDetectedCountry() {
 export default async function PricingPage() {
   const country = await getDetectedCountry();
   const fallbackPricing = getPricingForCountry(country);
-  return <PricingClient countryCode={country} fallbackPricing={fallbackPricing} />;
+  const isEgypt = country === "EG";
+  return <PricingClient countryCode={country} fallbackPricing={fallbackPricing} isEgypt={isEgypt} />;
 }

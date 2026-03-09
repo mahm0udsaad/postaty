@@ -22,6 +22,7 @@ import {
   Mail,
   Globe,
   Handshake,
+  Smartphone,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -43,6 +44,7 @@ const ADMIN_NAV = [
   { href: "/admin/emails", label: "البريد", icon: Mail },
   { href: "/admin/regional", label: "الإقليمية", icon: Globe },
   { href: "/admin/partners", label: "الشركاء", icon: Handshake },
+  { href: "/admin/vodafone-requests", label: "فودافون كاش", icon: Smartphone },
 ] as const;
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {

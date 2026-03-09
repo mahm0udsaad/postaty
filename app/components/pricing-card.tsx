@@ -9,7 +9,7 @@ type PlanKey = "starter" | "growth" | "dominant";
 const PLAN_FEATURES: Record<PlanKey, { ar: string[]; en: string[] }> = {
   starter: {
     ar: [
-      "150 تصميم ذكي شهرياً (جاهزين للنشر خلال دقائق)",
+      "150 رصيد شهرياً",
       "1–2 محتوى أسبوعياً مناسب لحسابك ونشاطك",
       "مقاس تصدير واحد حسب استخدامك الأساسي",
       "نصوص تسويقية أساسية جاهزة مع كل تصميم",
@@ -17,7 +17,7 @@ const PLAN_FEATURES: Record<PlanKey, { ar: string[]; en: string[] }> = {
       "معرض بسيط لترتيب أعمالك والرجوع لها بسهولة",
     ],
     en: [
-      "150 AI designs/month (Ready in minutes)",
+      "150 credits/month",
       "1-2 weekly posts tailored to your activity",
       "One export format for your primary use",
       "Basic marketing copy for every design",
@@ -27,7 +27,7 @@ const PLAN_FEATURES: Record<PlanKey, { ar: string[]; en: string[] }> = {
   },
   growth: {
     ar: [
-      "350 تصميم ذكي شهرياً (حضور أقوى ومبيعات أكثر)",
+      "350 رصيد شهرياً",
       "3–4 محتوى أسبوعياً لضمان الاستمرارية",
       "3 أحجام تصدير (بوست، ستوري، واتس)",
       "نصوص تسويقية قوية تركز على الإقناع",
@@ -36,7 +36,7 @@ const PLAN_FEATURES: Record<PlanKey, { ar: string[]; en: string[] }> = {
       "معرض منظم لتتبع محتواك الشهري",
     ],
     en: [
-      "350 AI designs/month (Stronger presence)",
+      "350 credits/month",
       "3-4 weekly posts for consistency",
       "3 export formats (Post, Story, WhatsApp)",
       "High-converting persuasive copy",
@@ -47,7 +47,7 @@ const PLAN_FEATURES: Record<PlanKey, { ar: string[]; en: string[] }> = {
   },
   dominant: {
     ar: [
-      "700 تصميم ذكي شهرياً (حضور قوي طوال الشهر)",
+      "700 رصيد شهرياً",
       "محتوى يومي تقريباً لزيادة التفاعل والطلبات",
       "توليد موجه بالأهداف (عرض – منتج – خدمة – موسمي)",
       "عبارات تحويل ذكية (CTA) لرفع المبيعات والرسائل",
@@ -57,7 +57,7 @@ const PLAN_FEATURES: Record<PlanKey, { ar: string[]; en: string[] }> = {
       "مرشحات محتوى ذكية (عروض/مواسم/أقسام/أنواع)",
     ],
     en: [
-      "700 AI designs/month (Dominant presence)",
+      "700 credits/month",
       "Near-daily content for maximum engagement",
       "Goal-based generation (Offer, Product, Season)",
       "Smart CTA copy to boost sales and messages",
@@ -114,7 +114,6 @@ const CHECK_COLORS: Record<PlanKey, string> = {
 export type PricingCardProps = {
   planKey: PlanKey;
   monthlyPrice: number;
-  firstMonthPrice: number;
   isPopular?: boolean;
   locale: AppLocale;
   ctaButton: React.ReactNode;
@@ -123,7 +122,6 @@ export type PricingCardProps = {
 export function PricingCard({
   planKey,
   monthlyPrice,
-  firstMonthPrice,
   isPopular,
   locale,
   ctaButton,
@@ -155,9 +153,6 @@ export function PricingCard({
         {formatPrice(monthlyPrice)}{" "}
         <span className="text-lg text-muted font-medium">{locale === "ar" ? "/ شهر" : "/ month"}</span>
       </div>
-      <p className="text-muted text-sm mb-1">
-        {locale === "ar" ? "الشهر الأول:" : "First month:"} {formatPrice(firstMonthPrice)} {locale === "ar" ? "ثم" : "then"} {formatPrice(monthlyPrice)} {locale === "ar" ? "شهرياً" : "monthly"}
-      </p>
 
       <p className="text-sm font-medium text-foreground mt-4 mb-6 leading-relaxed">
         {PLAN_SUBTITLES[planKey][locale]}

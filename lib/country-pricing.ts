@@ -1,6 +1,5 @@
 export type PlanPricing = {
   monthly: number;
-  firstMonth: number;
 };
 
 export type PricingSet = {
@@ -15,9 +14,9 @@ export type PricingSet = {
 const USD_PRICING: PricingSet = {
   currency: "USD",
   symbol: "$",
-  starter: { monthly: 7, firstMonth: 5 },
-  growth: { monthly: 14, firstMonth: 10 },
-  dominant: { monthly: 27, firstMonth: 19 },
+  starter: { monthly: 7 },
+  growth: { monthly: 14 },
+  dominant: { monthly: 27 },
 };
 
 /**
@@ -34,9 +33,9 @@ const REGIONAL_PRICING: Record<
     pricing: {
       currency: "USD",
       symbol: "$",
-      starter: { monthly: 13, firstMonth: 13 },
-      growth: { monthly: 22, firstMonth: 22 },
-      dominant: { monthly: 37, firstMonth: 37 },
+      starter: { monthly: 13 },
+      growth: { monthly: 22 },
+      dominant: { monthly: 37 },
     },
   },
 };

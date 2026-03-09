@@ -9,14 +9,46 @@ export async function POST() {
     const user = await requireAuth();
     const admin = createAdminClient();
 
-    // Check if billing already exists (idempotent)
+    // Check if billing already exists
     const { data: existing } = await admin
       .from("billing")
-      .select("id")
+      .select("id, addon_credits_balance")
       .eq("user_auth_id", user.id)
       .single();
 
     if (existing) {
+      // If user exists but never got free credits, grant them now
+      const idempotencyKey = `free_tier_${user.id}`;
+      const { data: existingLedger } = await admin
+        .from("credit_ledger")
+        .select("id")
+        .eq("idempotency_key", idempotencyKey)
+        .single();
+
+      if (!existingLedger) {
+        await admin
+          .from("billing")
+          .update({
+            addon_credits_balance: (existing.addon_credits_balance ?? 0) + FREE_TIER_CREDITS,
+            updated_at: Date.now(),
+          })
+          .eq("id", existing.id);
+
+        await admin.from("credit_ledger").insert({
+          user_auth_id: user.id,
+          billing_id: existing.id,
+          amount: FREE_TIER_CREDITS,
+          reason: "manual_adjustment",
+          source: "addon",
+          idempotency_key: idempotencyKey,
+          monthly_credits_used_after: 0,
+          addon_credits_balance_after: (existing.addon_credits_balance ?? 0) + FREE_TIER_CREDITS,
+          created_at: Date.now(),
+        });
+
+        return NextResponse.json({ id: existing.id, alreadyExisted: true, grantedFreeCredits: true });
+      }
+
       return NextResponse.json({ id: existing.id, alreadyExisted: true });
     }
 
