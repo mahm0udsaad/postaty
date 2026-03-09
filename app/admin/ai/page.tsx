@@ -92,8 +92,12 @@ export default function AdminAiPage() {
   const maxDailyRequests = dailyUsage
     ? Math.max(...dailyUsage.map((day: { requests: number }) => day.requests), 1)
     : 1;
-  const providerRows = Object.entries(overview.byProvider ?? {});
-  const modelRows = Object.entries(overview.byModel ?? {});
+  const providerRows = Object.entries(
+    (overview.byProvider ?? {}) as Record<string, ProviderStats>
+  );
+  const modelRows = Object.entries(
+    (overview.byModel ?? {}) as Record<string, ModelStats>
+  );
   const generationRows = overview.generationSummaries ?? [];
   const GENERATIONS_PER_PAGE = 10;
   const totalGenerationPages = Math.max(
@@ -197,7 +201,7 @@ export default function AdminAiPage() {
             {providerRows.length === 0 ? (
               <p className="text-sm text-muted">لا توجد بيانات مزودين في الفترة المحددة.</p>
             ) : (
-              providerRows.map(([provider, stats]: [string, ProviderStats]) => (
+              providerRows.map(([provider, stats]) => (
                 <div
                   key={provider}
                   className="rounded-xl border border-card-border bg-surface-2/40 p-4"
@@ -260,7 +264,7 @@ export default function AdminAiPage() {
                 </tr>
               </thead>
               <tbody>
-                {modelRows.map(([model, stats]: [string, ModelStats]) => (
+                {modelRows.map(([model, stats]) => (
                   <tr key={model} className="border-b border-card-border/50">
                     <td className="px-3 py-3">
                       <code className="rounded-lg bg-surface-2 px-2 py-1 text-xs">
