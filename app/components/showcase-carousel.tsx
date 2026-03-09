@@ -151,14 +151,14 @@ export function ShowcaseCarousel({ showcaseImages }: ShowcaseCarouselProps) {
   if (showcaseImages === undefined) {
     return (
       <section className="py-16 md:py-24 px-4 border-t border-card-border">
-        <div className="max-w-6xl mx-auto">
+        <div className="max-w-7xl mx-auto">
           <div className="text-center mb-10">
             <div className="h-10 w-64 bg-surface-2 rounded-xl mx-auto mb-4 animate-pulse" />
             <div className="h-5 w-48 bg-surface-2 rounded-lg mx-auto animate-pulse" />
           </div>
           <div className="flex gap-4 md:gap-6 overflow-hidden pb-4 px-1">
             {[0, 1, 2, 3].map((i) => (
-              <div key={i} className="flex-shrink-0 w-[250px] md:w-[300px]">
+              <div key={i} className="flex-shrink-0 w-[300px] md:w-[420px]">
                 <div className="rounded-2xl border border-card-border bg-surface-1 w-full aspect-square animate-pulse" />
               </div>
             ))}
@@ -172,7 +172,7 @@ export function ShowcaseCarousel({ showcaseImages }: ShowcaseCarouselProps) {
 
   return (
     <section ref={sectionRef} className="py-16 md:py-24 px-4 border-t border-card-border">
-      <div className="max-w-6xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         <div className="text-center mb-10">
           <h2 className="text-3xl md:text-4xl font-black mb-4">
             {t("أمثلة من", "Examples of")} <span className="text-gradient">{t("إبداعات عملائنا", "our customers' creations")}</span>
@@ -221,7 +221,7 @@ export function ShowcaseCarousel({ showcaseImages }: ShowcaseCarouselProps) {
                 ref={(node) => {
                   cardRefs.current[idx] = node;
                 }}
-                className="flex-shrink-0 w-[250px] md:w-[300px] snap-center"
+                className="flex-shrink-0 w-[300px] md:w-[420px] snap-center"
               >
                 <div className="relative rounded-2xl overflow-hidden border border-card-border shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 bg-surface-1">
                   {img.url ? (
@@ -230,12 +230,12 @@ export function ShowcaseCarousel({ showcaseImages }: ShowcaseCarouselProps) {
                       alt={img.title || "Showcase poster"}
                       width={600}
                       height={600}
-                      sizes="(max-width: 768px) 250px, 300px"
-                      className="w-full aspect-square object-cover"
+                      sizes="(max-width: 768px) 300px, 420px"
+                      className="w-full aspect-[4/5] object-contain bg-surface-2"
                       loading="lazy"
                     />
                   ) : (
-                    <div className="w-full aspect-square bg-surface-2 flex items-center justify-center text-muted text-sm">
+                    <div className="w-full aspect-[4/5] bg-surface-2 flex items-center justify-center text-muted text-sm">
                       Loading...
                     </div>
                   )}

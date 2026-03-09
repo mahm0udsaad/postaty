@@ -17,7 +17,6 @@ import { CategorySelector } from "../components/category-selector";
 // Types & Libs
 import type { Category, CampaignType, PostFormData, PosterResult, PosterGenStep, MarketingContentHub as MarketingContentHubType, MarketingContentStatus } from "@/lib/types";
 import type { BrandKitPromptData } from "@/lib/prompts";
-import type { GenerationUsage } from "@/lib/generate-designs";
 import { CATEGORY_LABELS, FORMAT_CONFIGS, POSTER_CONFIG } from "@/lib/constants";
 import { CATEGORY_THEMES } from "@/lib/category-themes";
 import { generatePosters, generateMarketingContentAction, prewarmGenerationAssets } from "../actions-v2";
@@ -422,30 +421,6 @@ function CreatePageContent() {
     router,
   ]);
 
-  const persistUsageEvents = async (usages: GenerationUsage[]) => {
-    if (usages.length === 0) return;
-    try {
-      await fetch('/api/ai-usage', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          events: usages.map((usage) => ({
-            route: usage.route,
-            model: usage.model,
-            inputTokens: usage.inputTokens,
-            outputTokens: usage.outputTokens,
-            imagesGenerated: usage.imagesGenerated,
-            durationMs: usage.durationMs,
-            success: usage.success,
-            error: usage.error,
-          })),
-        }),
-      });
-    } catch (usageErr) {
-      console.error("Failed to persist AI usage events:", usageErr);
-    }
-  };
-
   const logTimeline = useCallback((
     requestId: string,
     event: GenerationTimingEvent,
@@ -501,12 +476,15 @@ function CreatePageContent() {
   const fetchMarketingContent = async (data: PostFormData, lang: string) => {
     dispatch({ type: "MARKETING_LOADING" });
     try {
-      const result = await generateMarketingContentAction(data, lang);
+      const result = await generateMarketingContentAction(
+        data,
+        lang,
+        currentGenerationId
+      );
       if ("error" in result) {
         dispatch({ type: "MARKETING_ERROR", error: result.error });
       } else {
         dispatch({ type: "MARKETING_SUCCESS", content: result.content });
-        void persistUsageEvents([result.usage]);
       }
     } catch (err) {
       dispatch({
@@ -553,17 +531,6 @@ function CreatePageContent() {
     schedulePrewarm(hint);
   };
 
-  const handleBack = () => {
-    if (results.length > 0) {
-      resetGenerationContext();
-    } else if (category) {
-      setCategory(null);
-      router.replace("/create", { scroll: false });
-    } else {
-      router.push("/");
-    }
-  };
-
   const runGeneration = async (data: PostFormData) => {
     if (generatingRef.current) return;
 
@@ -591,15 +558,21 @@ function CreatePageContent() {
     let generationId: string | undefined;
     if (GEN_EARLY_PERSIST_ENABLED) {
       generationId = await createGenerationRecord(data);
+      if (generationId) {
+        dispatch({ type: "SET_GENERATION_ID", id: generationId });
+      }
     }
 
     // Generate first, consume credit only on success.
     // This prevents users from losing credits when Gemini API fails.
     logTimeline(requestId, "server.generate.start");
     try {
-      const { main: posterResult, usages } = await generatePosters(data, brandKitPromptData);
+      const { main: posterResult } = await generatePosters(
+        data,
+        brandKitPromptData,
+        generationId
+      );
       logTimeline(requestId, "server.generate.end");
-      void persistUsageEvents(usages);
 
       // Only consume credit if generation succeeded
       if (posterResult.status === "complete" && posterResult.imageBase64) {
@@ -629,6 +602,13 @@ function CreatePageContent() {
 
       let errorMsg: string | undefined;
       if (posterResult.status === "error") {
+        if (generationId) {
+          void patchGenerationStatus(generationId, {
+            status: "failed",
+            error: posterResult.error ?? "Generation failed",
+            duration_ms: getNowMs() - startTime,
+          });
+        }
         if (posterResult.errorType === "quota") {
           errorMsg = t("الخدمة مشغولة حالياً. حاول بعد دقيقة.", "Service is busy right now. Please try again in a minute.");
         } else if (posterResult.errorType === "capacity") {

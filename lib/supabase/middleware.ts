@@ -8,6 +8,8 @@ const ADMIN_EMAILS = [
 
 const COUNTRY_COOKIE = "pst_country";
 
+const REFERRAL_COOKIE = "pst_ref";
+
 const PROTECTED_PATHS = [
   "/create",
   "/brand-kit",
@@ -15,6 +17,7 @@ const PROTECTED_PATHS = [
   "/settings",
   "/admin",
   "/regional",
+  "/partner",
   "/checkout",
   "/onboarding",
   "/notifications",
@@ -81,6 +84,18 @@ export async function updateSession(request: NextRequest) {
       url.pathname = "/";
       return NextResponse.redirect(url);
     }
+  }
+
+  // Capture referral code from ?ref= param (only for unauthenticated visitors)
+  const refCode = request.nextUrl.searchParams.get("ref");
+  if (refCode && !user && /^[a-zA-Z0-9]{4,12}$/.test(refCode)) {
+    supabaseResponse.cookies.set(REFERRAL_COOKIE, refCode, {
+      httpOnly: false,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 30, // 30 days
+    });
   }
 
   // Set country detection cookie (from Vercel geo headers)

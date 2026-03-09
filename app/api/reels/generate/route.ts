@@ -14,8 +14,13 @@ import {
 import { startReelRender } from "@/lib/remotion-lambda";
 import { REEL_CONFIG } from "@/lib/constants";
 import { generateSpeech } from "@/lib/elevenlabs";
+import { persistExactAiUsageEvent } from "@/lib/ai-cost";
 
 const REEL_MODEL_ID = "gemini-3.1-pro-preview";
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error);
+}
 
 export async function POST(request: Request) {
   const startTime = Date.now();
@@ -314,9 +319,12 @@ export async function POST(request: Request) {
 
             console.log("[reels/generate] Voiceover audio generated:", audioUrl);
           }
-        } catch (ttsError: any) {
+        } catch (ttsError: unknown) {
           // Graceful degradation: continue without audio
-          console.error("[reels/generate] TTS failed (continuing without audio):", ttsError.message);
+          console.error(
+            "[reels/generate] TTS failed (continuing without audio):",
+            getErrorMessage(ttsError)
+          );
           await admin
             .from("reel_generations")
             .update({ status: "rendering" })
@@ -343,16 +351,20 @@ export async function POST(request: Request) {
 
       // ── Track AI usage ─────────────────────────────────────────────
       try {
-        await admin.from("ai_usage_events").insert({
-          user_auth_id: user.id,
-          model: REEL_MODEL_ID,
+        await persistExactAiUsageEvent({
+          userAuthId: user.id,
+          generationId: reelId,
+          generationType: "reel",
           route: "reel",
-          input_tokens: result.usage?.inputTokens ?? 0,
-          output_tokens: result.usage?.outputTokens ?? 0,
-          images_generated: 0,
-          duration_ms: aiDurationMs,
+          model: REEL_MODEL_ID,
+          provider: "google_direct",
+          providerModelId: REEL_MODEL_ID,
+          inputTokens: result.usage?.inputTokens ?? 0,
+          outputTokens: result.usage?.outputTokens ?? 0,
+          imagesGenerated: 0,
+          durationMs: aiDurationMs,
           success: true,
-          created_at: Date.now(),
+          createdAt: Date.now(),
         });
       } catch (usageErr) {
         console.error("[reels/generate] Failed to track usage:", usageErr);
@@ -363,7 +375,7 @@ export async function POST(request: Request) {
         status: "rendering",
         renderId,
       });
-    } catch (aiError: any) {
+    } catch (aiError: unknown) {
       console.error("[reels/generate] AI generation failed:", aiError);
 
       // Update record to error state
@@ -371,7 +383,7 @@ export async function POST(request: Request) {
         .from("reel_generations")
         .update({
           status: "error",
-          error: aiError.message || "AI generation failed",
+          error: getErrorMessage(aiError) || "AI generation failed",
           error_step: "generating_spec",
           ai_duration_ms: Date.now() - startTime,
         })
@@ -379,17 +391,21 @@ export async function POST(request: Request) {
 
       // Track failed usage
       try {
-        await admin.from("ai_usage_events").insert({
-          user_auth_id: user.id,
-          model: REEL_MODEL_ID,
+        await persistExactAiUsageEvent({
+          userAuthId: user.id,
+          generationId: reelId,
+          generationType: "reel",
           route: "reel",
-          input_tokens: 0,
-          output_tokens: 0,
-          images_generated: 0,
-          duration_ms: Date.now() - startTime,
+          model: REEL_MODEL_ID,
+          provider: "google_direct",
+          providerModelId: REEL_MODEL_ID,
+          inputTokens: 0,
+          outputTokens: 0,
+          imagesGenerated: 0,
+          durationMs: Date.now() - startTime,
           success: false,
-          error: aiError.message || "AI generation failed",
-          created_at: Date.now(),
+          error: getErrorMessage(aiError) || "AI generation failed",
+          createdAt: Date.now(),
         });
       } catch {
         // Ignore usage tracking errors
@@ -400,8 +416,8 @@ export async function POST(request: Request) {
         { status: 500 }
       );
     }
-  } catch (error: any) {
-    if (error.message === "Not authenticated") {
+  } catch (error: unknown) {
+    if (getErrorMessage(error) === "Not authenticated") {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
     console.error("[reels/generate] Error:", error);

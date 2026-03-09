@@ -11,20 +11,21 @@ export async function GET(request: Request) {
       parseInt(searchParams.get("limit") || "50"),
       200
     );
+    const offset = parseInt(searchParams.get("offset") || "0");
     const category = searchParams.get("category");
 
     let query = admin
       .from("generations")
-      .select("id, business_name, product_name, category, outputs, created_at")
+      .select("id, business_name, product_name, category, outputs, created_at", { count: "exact" })
       .eq("status", "complete")
       .order("created_at", { ascending: false })
-      .limit(limit);
+      .range(offset, offset + limit - 1);
 
     if (category) {
       query = query.eq("category", category);
     }
 
-    const [{ data: generations, error }, { data: showcaseRows }] = await Promise.all([
+    const [{ data: generations, error, count }, { data: showcaseRows }] = await Promise.all([
       query,
       admin.from("showcase_images").select("storage_path"),
     ]);
@@ -51,7 +52,7 @@ export async function GET(request: Request) {
       })),
     }));
 
-    return NextResponse.json(result);
+    return NextResponse.json({ items: result, total: count ?? 0, offset, limit });
   } catch (error) {
     if (error instanceof Error && error.message === "Not authenticated") {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });

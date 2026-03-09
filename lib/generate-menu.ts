@@ -21,6 +21,8 @@ import type { GeneratedDesign, GenerationUsage } from "./generate-designs";
 
 const PRIMARY_MODEL_ID = "gemini-3-pro-image-preview";
 const FALLBACK_MODEL_ID = "gemini-3-pro-image-preview (gateway)";
+const PRIMARY_PROVIDER_MODEL_ID = "gemini-3-pro-image-preview";
+const FALLBACK_PROVIDER_MODEL_ID = "google/gemini-3-pro-image-preview";
 const menuImageModel = google(PRIMARY_MODEL_ID);
 const MENU_PRIMARY_TIMEOUT_MS = 105_000;
 const MENU_FALLBACK_TIMEOUT_MS = 105_000;
@@ -180,6 +182,8 @@ export async function generateMenu(
       const usage: GenerationUsage = {
         route: "menu",
         model: FALLBACK_MODEL_ID,
+        provider: "vercel_gateway",
+        providerModelId: FALLBACK_PROVIDER_MODEL_ID,
         inputTokens: 0,
         outputTokens: 0,
         imagesGenerated: 0,
@@ -207,6 +211,11 @@ export async function generateMenu(
     const usage: GenerationUsage = {
       route: "menu",
       model: usedModelId,
+      provider: usedModelId === FALLBACK_MODEL_ID ? "vercel_gateway" : "google_direct",
+      providerModelId:
+        usedModelId === FALLBACK_MODEL_ID
+          ? FALLBACK_PROVIDER_MODEL_ID
+          : PRIMARY_PROVIDER_MODEL_ID,
       inputTokens: result.usage?.inputTokens ?? 0,
       outputTokens: result.usage?.outputTokens ?? 0,
       imagesGenerated: 0,
@@ -230,6 +239,11 @@ export async function generateMenu(
   const usage: GenerationUsage = {
     route: "menu",
     model: usedModelId,
+    provider: usedModelId === FALLBACK_MODEL_ID ? "vercel_gateway" : "google_direct",
+    providerModelId:
+      usedModelId === FALLBACK_MODEL_ID
+        ? FALLBACK_PROVIDER_MODEL_ID
+        : PRIMARY_PROVIDER_MODEL_ID,
     inputTokens: result.usage?.inputTokens ?? 0,
     outputTokens: result.usage?.outputTokens ?? 0,
     imagesGenerated: 1,

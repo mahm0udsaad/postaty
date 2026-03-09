@@ -5,8 +5,10 @@ import { editDesign } from "@/lib/edit-design";
 import { FORMAT_CONFIGS, MENU_FORMAT_CONFIG } from "@/lib/constants";
 import { getSharp } from "@/lib/image-helpers";
 import { uploadBase64ToStorage, getPublicUrl } from "@/lib/supabase-upload";
+import { persistExactAiUsageEvent } from "@/lib/ai-cost";
 import { randomUUID } from "crypto";
 import type { OutputFormat } from "@/lib/types";
+import type { GenerationUsage } from "@/lib/generate-designs";
 import { checkRateLimit } from "@/lib/rate-limit";
 
 export type EditDesignResult =
@@ -66,6 +68,25 @@ export async function editDesignAction(
       // so the model can read item names, prices, and descriptions accurately.
       inputMaxPx: format === "menu" ? 1024 : 512,
     });
+    try {
+      await persistExactAiUsageEvent({
+        userAuthId: userId,
+        generationId,
+        generationType: format === "menu" ? "menu" : "poster",
+        route: result.usage.route,
+        model: result.usage.model,
+        provider: result.usage.provider,
+        providerModelId: result.usage.providerModelId,
+        inputTokens: result.usage.inputTokens,
+        outputTokens: result.usage.outputTokens,
+        imagesGenerated: result.usage.imagesGenerated,
+        durationMs: result.usage.durationMs,
+        success: result.usage.success,
+        error: result.usage.error ?? null,
+      });
+    } catch (usageErr) {
+      console.error("[editDesignAction] failed to persist exact usage", usageErr);
+    }
 
     // Upload to storage + update DB in parallel (server-side, no extra round-trip)
     let publicUrl: string | undefined;
@@ -88,6 +109,28 @@ export async function editDesignAction(
     return { status: "complete", imageBase64: result.imageBase64, publicUrl };
   } catch (err) {
     console.error("[editDesignAction] failed", err);
+    const usage = extractUsageFromUnknown(err);
+    if (usage) {
+      try {
+        await persistExactAiUsageEvent({
+          userAuthId: userId,
+          generationId,
+          generationType: format === "menu" ? "menu" : "poster",
+          route: usage.route,
+          model: usage.model,
+          provider: usage.provider,
+          providerModelId: usage.providerModelId,
+          inputTokens: usage.inputTokens,
+          outputTokens: usage.outputTokens,
+          imagesGenerated: usage.imagesGenerated,
+          durationMs: usage.durationMs,
+          success: usage.success,
+          error: usage.error ?? null,
+        });
+      } catch (usageErr) {
+        console.error("[editDesignAction] failed to persist exact usage", usageErr);
+      }
+    }
     const errorMessage = err instanceof Error ? err.message : "Edit failed";
     let errorType: EditDesignResult & { status: "error" } extends { errorType: infer T } ? T : never = "generation";
     if (/quota|exceeded.*quota|429|resource exhausted/i.test(errorMessage)) {
@@ -98,6 +141,28 @@ export async function editDesignAction(
 
     return { status: "error", error: errorMessage, errorType };
   }
+}
+
+function extractUsageFromUnknown(value: unknown): GenerationUsage | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const maybeUsage = (value as { usage?: unknown }).usage;
+  if (!maybeUsage || typeof maybeUsage !== "object") return undefined;
+
+  const usage = maybeUsage as Partial<GenerationUsage>;
+  if (
+    usage.route === "edit" &&
+    typeof usage.model === "string" &&
+    (usage.provider === "google_direct" || usage.provider === "vercel_gateway") &&
+    typeof usage.providerModelId === "string" &&
+    typeof usage.inputTokens === "number" &&
+    typeof usage.outputTokens === "number" &&
+    typeof usage.imagesGenerated === "number" &&
+    typeof usage.durationMs === "number" &&
+    typeof usage.success === "boolean"
+  ) {
+    return usage as GenerationUsage;
+  }
+  return undefined;
 }
 
 export async function resizeImageAction(

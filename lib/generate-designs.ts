@@ -29,8 +29,10 @@ export type GeneratedDesign = {
 };
 
 export type GenerationUsage = {
-  route: "poster" | "gift" | "reel" | "marketing-content" | "menu";
+  route: "poster" | "gift" | "reel" | "marketing-content" | "menu" | "edit";
   model: string;
+  provider: "google_direct" | "vercel_gateway";
+  providerModelId: string;
   inputTokens: number;
   outputTokens: number;
   imagesGenerated: number;
@@ -44,6 +46,10 @@ export type GenerationUsage = {
 const PRIMARY_MODEL_ID = "gemini-3-pro-image-preview";
 const FALLBACK_MODEL_ID = "gemini-3-pro-image-preview (gateway)";
 const FREE_MODEL_ID = "gemini-2.5-flash-image";
+const PRIMARY_PROVIDER_MODEL_ID = "gemini-3-pro-image-preview";
+const FALLBACK_PROVIDER_MODEL_ID = "google/gemini-3-pro-image-preview";
+const FREE_PROVIDER_MODEL_ID = "gemini-2.5-flash-image";
+const MARKETING_PROVIDER_MODEL_ID = "gemini-3-flash-preview";
 
 const POSTER_PRIMARY_TIMEOUT_MS = 75_000;
 const POSTER_FALLBACK_TIMEOUT_MS = 75_000;
@@ -271,6 +277,8 @@ export async function generatePoster(
       const usage: GenerationUsage = {
         route: "poster",
         model: FALLBACK_MODEL_ID,
+        provider: "vercel_gateway",
+        providerModelId: FALLBACK_PROVIDER_MODEL_ID,
         inputTokens: 0,
         outputTokens: 0,
         imagesGenerated: 0,
@@ -298,6 +306,11 @@ export async function generatePoster(
     const usage: GenerationUsage = {
       route: "poster",
       model: usedModelId,
+      provider: usedModelId === FALLBACK_MODEL_ID ? "vercel_gateway" : "google_direct",
+      providerModelId:
+        usedModelId === FALLBACK_MODEL_ID
+          ? FALLBACK_PROVIDER_MODEL_ID
+          : PRIMARY_PROVIDER_MODEL_ID,
       inputTokens: result.usage?.inputTokens ?? 0,
       outputTokens: result.usage?.outputTokens ?? 0,
       imagesGenerated: 0,
@@ -323,6 +336,11 @@ export async function generatePoster(
   const usage: GenerationUsage = {
     route: "poster",
     model: usedModelId,
+    provider: usedModelId === FALLBACK_MODEL_ID ? "vercel_gateway" : "google_direct",
+    providerModelId:
+      usedModelId === FALLBACK_MODEL_ID
+        ? FALLBACK_PROVIDER_MODEL_ID
+        : PRIMARY_PROVIDER_MODEL_ID,
     inputTokens: result.usage?.inputTokens ?? 0,
     outputTokens: result.usage?.outputTokens ?? 0,
     imagesGenerated: 1,
@@ -408,6 +426,8 @@ export async function generateGiftImage(
     const usage: GenerationUsage = {
       route: "gift",
       model: FREE_MODEL_ID,
+      provider: "google_direct",
+      providerModelId: FREE_PROVIDER_MODEL_ID,
       inputTokens: 0,
       outputTokens: 0,
       imagesGenerated: 0,
@@ -433,6 +453,8 @@ export async function generateGiftImage(
     const usage: GenerationUsage = {
       route: "gift",
       model: FREE_MODEL_ID,
+      provider: "google_direct",
+      providerModelId: FREE_PROVIDER_MODEL_ID,
       inputTokens: result.usage?.inputTokens ?? 0,
       outputTokens: result.usage?.outputTokens ?? 0,
       imagesGenerated: 0,
@@ -456,6 +478,8 @@ export async function generateGiftImage(
   const usage: GenerationUsage = {
     route: "gift",
     model: FREE_MODEL_ID,
+    provider: "google_direct",
+    providerModelId: FREE_PROVIDER_MODEL_ID,
     inputTokens: result.usage?.inputTokens ?? 0,
     outputTokens: result.usage?.outputTokens ?? 0,
     imagesGenerated: 1,
@@ -559,6 +583,8 @@ export async function generateMarketingContent(
     const usage: GenerationUsage = {
       route: "marketing-content",
       model: MARKETING_MODEL_ID,
+      provider: "google_direct",
+      providerModelId: MARKETING_PROVIDER_MODEL_ID,
       inputTokens: result.usage?.inputTokens ?? 0,
       outputTokens: result.usage?.outputTokens ?? 0,
       imagesGenerated: 0,
@@ -585,6 +611,8 @@ export async function generateMarketingContent(
     const usage: GenerationUsage = {
       route: "marketing-content",
       model: MARKETING_MODEL_ID,
+      provider: "google_direct",
+      providerModelId: MARKETING_PROVIDER_MODEL_ID,
       inputTokens: 0,
       outputTokens: 0,
       imagesGenerated: 0,
@@ -677,6 +705,8 @@ Make the content compelling, platform-native, and optimized for engagement in th
     const usage: GenerationUsage = {
       route: "marketing-content",
       model: MARKETING_MODEL_ID,
+      provider: "google_direct",
+      providerModelId: MARKETING_PROVIDER_MODEL_ID,
       inputTokens: result.usage?.inputTokens ?? 0,
       outputTokens: result.usage?.outputTokens ?? 0,
       imagesGenerated: 0,
@@ -691,6 +721,8 @@ Make the content compelling, platform-native, and optimized for engagement in th
     const usage: GenerationUsage = {
       route: "marketing-content",
       model: MARKETING_MODEL_ID,
+      provider: "google_direct",
+      providerModelId: MARKETING_PROVIDER_MODEL_ID,
       inputTokens: 0,
       outputTokens: 0,
       imagesGenerated: 0,

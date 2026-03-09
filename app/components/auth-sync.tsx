@@ -25,6 +25,7 @@ export function AuthSync() {
 
     didSync.current = true;
     const detectedCountry = readCookie(COUNTRY_COOKIE);
+    const referralCode = readCookie("pst_ref");
 
     fetch("/api/auth/sync", {
       method: "POST",
@@ -34,10 +35,18 @@ export function AuthSync() {
         name:
           user.user_metadata?.full_name ?? email.split("@")[0] ?? "User",
         detectedCountry,
+        referralCode,
       }),
-    }).catch(() => {
-      didSync.current = false;
-    });
+    })
+      .then(() => {
+        // Clear referral cookie after successful sync
+        if (referralCode) {
+          document.cookie = "pst_ref=; path=/; max-age=0";
+        }
+      })
+      .catch(() => {
+        didSync.current = false;
+      });
   }, [isLoaded, isSignedIn, user]);
 
   return null;

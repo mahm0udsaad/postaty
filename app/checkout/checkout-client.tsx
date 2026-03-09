@@ -20,8 +20,8 @@ const PLAN_LABELS: Record<string, { ar: string; en: string }> = {
   starter: { ar: "أساسي", en: "Basic" },
   growth: { ar: "احترافي", en: "Pro" },
   dominant: { ar: "بريميوم", en: "Premium" },
-  addon_5: { ar: "5 أرصدة", en: "5 credits" },
-  addon_10: { ar: "10 أرصدة", en: "10 credits" },
+  addon_5: { ar: "50 رصيد", en: "50 credits" },
+  addon_10: { ar: "100 رصيد", en: "100 credits" },
 };
 
 export default function CheckoutClient() {

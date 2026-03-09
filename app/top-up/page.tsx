@@ -14,8 +14,8 @@ type Bundle = {
 };
 
 const BUNDLES: Bundle[] = [
-  { key: "addon_5", credits: 5, price: "$4" },
-  { key: "addon_10", credits: 10, price: "$7" },
+  { key: "addon_5", credits: 50, price: "$4" },
+  { key: "addon_10", credits: 100, price: "$7" },
 ];
 
 export default function TopUpPage() {
@@ -81,7 +81,7 @@ export default function TopUpPage() {
                     className={isSelected ? "text-primary shrink-0" : "text-muted shrink-0"}
                   />
                   <span className="font-bold text-base">
-                    {t(`${bundle.credits} تصميم`, `${bundle.credits} designs`)}
+                    {t(`${bundle.credits} رصيد`, `${bundle.credits} credits`)}
                   </span>
                 </div>
 

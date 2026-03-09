@@ -13,7 +13,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Not authenticated" }, { status: 401 });
     }
 
-    const { email, name, detectedCountry } = await request.json();
+    const { email, name, detectedCountry, referralCode } = await request.json();
     const admin = createAdminClient();
     const now = Date.now();
 
@@ -102,6 +102,29 @@ export async function POST(request: Request) {
         updated_at: now,
         created_at: now,
       });
+
+    // Track referral if a referral code was provided
+    if (referralCode && typeof referralCode === "string") {
+      try {
+        const { data: partner } = await admin
+          .from("partners")
+          .select("id")
+          .eq("referral_code", referralCode)
+          .eq("status", "active")
+          .single();
+
+        if (partner) {
+          await admin.from("referrals").insert({
+            partner_id: partner.id,
+            referred_user_auth_id: user.id,
+            created_at: now,
+          });
+        }
+      } catch {
+        // Never block user creation for referral tracking failures
+        console.error("[auth/sync] Referral tracking failed for code:", referralCode);
+      }
+    }
 
     return NextResponse.json({ ok: true, userId: newUser.id });
   } catch (error) {

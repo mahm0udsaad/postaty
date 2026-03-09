@@ -12,7 +12,6 @@ import { useLocale } from "@/hooks/use-locale";
 
 import type { MenuFormData, MenuCategory, PosterResult, PosterGenStep, MarketingContentHub as MarketingContentHubType, MarketingContentStatus } from "@/lib/types";
 import type { BrandKitPromptData } from "@/lib/prompts";
-import type { GenerationUsage } from "@/lib/generate-designs";
 import { MENU_CONFIG, MENU_FORMAT_CONFIG } from "@/lib/constants";
 import { generateMenuAction, generateMenuMarketingContentAction } from "../../actions-menu";
 import { TAP_SCALE } from "@/lib/animation";
@@ -179,42 +178,21 @@ function MenuPageContent() {
     };
   }, [defaultBrandKit?.logoUrl]);
 
-  const persistUsageEvents = async (usages: GenerationUsage[]) => {
-    if (usages.length === 0) return;
-    try {
-      await fetch("/api/ai-usage", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          events: usages.map((usage) => ({
-            route: usage.route,
-            model: usage.model,
-            inputTokens: usage.inputTokens,
-            outputTokens: usage.outputTokens,
-            imagesGenerated: usage.imagesGenerated,
-            durationMs: usage.durationMs,
-            success: usage.success,
-            error: usage.error,
-          })),
-        }),
-      });
-    } catch (usageErr) {
-      console.error("Failed to persist AI usage events:", usageErr);
-    }
-  };
-
   const fetchMenuMarketingContent = async (data: MenuFormData, lang: string) => {
     setMarketingContentStatus("loading");
     setMarketingContentError(undefined);
     try {
-      const result = await generateMenuMarketingContentAction(data, lang);
+      const result = await generateMenuMarketingContentAction(
+        data,
+        lang,
+        currentGenerationId
+      );
       if ("error" in result) {
         setMarketingContentStatus("error");
         setMarketingContentError(result.error);
       } else {
         setMarketingContent(result.content);
         setMarketingContentStatus("complete");
-        void persistUsageEvents([result.usage]);
       }
     } catch (err) {
       setMarketingContentStatus("error");
@@ -265,13 +243,9 @@ function MenuPageContent() {
     return res.json();
   };
 
-  const saveToSupabase = async (
-    data: MenuFormData,
-    posterResult: PosterResult,
-    startTime: number
-  ) => {
+  const createGenerationRecord = async (data: MenuFormData): Promise<string | undefined> => {
     try {
-      const createGenerationPromise = fetch("/api/generations", {
+      const createRes = await fetch("/api/generations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -293,15 +267,30 @@ function MenuPageContent() {
           generationType: "menu",
         }),
       });
+      if (!createRes.ok) return undefined;
+      const { id } = await createRes.json();
+      return id as string | undefined;
+    } catch {
+      return undefined;
+    }
+  };
 
-      const uploadPromise = uploadImageToStorage(posterResult.imageBase64!);
-      const [createRes, uploadResult] = await Promise.all([createGenerationPromise, uploadPromise]);
-      if (!createRes.ok) throw new Error("Failed to create generation");
-      const { id: generationId } = await createRes.json();
-      setCurrentGenerationId(generationId);
-      const { publicUrl } = uploadResult;
+  const saveToSupabase = async (
+    data: MenuFormData,
+    posterResult: PosterResult,
+    startTime: number,
+    generationId?: string
+  ) => {
+    try {
+      let resolvedGenerationId = generationId;
+      if (!resolvedGenerationId) {
+        resolvedGenerationId = await createGenerationRecord(data);
+      }
+      if (!resolvedGenerationId) throw new Error("Failed to create generation");
+      setCurrentGenerationId(resolvedGenerationId);
+      const { publicUrl } = await uploadImageToStorage(posterResult.imageBase64!);
 
-      await fetch(`/api/generations/${generationId}`, {
+      await fetch(`/api/generations/${resolvedGenerationId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -327,7 +316,7 @@ function MenuPageContent() {
 
     window.scrollTo({ top: 0, behavior: "smooth" });
 
-    // Gate: must have enough credits (3 for menu)
+    // Gate: must have enough credits for menu generation
     if (!canGenerate || totalRemaining < MENU_CONFIG.creditsPerMenu) {
       setError(t(
         `لا يوجد لديك رصيد كافٍ. تحتاج ${MENU_CONFIG.creditsPerMenu} أرصدة لتصميم القائمة.`,
@@ -349,12 +338,19 @@ function MenuPageContent() {
 
     const startTime = getNowMs();
     const idempotencyKey = `menu_${Date.now()}_${Math.random().toString(36).slice(2, 10)}`;
+    const generationId = await createGenerationRecord(data);
+    if (generationId) {
+      setCurrentGenerationId(generationId);
+    }
 
     // Generate first, consume credits only on success.
     // This prevents users from losing credits when Gemini API fails.
     try {
-      const { main: menuResult, usages } = await generateMenuAction(data, brandKitPromptData);
-      void persistUsageEvents(usages);
+      const { main: menuResult } = await generateMenuAction(
+        data,
+        brandKitPromptData,
+        generationId
+      );
 
       // Only consume credits if generation succeeded
       if (menuResult.status === "complete" && menuResult.imageBase64) {
@@ -373,8 +369,7 @@ function MenuPageContent() {
           console.error("[runGeneration:menu] credit consumption error", creditErr);
           mutateCreditState();
         }
-
-        saveToSupabase(data, menuResult, startTime);
+        saveToSupabase(data, menuResult, startTime, generationId);
       }
 
       setResults([menuResult]);
@@ -387,6 +382,17 @@ function MenuPageContent() {
         } else {
           setError(toLocalizedErrorMessage(new Error(menuResult.error ?? "Menu generation failed")));
         }
+      }
+      if (generationId && menuResult.status === "error") {
+        await fetch(`/api/generations/${generationId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            status: "failed",
+            error: menuResult.error ?? "Menu generation failed",
+            duration_ms: getNowMs() - startTime,
+          }),
+        });
       }
       setIsGenerating(false);
       generatingRef.current = false;

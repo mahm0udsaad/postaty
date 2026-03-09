@@ -31,10 +31,35 @@ export default function AdminShowcasePage() {
 
   // ── Browse generations ──
   const [browseCategory, setBrowseCategory] = useState<string>("");
-  const { data: generations } = useSWR(
-    `/api/showcase/generations?limit=50${browseCategory ? `&category=${browseCategory}` : ''}`,
-    fetcher
+  const [offset, setOffset] = useState(0);
+  const [allGenerations, setAllGenerations] = useState<any[]>([]);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [total, setTotal] = useState<number | null>(null);
+
+  const LIMIT = 50;
+  const { data: generationsData } = useSWR(
+    `/api/showcase/generations?limit=${LIMIT}&offset=0${browseCategory ? `&category=${browseCategory}` : ''}`,
+    async (url: string) => {
+      const data = await fetcher(url);
+      setAllGenerations(data.items ?? []);
+      setTotal(data.total ?? 0);
+      setOffset(LIMIT);
+      return data;
+    }
   );
+
+  const handleLoadMore = async () => {
+    setLoadingMore(true);
+    try {
+      const url = `/api/showcase/generations?limit=${LIMIT}&offset=${offset}${browseCategory ? `&category=${browseCategory}` : ''}`;
+      const data = await fetcher(url);
+      setAllGenerations(prev => [...prev, ...(data.items ?? [])]);
+      setTotal(data.total ?? 0);
+      setOffset(prev => prev + LIMIT);
+    } finally {
+      setLoadingMore(false);
+    }
+  };
 
   const [addingStorageId, setAddingStorageId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -270,13 +295,14 @@ export default function AdminShowcasePage() {
         </div>
 
         {/* Generation grid */}
-        {!generations ? (
+        {generationsData === undefined ? (
           <div className="flex items-center justify-center h-32">
             <Loader2 size={24} className="animate-spin text-muted" />
           </div>
-        ) : generations.length > 0 ? (
+        ) : allGenerations.length > 0 ? (
+          <>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {generations.flatMap((gen: any) =>
+            {allGenerations.flatMap((gen: any) =>
               gen.outputs.map((output: any, idx: number) => (
                 <div
                   key={`${gen.id}-${output.url ?? idx}`}
@@ -340,6 +366,22 @@ export default function AdminShowcasePage() {
               ))
             )}
           </div>
+          {/* Load More */}
+          {total !== null && offset < total && (
+            <div className="mt-6 flex justify-center">
+              <button
+                onClick={handleLoadMore}
+                disabled={loadingMore}
+                className="px-6 py-2.5 rounded-xl bg-surface-2 border border-card-border text-sm font-medium hover:border-primary/30 hover:text-primary disabled:opacity-50 transition-all flex items-center gap-2"
+              >
+                {loadingMore ? (
+                  <Loader2 size={16} className="animate-spin" />
+                ) : null}
+                تحميل المزيد ({total - offset} متبقي)
+              </button>
+            </div>
+          )}
+          </>
         ) : (
           <div className="bg-surface-1 border border-card-border rounded-2xl p-12 text-center">
             <ImagePlus size={48} className="text-muted mx-auto mb-4" />

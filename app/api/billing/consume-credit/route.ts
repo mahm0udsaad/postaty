@@ -36,8 +36,8 @@ export async function POST(request: Request) {
       );
     }
 
-    // Amount defaults to 1, supports fractional credits (e.g. 0.5 for edits, 2 for reels)
-    const amount = typeof rawAmount === "number" && rawAmount > 0 && rawAmount <= 10
+    // Amount defaults to 1 and supports larger/fractional values (e.g. 5 for edits, 20 for menus)
+    const amount = typeof rawAmount === "number" && Number.isFinite(rawAmount) && rawAmount > 0
       ? rawAmount
       : 1;
 

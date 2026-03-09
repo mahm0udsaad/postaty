@@ -12,7 +12,8 @@ export async function GET(request: Request) {
 
     const { data: events, error } = await admin
       .from("ai_usage_events")
-      .select("created_at, estimated_cost_usd, images_generated, success")
+      .select("created_at, total_cost_usd, images_generated, success")
+      .eq("cost_mode", "exact")
       .gte("created_at", cutoff)
       .order("created_at", { ascending: true });
 
@@ -48,7 +49,7 @@ export async function GET(request: Request) {
         };
       }
       dailyMap[date].requests++;
-      dailyMap[date].cost += Number(e.estimated_cost_usd);
+      dailyMap[date].cost += Number(e.total_cost_usd);
       dailyMap[date].images += Number(e.images_generated);
       if (!e.success) {
         dailyMap[date].failures++;

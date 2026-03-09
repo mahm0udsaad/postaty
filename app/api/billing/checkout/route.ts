@@ -16,8 +16,8 @@ const PLAN_CONFIG: Record<
 };
 
 const ADDON_CONFIG: Record<AddonKey, { credits: number }> = {
-  addon_5: { credits: 5 },
-  addon_10: { credits: 10 },
+  addon_5: { credits: 50 },
+  addon_10: { credits: 100 },
 };
 
 function getStripe() {

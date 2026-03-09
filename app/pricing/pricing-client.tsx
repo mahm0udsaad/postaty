@@ -62,14 +62,14 @@ export default function PricingClient({ countryCode, fallbackPricing }: PricingC
           <h2 className="text-2xl font-black mb-6 text-center">{t("أرصدة إضافية", "Extra credits")}</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <AddonCard
-              title={t("5 أرصدة", "5 credits")}
+              title={t("50 رصيد", "50 credits")}
               price="$4"
               addonKey="addon_5"
               router={router}
               locale={locale}
             />
             <AddonCard
-              title={t("10 أرصدة", "10 credits")}
+              title={t("100 رصيد", "100 credits")}
               price="$7"
               addonKey="addon_10"
               router={router}

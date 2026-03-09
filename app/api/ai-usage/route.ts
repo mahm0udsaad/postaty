@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { requireAuth } from "@/lib/supabase/auth-helpers";
 import { createAdminClient } from "@/lib/supabase/server";
+import { persistExactAiUsageEvent } from "@/lib/ai-cost";
 
 export async function GET() {
   try {
@@ -27,7 +28,7 @@ export async function GET() {
     let failureCount = 0;
 
     for (const e of allEvents) {
-      totalCost += e.estimated_cost_usd || 0;
+      totalCost += e.total_cost_usd || e.estimated_cost_usd || 0;
       totalImages += e.images_generated || 0;
       if (e.success) {
         successCount++;
@@ -65,8 +66,51 @@ export async function POST(request: Request) {
     const events = body.events || [body];
     const now = Date.now();
 
-    // Load pricing for all distinct models in one pass
-    const models = [...new Set(events.map((e: Record<string, unknown>) => e.model))] as string[];
+    const exactEvents = events.filter(
+      (e: Record<string, unknown>) =>
+        (e.provider === "google_direct" || e.provider === "vercel_gateway") &&
+        typeof e.providerModelId === "string"
+    );
+
+    for (const event of exactEvents) {
+      await persistExactAiUsageEvent({
+        userAuthId: user.id,
+        generationId: typeof event.generationId === "string" ? event.generationId : undefined,
+        generationType:
+          typeof event.generationType === "string"
+            ? (event.generationType as "poster" | "menu" | "reel" | "marketing-content" | "gift" | "edit")
+            : "poster",
+        route:
+          typeof event.route === "string"
+            ? (event.route as "poster" | "menu" | "reel" | "marketing-content" | "gift" | "edit")
+            : "poster",
+        model: String(event.model || ""),
+        provider: event.provider as "google_direct" | "vercel_gateway",
+        providerModelId: String(event.providerModelId),
+        inputTokens: (event.inputTokens as number) || 0,
+        outputTokens: (event.outputTokens as number) || 0,
+        imagesGenerated: (event.imagesGenerated as number) || 0,
+        durationMs: (event.durationMs as number) || 0,
+        success: event.success ?? true,
+        error: (event.error as string) || null,
+        createdAt: Date.now(),
+      });
+    }
+
+    const legacyEvents = events.filter(
+      (e: Record<string, unknown>) =>
+        !(
+          (e.provider === "google_direct" || e.provider === "vercel_gateway") &&
+          typeof e.providerModelId === "string"
+        )
+    );
+
+    if (legacyEvents.length === 0) {
+      return NextResponse.json({ count: exactEvents.length }, { status: 201 });
+    }
+
+    // Load pricing for all distinct models in one pass for legacy callers.
+    const models = [...new Set(legacyEvents.map((e: Record<string, unknown>) => e.model))] as string[];
     const pricingMap = new Map<string, Record<string, number>>();
 
     for (const model of models) {
@@ -83,7 +127,7 @@ export async function POST(request: Request) {
       }
     }
 
-    const insertRows = events.map((e: Record<string, unknown>) => {
+    const insertRows = legacyEvents.map((e: Record<string, unknown>) => {
       const pricing = pricingMap.get(e.model as string);
       let estimatedCostUsd = 0;
 
@@ -109,6 +153,8 @@ export async function POST(request: Request) {
         success: e.success ?? true,
         error: (e.error as string) || null,
         estimated_cost_usd: estimatedCostUsd,
+        total_cost_usd: estimatedCostUsd,
+        cost_mode: "legacy",
         created_at: now,
       };
     });

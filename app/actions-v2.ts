@@ -5,6 +5,7 @@ import { generatePoster, generateMarketingContent } from "@/lib/generate-designs
 import { getInspirationImages } from "@/lib/inspiration-images";
 import { removeBackgroundWithFallback } from "@/lib/gift-editor/remove-background";
 import { postFormDataSchema } from "@/lib/validation";
+import { persistExactAiUsageEvent } from "@/lib/ai-cost";
 import type { PostFormData, OutputFormat, GeneratePostersResult, MarketingContentHub, Category, CampaignType } from "@/lib/types";
 import type { BrandKitPromptData } from "@/lib/prompts";
 import type { GenerationUsage } from "@/lib/generate-designs";
@@ -17,8 +18,10 @@ function extractUsageFromUnknown(value: unknown): GenerationUsage | undefined {
 
   const usage = maybeUsage as Partial<GenerationUsage>;
   if (
-    (usage.route === "poster" || usage.route === "gift" || usage.route === "marketing-content" || usage.route === "menu") &&
+    (usage.route === "poster" || usage.route === "gift" || usage.route === "marketing-content" || usage.route === "menu" || usage.route === "edit") &&
     typeof usage.model === "string" &&
+    (usage.provider === "google_direct" || usage.provider === "vercel_gateway") &&
+    typeof usage.providerModelId === "string" &&
     typeof usage.inputTokens === "number" &&
     typeof usage.outputTokens === "number" &&
     typeof usage.imagesGenerated === "number" &&
@@ -33,7 +36,8 @@ function extractUsageFromUnknown(value: unknown): GenerationUsage | undefined {
 /** Generate main poster (marketing content is generated separately after poster completes) */
 export async function generatePosters(
   data: PostFormData,
-  brandKit?: BrandKitPromptData
+  brandKit?: BrandKitPromptData,
+  generationId?: string
 ): Promise<GeneratePostersResult & { usages: GenerationUsage[] }> {
   // Server-side auth gate — block unauthenticated requests
   const supabase = await createClient();
@@ -59,7 +63,7 @@ export async function generatePosters(
       issues: validation.error.issues.map((i) => ({
         path: i.path.join("."),
         message: i.message,
-        received: (i as any).received,
+        received: (i as { received?: unknown }).received,
       })),
     });
     throw new Error(
@@ -77,6 +81,25 @@ export async function generatePosters(
   try {
     const design = await generatePoster(sanitized, brandKit);
     usages.push(design.usage);
+    try {
+      await persistExactAiUsageEvent({
+        userAuthId: userId,
+        generationId,
+        generationType: "poster",
+        route: design.usage.route,
+        model: design.usage.model,
+        provider: design.usage.provider,
+        providerModelId: design.usage.providerModelId,
+        inputTokens: design.usage.inputTokens,
+        outputTokens: design.usage.outputTokens,
+        imagesGenerated: design.usage.imagesGenerated,
+        durationMs: design.usage.durationMs,
+        success: design.usage.success,
+        error: design.usage.error ?? null,
+      });
+    } catch (usageErr) {
+      console.error("[generatePosters] failed to persist exact usage", usageErr);
+    }
     console.info("[generatePosters] main success");
 
     const main: GeneratePostersResult["main"] = {
@@ -93,7 +116,28 @@ export async function generatePosters(
   } catch (err) {
     console.error("[generatePosters] main failed", err);
     const errUsage = extractUsageFromUnknown(err);
-    if (errUsage) usages.push(errUsage);
+    if (errUsage) {
+      usages.push(errUsage);
+      try {
+        await persistExactAiUsageEvent({
+          userAuthId: userId,
+          generationId,
+          generationType: "poster",
+          route: errUsage.route,
+          model: errUsage.model,
+          provider: errUsage.provider,
+          providerModelId: errUsage.providerModelId,
+          inputTokens: errUsage.inputTokens,
+          outputTokens: errUsage.outputTokens,
+          imagesGenerated: errUsage.imagesGenerated,
+          durationMs: errUsage.durationMs,
+          success: errUsage.success,
+          error: errUsage.error ?? null,
+        });
+      } catch (usageErr) {
+        console.error("[generatePosters] failed to persist exact usage", usageErr);
+      }
+    }
 
     const errorMessage = err instanceof Error ? err.message : "Generation failed";
     let errorType: "quota" | "capacity" | "generation" = "generation";
@@ -121,20 +165,64 @@ export async function generatePosters(
 /** Generate marketing content for all social platforms (called AFTER poster is ready, no credit cost) */
 export async function generateMarketingContentAction(
   data: PostFormData,
-  language: string = "auto"
+  language: string = "auto",
+  generationId?: string
 ): Promise<{ content: MarketingContentHub; usage: GenerationUsage } | { error: string }> {
+  let userId: string | undefined;
   try {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user?.id) {
+    userId = user?.id;
+    if (!userId) {
       return { error: "Authentication required" };
     }
 
     const result = await generateMarketingContent(data, language);
+    try {
+      await persistExactAiUsageEvent({
+        userAuthId: userId,
+        generationId,
+        generationType: "marketing-content",
+        route: result.usage.route,
+        model: result.usage.model,
+        provider: result.usage.provider,
+        providerModelId: result.usage.providerModelId,
+        inputTokens: result.usage.inputTokens,
+        outputTokens: result.usage.outputTokens,
+        imagesGenerated: result.usage.imagesGenerated,
+        durationMs: result.usage.durationMs,
+        success: result.usage.success,
+        error: result.usage.error ?? null,
+      });
+    } catch (usageErr) {
+      console.error("[generateMarketingContentAction] failed to persist exact usage", usageErr);
+    }
     const { usage, ...content } = result;
     return { content, usage };
   } catch (err) {
     console.warn("[generateMarketingContentAction] failed (non-blocking)", err);
+    const usage = extractUsageFromUnknown(err);
+    if (userId && usage) {
+      try {
+        await persistExactAiUsageEvent({
+          userAuthId: userId,
+          generationId,
+          generationType: "marketing-content",
+          route: usage.route,
+          model: usage.model,
+          provider: usage.provider,
+          providerModelId: usage.providerModelId,
+          inputTokens: usage.inputTokens,
+          outputTokens: usage.outputTokens,
+          imagesGenerated: usage.imagesGenerated,
+          durationMs: usage.durationMs,
+          success: usage.success,
+          error: usage.error ?? null,
+        });
+      } catch (usageErr) {
+        console.error("[generateMarketingContentAction] failed to persist exact usage", usageErr);
+      }
+    }
     return { error: err instanceof Error ? err.message : "Marketing content generation failed" };
   }
 }

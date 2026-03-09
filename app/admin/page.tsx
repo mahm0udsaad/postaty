@@ -2,7 +2,6 @@
 
 import useSWR from "swr";
 import {
-  Brain,
   DollarSign,
   Users,
   ThumbsUp,
@@ -17,6 +16,16 @@ const fetcher = (url: string) => fetch(url).then(r => {
   if (!r.ok) throw new Error('API error');
   return r.json();
 });
+
+type DashboardUser = {
+  id: string;
+  name: string;
+  email: string;
+  totalGenerations?: number;
+  billing?: {
+    plan_key?: string;
+  } | null;
+};
 
 export default function AdminDashboard() {
   const { data: overview } = useSWR('/api/admin/overview?periodDays=30', fetcher);
@@ -55,7 +64,7 @@ export default function AdminDashboard() {
             />
             <KpiCard
               label="صافي الأرباح"
-              value={`$${(financialOverview?.netProfit ?? 0).toFixed(2)}`}
+              value={`$${(financialOverview?.exactNetProfit ?? 0).toFixed(2)}`}
               icon={DollarSign}
               color="text-success"
               bgColor="bg-success/10"
@@ -99,7 +108,7 @@ export default function AdminDashboard() {
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-muted">تكلفة AI</span>
-                  <span className="font-bold text-destructive">-${(financialOverview?.apiCostUsd ?? 0).toFixed(2)}</span>
+                  <span className="font-bold text-destructive">-${(financialOverview?.exactApiCostUsd ?? 0).toFixed(2)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-sm text-muted">MRR</span>
@@ -183,7 +192,7 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {users.slice(0, 5).map((user: any) => (
+                    {(users as DashboardUser[]).slice(0, 5).map((user) => (
                       <tr key={user.id} className="border-b border-card-border/50">
                         <td className="py-3 px-2 font-medium">{user.name}</td>
                         <td className="py-3 px-2 text-muted">{user.email}</td>

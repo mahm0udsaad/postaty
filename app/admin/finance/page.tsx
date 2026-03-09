@@ -2,7 +2,6 @@
 
 import useSWR from "swr";
 import {
-  DollarSign,
   TrendingUp,
   CreditCard,
   AlertCircle,
@@ -37,7 +36,11 @@ export default function AdminFinancePage() {
     );
   }
 
-  const profitPositive = overview.netProfit >= 0;
+  const profitPositive = overview.exactNetProfit >= 0;
+
+  const coverageDate = overview.exactCostCoverageStart
+    ? new Date(overview.exactCostCoverageStart).toLocaleDateString("en-CA")
+    : "—";
 
   return (
     <div>
@@ -64,6 +67,10 @@ export default function AdminFinancePage() {
         </div>
       </div>
 
+      <div className="bg-surface-1 border border-card-border rounded-2xl p-5 mb-8 text-sm text-muted">
+        يتم احتساب صافي الربح الدقيق من <span className="font-mono text-foreground">{coverageDate}</span> وما بعده فقط.
+      </div>
+
       {/* Profit Formula */}
       <div className="bg-surface-1 border border-card-border rounded-2xl p-6 mb-8">
         <h3 className="font-bold text-lg mb-4">معادلة الأرباح</h3>
@@ -77,13 +84,13 @@ export default function AdminFinancePage() {
           </span>
           <Minus size={20} className="text-muted" />
           <span className="px-4 py-2 bg-accent/10 text-accent rounded-xl font-bold">
-            ${overview.apiCostUsd.toFixed(4)}
+            ${overview.exactApiCostUsd.toFixed(4)}
           </span>
           <span className="text-muted">=</span>
           <span className={`px-4 py-2 rounded-xl font-bold ${
             profitPositive ? "bg-success/10 text-success" : "bg-destructive/10 text-destructive"
           }`}>
-            ${overview.netProfit.toFixed(2)}
+            ${overview.exactNetProfit.toFixed(2)}
           </span>
         </div>
         <div className="flex flex-wrap items-center gap-3 text-xs text-muted justify-center mt-3">
@@ -120,16 +127,16 @@ export default function AdminFinancePage() {
         />
         <MetricCard
           label="تكلفة API"
-          value={`$${overview.apiCostUsd.toFixed(4)}`}
-          description="تكلفة استخدام نماذج AI (Gemini) المسجلة من aiUsageEvents."
+          value={`$${overview.exactApiCostUsd.toFixed(4)}`}
+          description="تكلفة AI الدقيقة المبنية على استهلاك المزود الفعلي للأحداث الجديدة فقط."
           icon={ArrowDown}
           color="text-accent"
           bgColor="bg-accent/10"
         />
         <MetricCard
           label="صافي الربح"
-          value={`$${overview.netProfit.toFixed(2)}`}
-          description="الإيرادات - رسوم Stripe - تكلفة API."
+          value={`$${overview.exactNetProfit.toFixed(2)}`}
+          description="الإيرادات - رسوم Stripe - تكلفة AI الدقيقة."
           icon={TrendingUp}
           color={profitPositive ? "text-success" : "text-destructive"}
           bgColor={profitPositive ? "bg-success/10" : "bg-destructive/10"}
@@ -171,7 +178,7 @@ export default function AdminFinancePage() {
       </div>
 
       {/* Zero state */}
-      {overview.grossRevenue === 0 && overview.apiCostUsd === 0 && (
+      {overview.grossRevenue === 0 && overview.exactApiCostUsd === 0 && (
         <div className="bg-surface-2/30 border border-card-border rounded-2xl p-6 flex items-start gap-3">
           <AlertCircle size={20} className="text-muted mt-0.5 shrink-0" />
           <div>

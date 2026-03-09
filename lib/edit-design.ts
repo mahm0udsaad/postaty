@@ -3,8 +3,14 @@
 import { generateText } from "ai";
 import { editImageModel, gatewayEditImageModel, freeImageModel } from "@/lib/ai";
 import { buildImageProviderOptions, getSharp } from "./image-helpers";
+import type { GenerationUsage } from "./generate-designs";
 
 const EDIT_MODEL_ID = "gemini-3.1-flash-image-preview";
+const EDIT_GATEWAY_MODEL_ID = "gemini-3.1-flash-image-preview (gateway)";
+const EDIT_PROVIDER_MODEL_ID = "gemini-3.1-flash-image-preview";
+const EDIT_GATEWAY_PROVIDER_MODEL_ID = "google/gemini-3.1-flash-image-preview";
+const FREE_MODEL_ID = "gemini-2.5-flash-image";
+const FREE_PROVIDER_MODEL_ID = "gemini-2.5-flash-image";
 
 const EDIT_SYSTEM_PROMPT = `You are a professional image editor. You receive a designed marketing poster/menu image and a user edit request.
 
@@ -25,9 +31,14 @@ export async function editDesign(input: {
   height: number;
   model?: "edit" | "free";
   inputMaxPx?: number;
-}): Promise<{ imageBase64: string }> {
+}): Promise<{ imageBase64: string; usage: GenerationUsage }> {
   const { imageBase64, editPrompt, aspectRatio, width, height, model = "edit", inputMaxPx = 512 } = input;
   const aiModel = model === "free" ? freeImageModel : gatewayEditImageModel;
+  let usedModel = model === "free" ? FREE_MODEL_ID : EDIT_GATEWAY_MODEL_ID;
+  let usedProvider: GenerationUsage["provider"] =
+    model === "free" ? "google_direct" : "vercel_gateway";
+  let usedProviderModelId =
+    model === "free" ? FREE_PROVIDER_MODEL_ID : EDIT_GATEWAY_PROVIDER_MODEL_ID;
 
   // Decode base64 data URL → Buffer
   const match = imageBase64.match(/^data:(image\/[^;]+);base64,(.+)$/);
@@ -69,6 +80,9 @@ export async function editDesign(input: {
   } catch (primaryErr) {
     if (model !== "edit") throw primaryErr;
     console.warn("[editDesign] primary failed, falling back to direct", primaryErr instanceof Error ? primaryErr.message : primaryErr);
+    usedModel = EDIT_MODEL_ID;
+    usedProvider = "google_direct";
+    usedProviderModelId = EDIT_PROVIDER_MODEL_ID;
     result = await generateText({ model: editImageModel, ...editRequest });
   }
 
@@ -80,7 +94,19 @@ export async function editDesign(input: {
       filesCount: result.files?.length ?? 0,
       textSnippet: result.text?.slice(0, 200),
     });
-    throw new Error("Edit model did not return an image");
+    const usage: GenerationUsage = {
+      route: "edit",
+      model: usedModel,
+      provider: usedProvider,
+      providerModelId: usedProviderModelId,
+      inputTokens: result.usage?.inputTokens ?? 0,
+      outputTokens: result.usage?.outputTokens ?? 0,
+      imagesGenerated: 0,
+      durationMs,
+      success: false,
+      error: "Edit model did not return an image",
+    };
+    throw Object.assign(new Error("Edit model did not return an image"), { usage });
   }
 
   // Resize to exact target dimensions
@@ -92,12 +118,24 @@ export async function editDesign(input: {
   const base64 = resizedBuffer.toString("base64");
   const base64DataUrl = `data:image/jpeg;base64,${base64}`;
 
-  console.info("[editDesign] success", {
-    model: model === "free" ? "gemini-2.5-flash-image" : EDIT_MODEL_ID,
-    durationMs,
+  const usage: GenerationUsage = {
+    route: "edit",
+    model: usedModel,
+    provider: usedProvider,
+    providerModelId: usedProviderModelId,
     inputTokens: result.usage?.inputTokens ?? 0,
     outputTokens: result.usage?.outputTokens ?? 0,
+    imagesGenerated: 1,
+    durationMs,
+    success: true,
+  };
+
+  console.info("[editDesign] success", {
+    model: usedModel,
+    durationMs,
+    inputTokens: usage.inputTokens,
+    outputTokens: usage.outputTokens,
   });
 
-  return { imageBase64: base64DataUrl };
+  return { imageBase64: base64DataUrl, usage };
 }
